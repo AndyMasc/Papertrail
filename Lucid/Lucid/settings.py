@@ -50,6 +50,9 @@ INSTALLED_APPS = [
 
     "tailwind",
     "theme",
+
+    # My apps
+    "core",
 ]
 
 TAILWIND_APP_NAME = "theme"
@@ -94,7 +97,7 @@ ROOT_URLCONF = "Lucid.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / 'templates'],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -107,6 +110,9 @@ TEMPLATES = [
         },
     },
 ]
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_URL = "/static/"
 
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
