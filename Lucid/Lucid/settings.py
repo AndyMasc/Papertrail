@@ -47,7 +47,12 @@ INSTALLED_APPS = [
 
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.github",
+
+    "tailwind",
+    "theme",
 ]
+
+TAILWIND_APP_NAME = "theme"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
