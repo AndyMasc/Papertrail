@@ -78,6 +78,7 @@ MIDDLEWARE = [
 ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ['email', 'username']
+LOGIN_REDIRECT_URL = "core:home"
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
