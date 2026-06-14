@@ -9,13 +9,9 @@
     {% tailwind_css %}
     
     <title>{% block title %} {% endblock %}</title>
-    
-    {% block head %} 
-        
-    {% endblock %}
+    {% block head %} {% endblock %}
 </head>
-
-<body>
+<body class="dark:bg-zinc-950">
     {% block content %} {% endblock %}
 </body>
 </html>

@@ -118,7 +118,7 @@ TEMPLATES = [
 ]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATIC_URL = "/static/"
+STATIC_URL = "static/"
 
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
