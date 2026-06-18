@@ -34,12 +34,15 @@ ALLOWED_HOSTS = []
 
 # Application definition
 INSTALLED_APPS = [
+    "allauth_ui",
+    
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
 
     # Broswer reload (NOT FOR PRODUCTION)
     "django_browser_reload",
@@ -53,12 +56,16 @@ INSTALLED_APPS = [
 
     "tailwind",
     "theme",
+    "widget_tweaks",
+    "slippers",
 
     # My apps
     "core",
 ]
 
 TAILWIND_APP_NAME = "theme"
+SITE_ID = 1  # Ensure this matches the ID of your site in the admin
+ALLAUTH_UI_THEME = "wireframe"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -75,10 +82,17 @@ MIDDLEWARE = [
 ]
 
 # Custom Django Allauth configuration (Overwrites default settings)
-ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
-ACCOUNT_LOGIN_METHODS = ['email', 'username']
+ACCOUNT_LOGIN_METHODS = ['email']
 LOGIN_REDIRECT_URL = "core:home"
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
