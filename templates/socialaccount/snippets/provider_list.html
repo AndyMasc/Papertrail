@@ -13,9 +13,26 @@
             {% endfor %}
         {% endif %}
         {% provider_login_url provider process=process scope=scope auth_params=auth_params as href %}
-        <a class="btn w-full my-1 text-primary-content bg-emerald-500 hover:bg-emerald-600 shadow-none"
+        <a class="
+            btn w-full my-1 
+            font-medium
+
+            border border-emerald-500 
+            bg-emerald-400/10
+            dark:bg-emerald-400/5
+
+            dark:border-emerald-900
+            hover:bg-emerald-500/20
+            dark:hover:bg-emerald-400/10
+            text-black
+            dark:text-white
+            
+            shadow-none
+            transition-colors duration-200"
            title="{{ provider.name }}"
-           href="{{ href }}">{{ provider.name }}</a>
+           href="{{ href }}">
+           {{ provider.name }}
+        </a>
     {% endfor %}
 </div>
 {% endif %}

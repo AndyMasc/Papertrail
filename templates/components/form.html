@@ -7,7 +7,7 @@
 {% var use_default_button=use_default_button|default:"true" %}
 <form class="py-3" method="post" action="{{ url }}">
     {% for error in form.non_field_errors %}
-        <span class="my-1 flex items-center max-w-xs mt-1 ml-1 text-sm font-medium tracking-wide text-error">{{ error }}</span>
+        <span class="my-1 flex items-center max-w-full mt-1 text-sm font-light tracking-wide text-error bg-rose-300/10 p-2 rounded-md border border-rose-300 dark:border-rose-300/30 text-rose-500 dark:text-rose-400">{{ error }}</span>
     {% endfor %}
     {% if render_fields == "true" %}
         {% for field in form.visible_fields %}
@@ -19,6 +19,6 @@
     {% endif %}
     {{ children }}
     {% if use_default_button == "true" %}
-        <button type="submit" class="my-3 btn btn-primary bg-emerald-500 hover:bg-emerald-600 shadow-none border-none">{{ button_text }}</button>
+        <button type="submit" class="my-3 btn btn-primary font-medium bg-emerald-500 dark:bg-emerald-700 hover:bg-emerald-600 dark:hover:bg-emerald-800 shadow-none border-none">{{ button_text }}</button>
     {% endif %}
 </form>

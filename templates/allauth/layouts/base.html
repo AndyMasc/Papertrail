@@ -17,19 +17,26 @@
             <link rel="stylesheet" href="{% static 'allauth_ui/output.css' %}">
         {% endblock extra_head %}
     </head>
-    <body class="min-h-screen bg-base-300 dark:bg-zinc-950 flex flex-col justify-center">
-        {% block body %}
-            {% if messages %}
+    <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col items-center">
+        {% if messages %}
+            <div class="w-full">
                 {% for message in messages %}
-                    <div role="alert"
-                         class="text-sm md:text-base alert alert-{{ message.tags }}">
-                        <span><strong>{{ message }}</strong></span>
+                    <div class="w-full p-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100">
+                        <div class="max-w-2xl mx-auto flex flex-col items-center justify-center gap-4 text-center">
+                            <div>
+                                <h5 class="font-medium">Alert</h5>
+                                <div class="text-sm opacity-70">{{ message }}</div>
+                            </div>
+                        </div>
                     </div>
                 {% endfor %}
-            {% endif %}
+            </div>
+        {% endif %}
+    
+        <main class="grow flex flex-col justify-center w-full py-8">
             {% block content %}
             {% endblock content %}
-            <div class="mx-auto [&_a]:link text-sm flex flex-row items-center justify-center gap-5 my-3">
+            <div class="mx-auto [&_a]:link text-sm flex flex-row items-center justify-center gap-5 my-3 text-zinc-400">
                 {% if user.is_authenticated %}
                     {% url 'account_email' as email_url %}
                     {% if email_url %}
@@ -63,8 +70,6 @@
                     {% endif %}
                 {% endif %}
             </div>
-        {% endblock body %}
-        {% block extra_body %}
-        {% endblock extra_body %}
+        </main>
     </body>
 </html>
