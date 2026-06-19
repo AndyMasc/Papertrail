@@ -25,7 +25,7 @@
         </div>
     </nav>
     
-    <section class="w-full bg-linear-to-b from-white to-zinc-200 dark:from-zinc-950 dark:to-zinc-800 pt-36 rounded-md">
+    <section class="w-full bg-linear-to-b from-white to-zinc-200 dark:from-zinc-950 dark:from-20% dark:to-zinc-800 pt-36 rounded-md">
         <div class="container mx-auto gap-10 px-4 mb-5 flex flex-col items-center justify-center">
             <header>
                 <h1 class="text-4xl md:text-6xl text-center dark:text-white mb-5 font-semibold">
@@ -42,8 +42,8 @@
             </div>
         </div>
         <div class="pl-4 sm:px-4 pb-10 mx-auto">
-            <img src="{% static 'core/images/interface-demo-light.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-zinc-700 dark:hidden md:w-7xl" alt="Dark interface demo image">
-            <img src="{% static 'core/images/interface-demo-dark.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-zinc-950 hidden dark:block md:w-7xl" alt="Dark interface demo image">
+            <img src="{% static 'core/images/interface-demo-light.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-zinc-400 dark:hidden md:w-7xl" alt="Dark interface demo image">
+            <img src="{% static 'core/images/interface-demo-dark.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-black hidden dark:block md:w-7xl" alt="Dark interface demo image">
         </div>
     </section>
 {% endblock %}

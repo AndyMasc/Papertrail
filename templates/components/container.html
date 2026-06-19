@@ -1,7 +1,7 @@
 {% load i18n %}
 <div class="container pt-1 mx-auto">
-    <div class="w-11/12 p-10 mx-auto mt-5 rounded-lg shadow-md md:mt-15 lg:mt-32 sm:p-5 md:w-6/12 lg:w-5/12 xl:w-4/12 md:p-10 xl:p-13 bg-base-200"> <!-- Originally bg-base-100 -->
-        <h1 class="mb-3 text-2xl">{{ heading }}</h1>
+    <div class="w-11/12 p-10 mx-auto rounded-lg sm:p-5 md:w-8/12 lg:w-7/12 xl:w-4/12 md:p-10 xl:p-13 bg-base-100 shadow-2xl shadow dark:shadow-[rgb(255,255,255,0.07)] dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+        <h1 class="mb-3 text-2xl font-semibold">{{ heading }}</h1>
         {% if subheading %}<div>{{ subheading }}</div>{% endif %}
         {{ children }}
     </div>

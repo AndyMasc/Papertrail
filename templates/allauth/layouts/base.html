@@ -2,6 +2,8 @@
 {% load i18n %}
 {% load static %}
 {% load allauth_ui %}
+{% load tailwind_tags %}
+{% tailwind_css %}
 <!DOCTYPE html>
 <html data-theme="{% allauth_ui_theme %}">
     <head>
@@ -11,30 +13,11 @@
             {% block head_title %}
             {% endblock head_title %}
         </title>
-        {% load tailwind_tags %}
-        {% tailwind_css %}
         {% block extra_head %}
             <link rel="stylesheet" href="{% static 'allauth_ui/output.css' %}">
         {% endblock extra_head %}
-        
-        <script>
-            // 1. Define the function that sets the theme
-            const applyTheme = (isDark) => {
-            document.documentElement.setAttribute('data-theme', isDark ? 'black' : 'wireframe');
-            };
-        
-            // 2. Set the initial theme on load
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            applyTheme(mediaQuery.matches);
-        
-            // 3. Add an Event Listener to watch for changes
-            mediaQuery.addEventListener('change', (event) => {
-            applyTheme(event.matches);
-            });
-        </script>
-
     </head>
-    <body class="min-h-screen bg-base-100"> <!-- Originally bg-base-300 -->
+    <body class="min-h-screen bg-base-300 dark:bg-zinc-950 flex flex-col justify-center">
         {% block body %}
             {% if messages %}
                 {% for message in messages %}
@@ -46,7 +29,7 @@
             {% endif %}
             {% block content %}
             {% endblock content %}
-            <div class="mx-auto [&_a]:link text-sm flex flex-col md:flex-row items-center justify-center gap-3 mt-3">
+            <div class="mx-auto [&_a]:link text-sm flex flex-row items-center justify-center gap-5 my-3">
                 {% if user.is_authenticated %}
                     {% url 'account_email' as email_url %}
                     {% if email_url %}

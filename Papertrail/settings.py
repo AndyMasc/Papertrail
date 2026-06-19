@@ -65,7 +65,7 @@ INSTALLED_APPS = [
 
 TAILWIND_APP_NAME = "theme"
 SITE_ID = 1  # Ensure this matches the ID of your site in the admin
-ALLAUTH_UI_THEME = "wireframe"
+ALLAUTH_UI_THEME = "class"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
