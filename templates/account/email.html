@@ -22,10 +22,10 @@
                                     <span class="grow label-text overflow-auto py-3">
                                         {{ emailaddress.email }}
                                         {% if emailaddress.verified %}
-                                            <div class="badge badge-primary outline badge-outline ml-2 text-emerald-500 px-1.5">{% trans "Verified" %}</div>
+                                            <div class="badge badge-primary outline badge-outline ml-2 text-black dark:text-white px-1.5">{% trans "Verified" %}</div>
                                         {% endif %}
                                         {% if emailaddress.primary %}
-                                            <div class="badge badge-secondary outline badge-outline text-emerald-500 ml-2 px-1.5">{% trans "Primary" %}</div>
+                                            <div class="badge badge-secondary outline badge-outline text-black dark:text-white ml-2 px-1.5">{% trans "Primary" %}</div>
                                         {% endif %}
                                     </span>
                                     <input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" 
@@ -37,11 +37,11 @@
                 </div>
                 <div class="divider"></div>
                 <div class="flex flex-col mt-3 gap-2">
-                    <button name="action_primary" type="submit" class="btn btn-primary border-1 bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500 dark:border-emerald-800 shadow-none text-emerald-800 dark:text-emerald-100">{% trans "Make Primary" %}</button>
-                    <button name="action_send" type="submit" class="btn btn-secondary border-1 bg-zinc-100 dark:bg-zinc-200/5 hover:bg-zinc-200 dark:hover:bg-zinc-200/10 border-zinc-500 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-none ">
+                    <button name="action_primary" type="submit" class="btn btn-primary btn btn-neutral text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none">{% trans "Make Primary" %}</button>
+                    <button name="action_send" type="submit" class="btn btn-secondary focus:outline-none  text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none">
                         {% trans "Re-send verification" %}
                     </button>
-                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error bg-zinc-100 dark:bg-zinc-200/5 hover:bg-rose-300/5 dark:hover:bg-rose-300/15 p-2 rounded-md shadow-none border border-zinc-500 dark:border-zinc-700  hover:border-rose-300 hover:text-rose-500 dark:hover:text-rose-400 text-zinc-800 dark:text-zinc-200">{% trans "Remove" %}</button>
+                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none  hover:border-rose-300 hover:text-rose-500 dark:hover:text-rose-400 text-zinc-800 dark:text-zinc-200">{% trans "Remove" %}</button>
                 </div>
             {% /form %}
         {% else %}
@@ -54,7 +54,7 @@
             {% trans "Add Email" as button_text %}
             {% #form form=form url=action_url button_text=button_text use_default_button="false" %}
                 {% csrf_token %}
-                <button type="submit" name="action_add" class="my-3 btn bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white border-none">
+                <button type="submit" name="action_add" class="mb-2 btn mt-3 w-full btn btn-primary font-medium bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none">
                     {{ button_text }}
                 </button>
             {% /form %}

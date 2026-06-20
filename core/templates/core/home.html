@@ -5,31 +5,29 @@
     <nav class="fixed flex top-0 right-0 w-full justify-center align-center z-20 px-4 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-b-zinc-200 dark:border-b-zinc-700">
         <div class="container flex flex-row flex-wrap items-center justify-between py-3 mx-auto w-full md:max-w-7xl">
             <div class="relative flex">
-                <a href="{% url 'core:home' %}" class="sm:flex items-center text-zinc-950 text-xl dark:text-white font-black lg:w-auto lg:items-center lg:justify-center md:mb-0 whitespace-nowrap">
-                    Papertrail<span class="text-emerald-500" data-primary="emerald-500">.</span>
-                </a>
+                <a href="{% url 'core:home' %}" class="sm:flex items-center text-zinc-950 text-xl dark:text-white font-black lg:w-auto lg:items-center lg:justify-center md:mb-0 whitespace-nowrap">Papertrail.</a>
                 <nav class="hidden md:flex flex-wrap items-center mb-5 text-base md:mb-0 md:pl-8 md:ml-8 md:border-l md:border-zinc-200 md:dark:border-zinc-700">
-                    <a href="#_" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-700">Features</a>
-                    <a href="#_" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-700">Pricing</a>
-                    <a href="#_" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-700">FAQ</a>
+                    <a href="#_" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-800">Features</a>
+                    <a href="#_" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-800">Pricing</a>
+                    <a href="#faq" class="mr-5 leading-6 text-zinc-700 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-800">FAQ</a>
                 </nav>
             </div>
             <div class="inline-flex items-center space-x-3 sm:space-x-6 lg:justify-end">
-                <a href="{% url 'account_login' %}" class="text-base leading-6 whitespace-no-wrap text-zinc-950 dark:text-zinc-200 px-2 md:sm-4 py-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-700">
+                <a href="{% url 'account_login' %}" class="text-base leading-6 whitespace-no-wrap text-zinc-950 dark:text-zinc-200 px-2 md:sm-4 py-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-800">
                     Sign in
                 </a>
-                <a href="{% url 'account_signup' %}" class="inline-flex items-center justify-center px-2 md:sm-4 py-2 text-base leading-6 whitespace-no-wrap text-white bg-emerald-500 transition-all ease-in-out duration-200 hover:bg-emerald-600 rounded-md" data-rounded="rounded-md" data-primary="emerald-500">
+                <a href="{% url 'account_signup' %}" class="inline-flex items-center justify-center md:sm-4 py-2 text-base leading-6 whitespace-no-wrap text-white dark:text-black bg-black hover:bg-black/80 dark:bg-white transition-all ease-in-out duration-200 dark:hover:bg-white/80 rounded-md px-4" data-rounded="rounded-md">
                     Join now
                 </a>
             </div>
         </div>
     </nav>
     
-    <section class="w-full bg-linear-to-b from-white to-zinc-200 dark:from-zinc-950 dark:from-20% dark:to-zinc-800 pt-36 rounded-md">
+    <section class="w-full bg-linear-to-b from-white to-zinc-300 dark:from-zinc-950 dark:from-20% dark:to-zinc-800 pt-36 rounded-md">
         <div class="container mx-auto gap-10 px-4 mb-5 flex flex-col items-center justify-center">
             <header>
                 <h1 class="text-4xl md:text-6xl text-center dark:text-white mb-5 font-semibold">
-                    Purchases leave <span class="text-emerald-500">Papertrails.</span>
+                    Purchases leave Papertrails.
                     <br>We'll track them for you.
                 </h1>
                 <p class="text-zinc-700 dark:text-zinc-400 text-center"> 
@@ -37,13 +35,52 @@
                 </p> 
             </header>
             <div class="grid grid-cols-2 gap-4 mb-5">
-                <a href="{% url 'account_signup' %}" class="text-white bg-emerald-500 transition-all ease-in-out duration-200 hover:bg-emerald-600 p-2 px-4 text-center rounded-md">Join now</a> 
-                <a href="#" class="text-zinc-950 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-4">Discover</a>
+                <a href="{% url 'account_signup' %}" class="text-white dark:text-black bg-black dark:bg-white transition-all ease-in-out duration-200 dark:hover:bg-white/80 hover:bg-black/80 p-2 px-4 text-center rounded-md">Join now</a> 
+                <a href="#" class="text-zinc-950 dark:text-white p-2 text-center rounded-md transition-all ease-in-out duration-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 px-4">Discover</a>
             </div>
         </div>
         <div class="pl-4 sm:px-4 pb-10 mx-auto">
-            <img src="{% static 'core/images/interface-demo-light.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-zinc-400 dark:hidden md:w-7xl" alt="Dark interface demo image">
-            <img src="{% static 'core/images/interface-demo-dark.png' %}" class="mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md sm:rounded-md shadow-2xl shadow-black hidden dark:block md:w-7xl" alt="Dark interface demo image">
+            <img src="{% static 'core/images/interface-demo-light.png' %}" class="border border-zinc-300 mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md border-r-white md:border-r-zinc-300 sm:rounded-md shadow-2xl shadow-zinc-400 dark:hidden md:w-7xl" alt="Dark interface demo image">
+            <img src="{% static 'core/images/interface-demo-dark.png' %}" class="border border-zinc-800 mx-auto min-h-90 h-max w-full md:h-auto object-cover object-left rounded-l-md border-r-black md:border-r-zinc-800 sm:rounded-md shadow-2xl shadow-black hidden dark:block md:w-7xl" alt="Dark interface demo image">
+        </div>
+    </section>
+    
+    <section id="faq" class="w-full mx-auto flex items-center justify-center min-h-screen py-24 px-4">
+        <div class="w-7xl mx-auto">
+            <h2 class="mb-4 text-2xl md:text-3xl font-semibold dark:text-white">Frequently Asked Questions.</h2>
+            <div class=" text-gray-600">
+                <div>
+                    <h5 class="mt-12 mb-3 font-semibold text-gray-900 dark:text-zinc-200">
+                        What is Papertrail?
+                    </h5>
+                    <p class="dark:text-zinc-400">
+                        Papertrail helps you organize receipts, warranties, and important purchase records in one place.
+                    </p>
+                    <hr class="my-5 lg:my-12">
+                    <h5 class="mt-10 mb-3 font-semibold text-gray-900 dark:text-zinc-200">
+                        How does receipt scanning work?
+                    </h5>
+                    <p class="dark:text-zinc-400">
+                        Upload a photo and Papertrail automatically extracts information. You can review and edit the details manually if needed.
+                    </p>
+                    <hr class="my-5 lg:my-12">
+
+                    <h5 class="mt-10 mb-3 font-semibold text-gray-900 dark:text-zinc-200">
+                        Is my data secure?
+                    </h5>
+                    <p class="dark:text-zinc-400">
+                        Your receipts and documents are stored securely and are only accessible from your account.
+                    </p>
+                    <hr class="my-5 lg:my-12">
+                    <h5 class="mt-10 mb-3 font-semibold text-gray-900 dark:text-zinc-200">
+                        Does Papertrail make digital reciepts?
+                    </h5>
+                    <p class="dark:text-zinc-400">
+                        Yes. Papertrail digitally recreates your reciepts, so you can use them all from your phone.
+                    </p>
+                    <hr class="my-5 lg:my-12">
+                </div>
+            </div>
         </div>
     </section>
 {% endblock %}
