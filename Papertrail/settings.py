@@ -65,7 +65,7 @@ INSTALLED_APPS = [
 
 TAILWIND_APP_NAME = "theme"
 SITE_ID = 1  # Ensure this matches the ID of your site in the admin
-ALLAUTH_UI_THEME = "class"
+ALLAUTH_UI_THEME = "place-holder" # MUST NOT BE AN ACTUAL DAISY UI THEME (OVERWRITES CUSTOM STYLES)
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -85,6 +85,9 @@ MIDDLEWARE = [
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ['email']
+ACCOUNT_LOGIN_BY_CODE_ENABLED = True
+ACCOUNT_MAX_EMAIL_ADDRESSES = 3
+ACCOUNT_EMAIL_NOTIFICATIONS = True
 LOGIN_REDIRECT_URL = "core:home"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'

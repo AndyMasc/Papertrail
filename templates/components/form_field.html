@@ -6,9 +6,9 @@
 {% if field.errors %}
     {% render_field field placeholder="" class="w-full input focus:outline-none border-red-700 dark:border-red-400 text-primary bg-transparent shadow-none input-error text-black dark:text-white" %}
 {% else %}
-    {% render_field field placeholder="" class="w-full input focus:outline-none focus:border-emerald-500 dark:focus:border-emerald-800 text-primary dark:border-zinc-700 text bg-transparent shadow-none text-black dark:text-white" %}
+    {% render_field field placeholder="" class="w-full input focus:outline-none border border-zinc-300 focus:border-emerald-500 dark:focus:border-emerald-800 text-primary dark:border-zinc-700 text bg-transparent shadow-none text-black dark:text-white" %}
 {% endif %}
 {% for error in field.errors %}
-    <span class="flex items-center max-w-xs mt-1 ml-1 text-xs font-light tracking-wide text-error text-red-700 dark:text-red-400">{{ error }}</span>
+    <span class="flex items-center max-w-full mt-1 ml-1 text-xs font-light tracking-wide text-error text-red-700 dark:text-red-400">{{ error }}</span>
 {% endfor %}
 </section>

@@ -13,8 +13,8 @@
             {% #form url=action_url use_default_button="false" %}
                 {{ redirect_field }}
                 {% csrf_token %}
-                
-                <div class="py-3 space-y-2">
+
+                <div class="space-y-2">
                     {% for radio in emailaddress_radios %}
                         {% with emailaddress=radio.emailaddress %}
                             <div class="form-control">
@@ -22,25 +22,26 @@
                                     <span class="grow label-text overflow-auto py-3">
                                         {{ emailaddress.email }}
                                         {% if emailaddress.verified %}
-                                            <div class="badge badge-primary badge-outline ml-2 text-emerald-500 px-1.5">{% trans "Verified" %}</div>
+                                            <div class="badge badge-primary outline badge-outline ml-2 text-emerald-500 px-1.5">{% trans "Verified" %}</div>
                                         {% endif %}
                                         {% if emailaddress.primary %}
-                                            <div class="badge badge-secondary badge-outline text-emerald-500 ml-2 px-1.5">{% trans "Primary" %}</div>
+                                            <div class="badge badge-secondary outline badge-outline text-emerald-500 ml-2 px-1.5">{% trans "Primary" %}</div>
                                         {% endif %}
                                     </span>
                                     <input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" 
-                                           class="radio checked:white dark:checked:black" {% if radio.checked %}checked{% endif %} />
+                                           class="radio checked:white dark:checked:black outline" {% if radio.checked %}checked{% endif %} />
                                 </label>
                             </div>
                         {% endwith %}
                     {% endfor %}
                 </div>
+                <div class="divider"></div>
                 <div class="flex flex-col mt-3 gap-2">
-                    <button name="action_primary" type="submit" class="btn btn-primary bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500 dark:border-emerald-800 shadow-none text-emerald-800 dark:text-emerald-100">{% trans "Make Primary" %}</button>
-                    <button name="action_send" type="submit" class="btn btn-secondary bg-zinc-100 dark:bg-zinc-200/5 hover:bg-zinc-200 dark:hover:bg-zinc-200/10 border-zinc-500 text-zinc-800 dark:text-zinc-200 shadow-none ">
+                    <button name="action_primary" type="submit" class="btn btn-primary border-1 bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500 dark:border-emerald-800 shadow-none text-emerald-800 dark:text-emerald-100">{% trans "Make Primary" %}</button>
+                    <button name="action_send" type="submit" class="btn btn-secondary border-1 bg-zinc-100 dark:bg-zinc-200/5 hover:bg-zinc-200 dark:hover:bg-zinc-200/10 border-zinc-500 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 shadow-none ">
                         {% trans "Re-send verification" %}
                     </button>
-                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error bg-zinc-100 dark:bg-zinc-200/5 hover:bg-rose-300/5 dark:hover:bg-rose-300/15 p-2 rounded-md shadow-none border hover:border-rose-300 border-zinc-500 hover:text-rose-500 dark:hover:text-rose-400 text-zinc-800 dark:text-zinc-200">{% trans "Remove" %}</button>
+                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error bg-zinc-100 dark:bg-zinc-200/5 hover:bg-rose-300/5 dark:hover:bg-rose-300/15 p-2 rounded-md shadow-none border border-zinc-500 dark:border-zinc-700  hover:border-rose-300 hover:text-rose-500 dark:hover:text-rose-400 text-zinc-800 dark:text-zinc-200">{% trans "Remove" %}</button>
                 </div>
             {% /form %}
         {% else %}
@@ -48,7 +49,7 @@
         {% endif %}
 
         {% if can_add_email %}
-            <div class="divider my-6"></div>
+        <div class="divider my-2"></div>
             <h2 class="text-lg font-semibold">{% trans "Add Email Address" %}</h2>
             {% trans "Add Email" as button_text %}
             {% #form form=form url=action_url button_text=button_text use_default_button="false" %}
@@ -57,6 +58,11 @@
                     {{ button_text }}
                 </button>
             {% /form %}
+        </div>
+        {% else %}
+        <div class="divider my-4">
+            <p class="text-sm text-zinc-400"> Maximum limit of 3 email addresses reached.</p>
+        </div>
         {% endif %}
     {% /container %}
 {% endblock content %}

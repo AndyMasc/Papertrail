@@ -32,7 +32,7 @@
                 {% csrf_token %}
                 
                 <div class="flex flex-col">
-                    <a class="link self-end text-sm" href="{% url "account_reset_password" %}">
+                    <a class="link self-end text-sm dark:text-zinc-400" href="{% url "account_reset_password" %}">
                         {% trans "Forgot password?" %}
                     </a>
                 </div>
@@ -40,8 +40,8 @@
         {% endif %}
 
         {% if LOGIN_BY_CODE_ENABLED %}
-            <div class="divider divider-neutral"></div>
-            <a href="{{ request_login_code_url }}" class="btn btn-neutral">{% trans "Mail me a sign-in code" %}</a>
+            <div class="divider divider mt-0 mb-2"></div>
+            <a href="{{ request_login_code_url }}" class="mb-2 btn btn-neutral text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none">{% trans "Mail me a sign-in code" %}</a>
         {% endif %}
 
         {% if SOCIALACCOUNT_ENABLED %}
