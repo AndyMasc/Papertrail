@@ -61,6 +61,7 @@ INSTALLED_APPS = [
 
     # My apps
     "core",
+    "documents",
 ]
 
 TAILWIND_APP_NAME = "theme"
@@ -87,8 +88,7 @@ ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ['email']
 ACCOUNT_LOGIN_BY_CODE_ENABLED = True
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
-ACCOUNT_EMAIL_NOTIFICATIONS = True
-LOGIN_REDIRECT_URL = "core:home"
+LOGIN_REDIRECT_URL = "core:dashboard"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST')

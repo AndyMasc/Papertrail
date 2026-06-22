@@ -41,7 +41,7 @@
                     <button name="action_send" type="submit" class="btn btn-secondary focus:outline-none  text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none">
                         {% trans "Re-send verification" %}
                     </button>
-                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none  hover:border-rose-300 hover:text-rose-500 dark:hover:text-rose-400 text-zinc-800 dark:text-zinc-200">{% trans "Remove" %}</button>
+                    <button name="action_remove" type="submit" class="btn btn-warning text-sm tracking-wide text-error text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none  hover:border-rose-300 hover:text-rose-500 dark:hover:text-rose-400">{% trans "Remove" %}</button>
                 </div>
             {% /form %}
         {% else %}
@@ -50,7 +50,7 @@
 
         {% if can_add_email %}
         <div class="divider my-2"></div>
-            <h2 class="text-lg font-semibold">{% trans "Add Email Address" %}</h2>
+            <h2 class="text-lg">{% trans "Add Email Address" %}</h2>
             {% trans "Add Email" as button_text %}
             {% #form form=form url=action_url button_text=button_text use_default_button="false" %}
                 {% csrf_token %}
