@@ -15,6 +15,7 @@ from pathlib import Path
 # My Imports
 import os
 from dotenv import load_dotenv
+from google.oauth2 import service_account
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -156,6 +157,14 @@ DATABASES = {
     }
 }
 
+# storage
+service_account_json_name = os.environ.get('SERVICE_ACCOUNT_JSON_NAME')
+GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
+    os.path.join(BASE_DIR, service_account_json_name)
+)
+DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+GS_BUCKET_NAME = 'papertrail-doc-storage'
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
@@ -183,3 +192,4 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 STATIC_URL = "static/"
+

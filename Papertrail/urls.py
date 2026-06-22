@@ -26,5 +26,5 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),
 
     path('', include('core.urls')),
-    path('documents/', include('document.urls'), name='documents')
+    path('documents/', include('documents.urls'), name='documents')
 ]
