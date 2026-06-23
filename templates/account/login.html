@@ -7,46 +7,46 @@
 
 {% block content %}
     {# 1. Prepare the subheading variable #}
-    {% blocktranslate asvar subheading %}
-        If you have not created an account yet, then please 
-        <a class="link" href="{{ signup_url }}">sign up</a> first.
-    {% endblocktranslate %}
 
     {# 2. Use ONE container, passing the heading and the new subheading variable #}
-    {% #container heading="Sign In" subheading=subheading %}
-        
-        {% if not SOCIALACCOUNT_ONLY %}
-            {% url 'account_login' as action_url %}
-            
-            {% #form form=form url=action_url button_text="Sign In" %}
-                {% if form.remember %}
-                    <div class="items-start my-2 form-control">
-                        <label class="cursor-pointer label">
-                            {% render_field form.remember type="checkbox" class="bg-black w-5 h-5 rounded-xl accent-black dark:accent-white" %}
-                            <span class="ml-1 label-text">{% trans "Remember me" %}</span>
-                        </label>
-                    </div>
-                {% endif %}
-                
-                {{ redirect_field }}
-                {% csrf_token %}
-                
-                <div class="flex flex-col">
-                    <a class="link self-end text-sm dark:text-zinc-400" href="{% url "account_reset_password" %}">
-                        {% trans "Forgot password?" %}
-                    </a>
-                </div>
-            {% /form %}
-        {% endif %}
+    {% #container heading="Sign in to Papertrail." subheading=subheading %}
 
+        
+            {% if not SOCIALACCOUNT_ONLY %}
+                {% url 'account_login' as action_url %}
+                {% #form form=form url=action_url button_text="Sign in magically" %}
+
+                <span class="hidden">
+                    {% if form.remember %}
+                        <div class="items-start my-2 form-control">
+                            <label class="cursor-pointer label">
+                                {% render_field form.remember type="checkbox" class="bg-black w-4 h-4 rounded-xl accent-black dark:accent-white" %}
+                                <span class="ml-1 label-text">{% trans "Remember me" %}</span>
+                            </label>
+                        </div>
+                    {% endif %}
+                    
+                    {{ redirect_field }}
+                    {% csrf_token %}
+                    <div class="flex flex-col">
+                        <a class="link self-end text-sm dark:text-zinc-400" href="{% url "account_reset_password" %}">
+                            {% trans "Forgot password?" %}
+                        </a>
+                    </div>
+                </span>
+                
+                {% /form %}
+            {% endif %}
+        
         {% if LOGIN_BY_CODE_ENABLED %}
             <div class="divider divider mt-0 mb-2"></div>
-            <a href="{{ request_login_code_url }}" class="mb-2 btn btn-neutral text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none border-none">{% trans "Mail me a sign-in code" %}</a>
+            <a href="{{ request_login_code_url }}" class="mb-2 border-none btn btn-neutral text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none">{% trans "Mail me a sign-in code" %}</a>
         {% endif %}
 
         {% if SOCIALACCOUNT_ENABLED %}
             {% include "socialaccount/snippets/login.html" with page_layout="entrance" %}
         {% endif %}
 
+        <div class="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Don't have an account? <a href="{{ signup_url }}" class="text-black dark:text-white">Sign up</a></div>
     {% /container %}
 {% endblock content %}

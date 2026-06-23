@@ -5,13 +5,13 @@
 {% load slippers %}
 {% block content %}
     {% trans "Account Connections" as heading %}
-    {% if form.accounts %}
-        {% blocktrans asvar subheading %}
-        You can sign in to your account using any of the following third-party accounts:
-        {% endblocktrans %}
-    {% else %}
-        {% trans "You currently have no third-party accounts connected to this account." as subheading %}
-    {% endif %}
+        {% if form.accounts %}
+            {% blocktrans asvar subheading %}
+            You can sign in to your account using any of the following third-party accounts:
+            {% endblocktrans %}
+        {% else %}
+            {% trans "You currently have no third-party accounts connected to this account." as subheading %}
+        {% endif %}
     {% #container heading=heading subheading=subheading %}
     {% if form.accounts %}
         {% url 'socialaccount_connections' as action_url %}
@@ -36,7 +36,8 @@
         </button>
         {% /form %}
     {% endif %}
-    <h2 class="py-3 text-lg">{% trans "Add a Third-Party Account" %}</h2>
+    <hr class="text-zinc-200 my-3 dark:text-zinc-800">
+    <h2 class="py-3 text-sm text-center text-zinc-500 dark:text-zinc-400">{% trans "Add a Third-Party Account" %}</h2>
     {% include "socialaccount/snippets/provider_list.html" with process="connect" %}
     {% include "socialaccount/snippets/login_extra.html" %}
     {% /container %}

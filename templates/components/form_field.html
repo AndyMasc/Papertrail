@@ -1,12 +1,12 @@
 {% load widget_tweaks %}
 <section class="nth-[n+2]:my-4">
-<label class="label mb-0.5" for="{{ field.id_for_label }}">
+<label class="hidden label mb-0.5" for="{{ field.id_for_label }}">
     <span class="label-text">{{ field.label }}</span>
 </label>
 {% if field.errors %}
     {% render_field field placeholder="" class="w-full input focus:outline-none border border-rose-300 dark:border-rose-300/30 text-primary bg-transparent shadow-none input-error text-black dark:text-white" %}
 {% else %}
-    {% render_field field placeholder="" class="w-full input focus:outline-none focus:border-black dark:focus:border-white text-primary text bg-transparent shadow-none text-black dark:text-white" %}
+    {% render_field field placeholder=field.label class="w-full input focus:outline-none focus:border-black dark:focus:border-white text-primary text bg-transparent shadow-none text-black dark:text-white" %}
 {% endif %}
 {% for error in field.errors %}
     <span class="flex items-center max-w-full mt-1 ml-1 text-xs font-light tracking-wide text-error text-rose-600 dark:text-rose-400">{{ error }}</span>

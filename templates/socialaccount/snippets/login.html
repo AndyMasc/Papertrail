@@ -4,9 +4,7 @@
 {% get_providers as socialaccount_providers %}
 {% if socialaccount_providers %}
     {% if not SOCIALACCOUNT_ONLY %}
-        <div class="divider m-0"></div>
-        <h2 class="my-3 text-sm">{% translate "Or use a third-party" %}</h2>
-    {% endif %}
+    <div class="divider divider-zinc-200 dark:divider-zinc-800 my-1"></div>    {% endif %}
     {% include "socialaccount/snippets/provider_list.html" with process="login" %}
     {% include "socialaccount/snippets/login_extra.html" %}
 {% endif %}

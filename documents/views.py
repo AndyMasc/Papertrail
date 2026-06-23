@@ -4,7 +4,6 @@ from django.http.response import HttpResponse
 from django.middleware.csrf import get_token
 from .models import Upload
 
-# Create your views here.
 class UploadView(View):
     def get(self, request):
             html = """

@@ -84,11 +84,12 @@ MIDDLEWARE = [
 ]
 
 # Custom Django Allauth configuration (Overwrites default settings)
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ['email*'] #, 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ['email']
-ACCOUNT_LOGIN_BY_CODE_ENABLED = True
+#ACCOUNT_LOGIN_BY_CODE_ENABLED = True #Mandatory with only magic code login
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 LOGIN_REDIRECT_URL = "core:dashboard"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'

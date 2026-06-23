@@ -1,6 +1,8 @@
 {% load allauth socialaccount %}
 {% load allauth_ui %}
 {% get_providers as socialaccount_providers %}
+{% load tailwind_tags %}
+{% tailwind_css %}
 {% if socialaccount_providers %}
     <div>
         {% for provider in socialaccount_providers %}
@@ -15,10 +17,10 @@
         {% provider_login_url provider process=process scope=scope auth_params=auth_params as href %}
         <a class="
             btn w-full my-1 
-            text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none"
+            text-black dark:text-white font-medium bg-zinc-200/30 dark:bg-zinc-800/30 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-300/50 dark:hover:bg-zinc-800/50 shadow-none"
            title="{{ provider.name }}"
            href="{{ href }}">
-           {{ provider.name }}
+           Continue with {{ provider.name }}
         </a>
     {% endfor %}
 </div>
