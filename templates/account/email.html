@@ -2,67 +2,59 @@
 {% load i18n %}
 {% load allauth_ui %}
 
-{% block content %}
-    {% trans "Email Addresses" as heading %}
-    {% trans "The following email addresses are associated with your account:" as subheading %}
+{% block head %}
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+{% endblock head %}
 
-    {% #container heading=heading subheading=subheading %}
-        
+{% block content %}
+{# Define the heading and subheading for the container #}
+{% trans "Email Addresses" as heading %}
+{% trans "Manage the email addresses associated with your account." as subheading %}
+
+{% #container heading=heading subheading=subheading %}
+    <section class="mt-8">
         {% if emailaddresses %}
             {% url 'account_email' as action_url %}
-            {% #form url=action_url use_default_button="false" %}
-                {{ redirect_field }}
+            <form action="{{ action_url }}" method="post" class="space-y-3">
                 {% csrf_token %}
 
-                <div class="space-y-2">
-                    {% for radio in emailaddress_radios %}
-                        {% with emailaddress=radio.emailaddress %}
-                            <div class="form-control">
-                                <label class="flex gap-3 cursor-pointer label border border-zinc-200 dark:border-zinc-700 rounded px-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900">
-                                    <span class="grow label-text overflow-auto py-3">
-                                        {{ emailaddress.email }}
-                                        {% if emailaddress.verified %}
-                                            <div class="badge badge-primary outline badge-outline ml-2 text-black dark:text-white px-1.5">{% trans "Verified" %}</div>
-                                        {% endif %}
-                                        {% if emailaddress.primary %}
-                                            <div class="badge badge-secondary outline badge-outline text-black dark:text-white ml-2 px-1.5">{% trans "Primary" %}</div>
-                                        {% endif %}
-                                    </span>
-                                    <input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" 
-                                           class="radio checked:white dark:checked:black outline" {% if radio.checked %}checked{% endif %} />
-                                </label>
-                            </div>
-                        {% endwith %}
-                    {% endfor %}
+                {% for radio in emailaddress_radios %}
+                    {% with emailaddress=radio.emailaddress %}
+                    <label class="flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 transition hover:border-zinc-300 dark:hover:border-zinc-700 cursor-pointer">
+                        <input type="radio" name="email" value="{{ emailaddress.email }}" id="{{ radio.id }}" 
+                               class="accent-black dark:accent-white" {% if radio.checked %}checked{% endif %} />
+                        <span class="flex-grow text-sm text-zinc-900 dark:text-zinc-300 overflow-scroll">
+                            {{ emailaddress.email }}
+                            {% if emailaddress.verified %}<span class="ml-2 text-[10px] uppercase tracking-wider">Verified</span>{% endif %}
+                            {% if emailaddress.primary %}<span class="ml-2 text-[10px] uppercase tracking-wider text-zinc-500">Primary</span>{% endif %}
+                        </span>
+                    </label>
+                    {% endwith %}
+                {% endfor %}
+
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <button name="action_primary" type="submit" class="rounded-md border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">{% trans "Make primary" %}</button>
+                    <button name="action_remove" type="submit" class="rounded-md border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-medium  text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-rose-400 hover:text-rose-500 transition">{% trans "Remove" %}</button>
                 </div>
-                <div class="divider"></div>
-                <div class="flex flex-col mt-3 gap-2">
-                    <button name="action_primary" type="submit" class="btn btn-primary btn btn-neutral text-black dark:text-white font-medium bg-zinc-200/30 dark:bg-zinc-800/30 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-300/50 dark:hover:bg-zinc-800/50 shadow-none">{% trans "Make Primary" %}</button>
-                    <button name="action_send" type="submit" class="btn btn-secondary focus:outline-none  text-black dark:text-white font-medium bg-zinc-200/30 dark:bg-zinc-800/30 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-300/50 dark:hover:bg-zinc-800/50 shadow-none">
-                        {% trans "Re-send verification" %}
-                    </button>
-                    <button name="action_remove" type="submit" class="btn btn-warning text-sm text-black dark:text-white font-medium bg-zinc-200/30 dark:bg-zinc-800/30 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-300/50 dark:hover:bg-zinc-800/50 shadow-none hover:text-rose-500">{% trans "Remove" %}</button>
-                </div>
-            {% /form %}
-        {% else %}
-            {% include "account/snippets/warn_no_email.html" %}
+            </form>
         {% endif %}
 
         {% if can_add_email %}
-        <div class="divider my-2"></div>
-            <h2 class="text-lg text-center">{% trans "Add Email Address" %}</h2>
-            {% trans "Add Email" as button_text %}
-            {% #form form=form url=action_url button_text=button_text use_default_button="false" %}
-                {% csrf_token %}
-                <button type="submit" name="action_add" class="mb-2 btn mt-3 w-full btn btn-primary font-medium bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none">
-                    {{ button_text }}
+            <div class="mt-8 border-t border-zinc-200 dark:border-zinc-800 pt-8" x-data="{ open: false }">
+                <button @click="open = !open" class="flex w-full items-center justify-between text-sm text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition">
+                    <span>Add email address</span>
+                    <span x-text="open ? '−' : '+'"></span>
                 </button>
-            {% /form %}
-        </div>
-        {% else %}
-        <div class="divider my-4">
-            <p class="text-sm text-zinc-400"> Maximum limit of 3 email addresses reached.</p>
-        </div>
+                <div x-show="open" x-collapse class="mt-4">
+                    {% #form form=form url=action_url button_text="Add email" use_default_button="false" %}
+                        {% csrf_token %}
+                        <button type="submit" name="action_add" class="mb-2 btn mt-3 w-full btn-primary font-medium bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none">
+                            Add email
+                        </button>
+                    {% /form %}
+                </div>
+            </div>
         {% endif %}
-    {% /container %}
+    </section>
+{% /container %}
 {% endblock content %}

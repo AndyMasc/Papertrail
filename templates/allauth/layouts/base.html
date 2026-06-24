@@ -7,7 +7,6 @@
 
 {% load allauth %}
 
-
 <!DOCTYPE html>
 <html data-theme="{% allauth_ui_theme %}">
     <head>
@@ -24,6 +23,42 @@
         <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
     </head>
     <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col items-center">
+        <div x-data="{ isOpen: false, openedWithKeyboard: false }" class="absolute top-3 left-3 w-fit" x-on:keydown.esc.window="isOpen = false, openedWithKeyboard = false">
+            <!-- Toggle Button -->
+            <button type="button" x-on:click="isOpen = ! isOpen" class="inline-flex items-center gap-2 rounded-md text-black bg-zinc-200 dark:bg-zinc-900 px-3 py-1.5 text-xs dark:text-zinc-300 border border-white/10 hover:border-white/30 transition-all focus:outline-none">
+                Profile
+                <svg class="size-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+        
+            <!-- Dropdown Menu -->
+            <div x-cloak x-show="isOpen || openedWithKeyboard" 
+                 x-transition:enter="transition ease-out duration-100" 
+                 x-transition:enter-start="transform opacity-0 scale-95" 
+                 x-transition:enter-end="transform opacity-100 scale-100"
+                 x-on:click.outside="isOpen = false, openedWithKeyboard = false"
+                 class="absolute top-10 left-0 w-48 py-1 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden" 
+                 role="menu">
+                
+                {% if user.is_authenticated %}
+                    {% url 'account_email' as email_url %}
+                    {% if email_url %}<a href="{{ email_url }}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">{% trans "Change Email" %}</a>{% endif %}
+        
+                    {% if user.has_usable_password %}
+                        {% url 'account_change_password' as pwd_url %}
+                        {% if pwd_url %}<a href="{{ pwd_url }}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">{% trans "Change Password" %}</a>{% endif %}
+                    {% endif %}
+        
+                    <a href="{% url 'socialaccount_connections' %}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">Connections</a>
+        
+                    {% url 'account_logout' as logout_url %}
+                    {% if logout_url %}
+                        <div class="border-t  border border-zinc-300 dark:border-zinc-800 my-1"></div>
+                        <a href="{{ logout_url }}" class="block px-4 py-2 text-xs text-red-400 dark:hover:text-red-300 hover:bg-zinc-300 dark:hover:bg-zinc-900 hover:text-red-500 transition">{% trans "Sign Out" %}</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
         {% if messages %}
         <div x-data="{
                 bannerVisible: false,
@@ -39,7 +74,7 @@
             class="fixed top-0 left-0 w-full h-auto py-6 duration-300 ease-out bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-zinc-900 shadow-sm sm:py-0 sm:h-10" x-cloak>
             {% for message in messages %}
                 <div class="flex items-center justify-between w-full h-full px-3 mx-auto max-w-7xl ">
-                    <span class="flex flex-col w-full h-full text-md text-center items-center justify-center leading-6 text-black duration-150 ease-out sm:flex-row sm:items-center opacity-80 hover:opacity-100">
+                    <span class="text-sm flex flex-row w-full h-full text-md text-center items-center justify-center leading-6 text-black duration-150 ease-out sm:flex-row sm:items-center opacity-80 hover:opacity-100">
                         <span class="flex items-center">
                             <span class="dark:text-white">Alert</span><span class="hidden w-px h-4 mx-3 rounded-full sm:block bg-neutral-200"></span>
                         </span>
@@ -53,35 +88,6 @@
         <main class="grow flex flex-col justify-center w-full py-8">
             {% block content %}
             {% endblock content %}
-            <div class="mx-auto [&_a]:link text-sm flex flex-row items-center justify-center gap-5 my-3 text-zinc-400">
-                {% if user.is_authenticated %}
-                    {% url 'account_email' as email_url %}
-                    {% if email_url %}
-                        <a href="{{ email_url }}">{% trans "Change Email" %}</a>
-                    {% endif %}
-
-                    {% if user.is_authenticated and user.has_usable_password %}
-                        {% url 'account_change_password' as change_password_url %}
-                    {% endif %}
-                    
-                    <a href="{% url 'socialaccount_connections' %}">Connections</a>
-                    {% if change_password_url %}
-                        <a href="{{ change_password_url }}">{% trans "Change Password" %}</a>
-                    {% endif %}
-                    {% url 'mfa_index' as mfa_url %}
-                    {% if mfa_url %}
-                        <a href="{{ mfa_url }}">{% trans "Two-Factor Authentication" %}</a>
-                    {% endif %}
-                    {% url 'usersessions_list' as usersessions_list_url %}
-                    {% if usersessions_list_url %}
-                        <a href="{{ usersessions_list_url }}">{% trans "Sessions" %}</a>
-                    {% endif %}
-                    {% url 'account_logout' as logout_url %}
-                    {% if logout_url %}
-                        <a href="{{ logout_url }}">{% trans "Sign Out" %}</a>
-                    {% endif %}
-                {% endif %}
-            </div>
         </main>
     </body>
 </html>

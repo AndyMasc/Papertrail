@@ -5,7 +5,7 @@
 {% load socialaccount %} {# Added this load tag #}
 
 {% block content %}
-    {% trans "The ledger starts here." as heading %}
+    {% trans "Sign up to Papertrail." as heading %}
     
     
     {% #container heading=heading subheading=subheading %}
@@ -22,7 +22,7 @@
         {# 2. Social/Third-Party Signup Section #}
         {% get_providers as socialaccount_providers %}
         {% if socialaccount_providers %}
-            <div class="divider divider-zinc-200 dark:divider-zinc-800 my-1"></div>
+            <div class="divider divider-zinc-200 dark:divider-zinc-800 my-1 mb-2"><span class="text-sm text-zinc-400 dark:text-zinc-600">Or</span></div>
             <div class="flex flex-col gap-2">
                 {% include "socialaccount/snippets/provider_list.html" with process="connect" %}
             </div>

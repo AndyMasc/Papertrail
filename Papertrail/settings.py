@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 TAILWIND_APP_NAME = "theme"
+TAILWIND_USE_STANDALONE_BINARY = True
 SITE_ID = 1  # Ensure this matches the ID of your site in the admin
 ALLAUTH_UI_THEME = "place-holder" # MUST NOT BE AN ACTUAL DAISY UI THEME (OVERWRITES CUSTOM STYLES)
 
