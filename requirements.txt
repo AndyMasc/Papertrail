@@ -11,7 +11,6 @@ Django==6.0.6
 django-allauth==65.18.0
 django-allauth-ui==1.8.1
 django-browser-reload==1.21.0
-django-storages==1.14.6
 django-tailwind==4.5.0
 django-widget-tweaks==1.5.1
 google-api-core==2.31.0
@@ -20,7 +19,6 @@ google-auth==2.55.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
 google-cloud-core==2.6.0
-google-cloud-storage==3.12.0
 google-crc32c==1.8.0
 google-resumable-media==2.10.0
 googleapis-common-protos==1.75.0

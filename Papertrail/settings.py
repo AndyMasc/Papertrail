@@ -15,7 +15,6 @@ from pathlib import Path
 # My Imports
 import os
 from dotenv import load_dotenv
-from google.oauth2 import service_account
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -88,7 +87,6 @@ MIDDLEWARE = [
 ACCOUNT_SIGNUP_FIELDS = ['email*'] #, 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ['email']
-#ACCOUNT_LOGIN_BY_CODE_ENABLED = True #Mandatory with only magic code login
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 LOGIN_REDIRECT_URL = "core:dashboard"
@@ -158,14 +156,6 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
-
-# storage
-service_account_json_name = os.environ.get('SERVICE_ACCOUNT_JSON_NAME')
-GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
-    os.path.join(BASE_DIR, service_account_json_name)
-)
-DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
-GS_BUCKET_NAME = 'papertrail-doc-storage'
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
