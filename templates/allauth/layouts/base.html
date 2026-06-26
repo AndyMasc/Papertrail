@@ -23,23 +23,23 @@
         <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
     </head>
     <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col items-center">
+        
+        {% if user.is_authenticated %}
         <div x-data="{ isOpen: false, openedWithKeyboard: false }" class="absolute top-3 left-3 w-fit" x-on:keydown.esc.window="isOpen = false, openedWithKeyboard = false">
             <!-- Toggle Button -->
-            <button type="button" x-on:click="isOpen = ! isOpen" class="inline-flex items-center gap-2 rounded-md text-black bg-zinc-200 dark:bg-zinc-900 px-3 py-1.5 text-xs dark:text-zinc-300 border border-white/10 hover:border-white/30 transition-all focus:outline-none">
-                Profile
+            <button type="button" x-on:click="isOpen = ! isOpen" class="inline-flex items-center gap-2 rounded-4xl text-black bg-zinc-200 dark:bg-zinc-900 px-3 py-1.5 text-xs dark:text-zinc-300 border border-zinc-400 dark:border-white/10 hover:border-white/30 transition-all focus:outline-none">
+                Profile options
                 <svg class="size-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
-        
+            
             <!-- Dropdown Menu -->
             <div x-cloak x-show="isOpen || openedWithKeyboard" 
                  x-transition:enter="transition ease-out duration-100" 
                  x-transition:enter-start="transform opacity-0 scale-95" 
                  x-transition:enter-end="transform opacity-100 scale-100"
                  x-on:click.outside="isOpen = false, openedWithKeyboard = false"
-                 class="absolute top-10 left-0 w-48 py-1 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden" 
+                 class="absolute top-10 left-0 w-48 py-1 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-4xl shadow-xl overflow-hidden" 
                  role="menu">
-                
-                {% if user.is_authenticated %}
                     {% url 'account_email' as email_url %}
                     {% if email_url %}<a href="{{ email_url }}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">{% trans "Change Email" %}</a>{% endif %}
         
@@ -49,10 +49,13 @@
                     {% endif %}
         
                     <a href="{% url 'socialaccount_connections' %}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">Connections</a>
-        
+
+                    <div class="border-t border border-zinc-300 dark:border-zinc-800 my-1"></div>
+                    
+                    <a href="{% url 'core:dashboard' %}" class="block px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-800 transition">Dashboard</a>
+
                     {% url 'account_logout' as logout_url %}
                     {% if logout_url %}
-                        <div class="border-t  border border-zinc-300 dark:border-zinc-800 my-1"></div>
                         <a href="{{ logout_url }}" class="block px-4 py-2 text-xs text-red-400 dark:hover:text-red-300 hover:bg-zinc-300 dark:hover:bg-zinc-900 hover:text-red-500 transition">{% trans "Sign Out" %}</a>
                     {% endif %}
                 {% endif %}
@@ -75,10 +78,7 @@
             {% for message in messages %}
                 <div class="flex items-center justify-between w-full h-full px-3 mx-auto max-w-7xl ">
                     <span class="text-sm flex flex-row w-full h-full text-md text-center items-center justify-center leading-6 text-black duration-150 ease-out sm:flex-row sm:items-center opacity-80 hover:opacity-100">
-                        <span class="flex items-center">
-                            <span class="dark:text-white">Alert</span><span class="hidden w-px h-4 mx-3 rounded-full sm:block bg-neutral-200"></span>
-                        </span>
-                        <span class="block pt-1 pb-2 leading-none sm:inline sm:pt-0 sm:pb-0 dark:text-white">{{ message }}</span>
+                        <span class="block pt-1 pb-2 leading-none sm:inline sm:pt-0 sm:pb-0 dark:text-white"><span class="font-bold">Alert:</span> {{ message }}</span>
                     </span>
                 </div>
             {% endfor %}
@@ -86,8 +86,7 @@
         {% endif %}
     
         <main class="grow flex flex-col justify-center w-full py-8">
-            {% block content %}
-            {% endblock content %}
+            {% block content %} {% endblock content %}
         </main>
     </body>
 </html>

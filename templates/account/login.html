@@ -20,7 +20,7 @@
                     {% if form.remember %}
                         <div class="items-start my-2 form-control">
                             <label class="cursor-pointer label">
-                                {% render_field form.remember type="checkbox" class="bg-black w-4 h-4 rounded-xl accent-black dark:accent-white" %}
+                                {% render_field form.remember type="checkbox" class="bg-black w-4 h-4 rounded-4xl accent-black dark:accent-white" %}
                                 <span class="ml-1 label-text">{% trans "Remember me" %}</span>
                             </label>
                         </div>
@@ -40,7 +40,7 @@
         
         {% if LOGIN_BY_CODE_ENABLED %}
             <div class="divider divider mt-0 mb-2"></div>
-            <a href="{{ request_login_code_url }}" class="mb-2 border-none btn btn-neutral text-black dark:text-white font-medium bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none">{% trans "Mail me a sign-in code" %}</a>
+            <a href="{{ request_login_code_url }}" class="mb-2 border-none btn btn-neutral text-black dark:text-white font-semibold bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none">{% trans "Mail me a sign-in code" %}</a>
         {% endif %}
 
         {% if SOCIALACCOUNT_ENABLED %}
