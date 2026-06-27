@@ -28,6 +28,8 @@ load_dotenv(dotenv_path=os.path.join(BASE_DIR, ".env"))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 ALLOWED_HOSTS = []
@@ -53,9 +55,11 @@ INSTALLED_APPS = [
     "theme",
     "widget_tweaks",
     "slippers",
+    
     # My apps
     "core",
     "documents",
+    "records",
 ]
 
 TAILWIND_APP_NAME = "theme"
@@ -155,6 +159,7 @@ R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
 R2_STORAGE_BUCKET_NAME = os.environ.get("R2_STORAGE_BUCKET_NAME")
 R2_S3_ENDPOINT_URL = os.environ.get("R2_S3_ENDPOINT_URL")
 R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = os.environ.get("R2_PAPERTRAIL_STORAGE_ACCOUNT_ID")
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

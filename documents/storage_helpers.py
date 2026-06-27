@@ -23,7 +23,7 @@ def generate_write_presigned_url(key, content_type):
             "Key": key,
             "ContentType": content_type,
         },
-        ExpiresIn=3600,
+        ExpiresIn=900,
     )
 
 
@@ -34,5 +34,5 @@ def generate_read_presigned_url(key):
             "Bucket": R2_STORAGE_BUCKET_NAME,
             "Key": key,
         },
-        ExpiresIn=3600,
+        ExpiresIn=900,
     )

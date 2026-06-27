@@ -1,0 +1,16 @@
+{% extends "base.html" %} 
+
+{% block content %}
+    <h1>All Records</h1>
+    
+    {% if records %}
+        <ul>
+            {% for record in records %}
+            <li>{{ record }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No records found.</p>
+    {% endif %}
+{% endblock %}
+                            

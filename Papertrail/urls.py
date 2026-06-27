@@ -27,4 +27,5 @@ urlpatterns = [
 
     path('', include('core.urls')),
     path('documents/', include('documents.urls')),
+    path('records/', include('records.urls')),
 ]

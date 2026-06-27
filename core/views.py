@@ -1,12 +1,12 @@
 from django.shortcuts import render
 from django.views.generic import ListView
-from documents.models import document_data
+from documents.models import Document_data
 
 def index(request):
     return render(request, 'core/home.html')
 
 class dashboard(ListView):
-    model = document_data
+    model = Document_data
     template_name = 'core/dashboard.html'
     context_object_name = 'documents'
 

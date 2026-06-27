@@ -2,15 +2,20 @@ import json
 import uuid
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView
 
-from .models import document_data
-from .storage_helpers import generate_write_presigned_url, generate_read_presigned_url, s3
-from django.conf import settings
+from .models import Document_data
+from .storage_helpers import (
+    generate_read_presigned_url,
+    generate_write_presigned_url,
+    s3,
+)
+from .scan_doc import extract_document
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -30,8 +35,10 @@ class UploadView(LoginRequiredMixin, View):
 
         extension = Path(filename).suffix
         key = f"users/{request.user.id}/{uuid.uuid4()}{extension}"
-        
-        document_data.objects.create(user=request.user, filepath=key) # Save filepath in cloud storage to database for reference
+
+        Document_data.objects.create(
+            user=request.user, filepath=key
+        )  # Save filepath in cloud storage to database for reference
         upload_url = generate_write_presigned_url(key, content_type)
 
         return JsonResponse(
@@ -41,24 +48,32 @@ class UploadView(LoginRequiredMixin, View):
             }
         )
 
+
 class ViewDocument(LoginRequiredMixin, DetailView):
-    model = document_data
+    model = Document_data
     template_name = "documents/view_document.html"
     context_object_name = "document"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
+        try:
+            context["ocr_result"] = extract_document(context["view_url"])
+        except Exception as e:
+            context["ocr_result"] = {"error": str(e)}
         return context
 
+
 class DeleteDocument(LoginRequiredMixin, View):
-    model = document_data
+    model = Document_data
     context_object_name = "document"
-    
+
     def post(self, request, pk):
-        document = get_object_or_404(document_data, user=request.user, pk=pk)
+        document = get_object_or_404(Document_data, user=request.user, pk=pk)
         try:
-            s3.delete_object(Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=document.filepath)
+            s3.delete_object(
+                Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=document.filepath
+            )
             document.delete()
         except Exception as e:
             return JsonResponse({"Error deleting from Cloudflare": str(e)}, status=500)
