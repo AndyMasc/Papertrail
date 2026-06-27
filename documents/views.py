@@ -4,10 +4,13 @@ from pathlib import Path
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
+from django.views.generic import DetailView
 
-from .storage import generate_write_presigned_url
+from .models import document_data
+from .storage_helpers import generate_write_presigned_url, generate_read_presigned_url, s3
+from django.conf import settings
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -27,7 +30,8 @@ class UploadView(LoginRequiredMixin, View):
 
         extension = Path(filename).suffix
         key = f"users/{request.user.id}/{uuid.uuid4()}{extension}"
-
+        
+        document_data.objects.create(user=request.user, filepath=key) # Save filepath in cloud storage to database for reference
         upload_url = generate_write_presigned_url(key, content_type)
 
         return JsonResponse(
@@ -36,3 +40,26 @@ class UploadView(LoginRequiredMixin, View):
                 "key": key,
             }
         )
+
+class ViewDocument(LoginRequiredMixin, DetailView):
+    model = document_data
+    template_name = "documents/view_document.html"
+    context_object_name = "document"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["view_url"] = generate_read_presigned_url(self.object.filepath)
+        return context
+
+class DeleteDocument(LoginRequiredMixin, View):
+    model = document_data
+    context_object_name = "document"
+    
+    def post(self, request, pk):
+        document = get_object_or_404(document_data, user=request.user, pk=pk)
+        try:
+            s3.delete_object(Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=document.filepath)
+            document.delete()
+        except Exception as e:
+            return JsonResponse({"Error deleting from Cloudflare": str(e)}, status=500)
+        return redirect("core:dashboard")

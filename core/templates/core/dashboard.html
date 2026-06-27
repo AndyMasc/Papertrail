@@ -2,4 +2,22 @@
 
 {% block content %}
 
+    <h1>{{ request.user.username }}'s dashboard </h1>
+    {% if documents %}
+        <h1>Recents:</h1>
+        {% for document in documents %}
+            <a href="{% url 'documents:view_document' document.pk %}" class="underline text-blue-500">Untitled</a> 
+
+            <form action="{% url 'documents:delete_document' document.pk %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="underline text-red-500">Delete</button>
+            </form>
+            
+            
+        {% endfor %}
+    {% else %}
+        <p>No documents found.</p>
+        <a href="{% url 'documents:upload_document' %}" class="underline text-blue-500">Upload one now?</a>
+    {% endif %}
+    
 {% endblock %}
