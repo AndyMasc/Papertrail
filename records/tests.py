@@ -1,3 +1,42 @@
 from django.test import TestCase
+from records.models import Record
+from django.contrib.auth.models import User
 
-# Create your tests here.
+
+class RecordTestCase(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username="testuser", password="password123")
+        self.user2 = User.objects.create_user(username="testuser2", password="password123")
+        
+        self.record1 = Record.objects.create(
+            user=self.user1,
+            title="Test Record", 
+            merchant="Test Merchant", 
+            balance=100.00, 
+            transaction_date="2023-01-01", 
+            expiry_date=None,
+            record_type="expense_receipt") 
+
+        self.record2 = Record.objects.create(
+            user=self.user2,
+            title="Test Record 2", 
+            merchant="Test Merchant 2", 
+            balance=200.00, 
+            transaction_date="2023-01-02", 
+            expiry_date=None,
+            record_type="expense_receipt")
+
+    def test_record_creation(self):
+        self.assertEqual(self.record1.title, "Test Record")
+        self.assertEqual(self.record1.balance, 100.00)
+        self.assertEqual(self.record1.transaction_date, "2023-01-01")
+        self.assertEqual(self.record1.record_type, "expense_receipt")
+        self.assertEqual(self.record1.merchant, "Test Merchant")
+        self.assertEqual(self.record1.expiry_date, None)
+        
+        self.assertEqual(self.record2.title, "Test Record 2")
+        self.assertEqual(self.record2.balance, 200.00)
+        self.assertEqual(self.record2.transaction_date, "2023-01-02")
+        self.assertEqual(self.record2.record_type, "expense_receipt")
+        self.assertEqual(self.record2.merchant, "Test Merchant 2")
+        self.assertEqual(self.record2.expiry_date, None)
