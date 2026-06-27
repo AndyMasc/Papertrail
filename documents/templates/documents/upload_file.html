@@ -1,0 +1,66 @@
+{% extends 'base.html' %} {% block content %}
+<h1>Upload a file</h1>
+
+<input type="file" id="fileInput" />
+<button onclick="uploadFile()">Upload now</button>
+<p id="status"></p>
+
+<script>
+    async function uploadFile() {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+
+        const status = document.getElementById("status");
+
+        if (!file) {
+            status.textContent = "No file selected";
+            return;
+        }
+
+        try {
+            status.textContent = "Getting upload URL...";
+
+            const res = await fetch("/documents/upload/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken(),
+                },
+                body: JSON.stringify({
+                    filename: file.name,
+                    content_type: file.type || "application/octet-stream", // If file type is unknown, default to arbitrary octet-stream
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error(`Failed to get upload URL (${res.status})`);
+            }
+
+            const { upload_url, key } = await res.json();
+            status.textContent = "Uploading...";
+
+            const uploadRes = await fetch(upload_url, {
+                method: "PUT",
+                headers: {"Content-Type": file.type || "application/octet-stream",},
+                body: file,
+            });
+
+            if (!uploadRes.ok) {
+                throw new Error(`Upload failed (${uploadRes.status})`);
+            }
+
+            status.textContent = "Upload complete!";
+        } catch (err) {
+            console.error(err);
+            status.textContent = "Upload failed: " + err.message;
+        }
+    }
+
+    function getCSRFToken() {
+        return document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrftoken="))
+            ?.split("=")[1];
+    }
+</script>
+{% endblock %}

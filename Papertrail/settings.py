@@ -10,10 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
-
 # My Imports
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -35,7 +35,6 @@ ALLOWED_HOSTS = []
 # Application definition
 INSTALLED_APPS = [
     "allauth_ui",
-    
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -43,22 +42,17 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-
     # Broswer reload (NOT FOR PRODUCTION)
     "django_browser_reload",
-
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.github",
-
     "tailwind",
     "theme",
     "widget_tweaks",
     "slippers",
-
     # My apps
     "core",
     "documents",
@@ -67,7 +61,9 @@ INSTALLED_APPS = [
 TAILWIND_APP_NAME = "theme"
 TAILWIND_USE_STANDALONE_BINARY = True
 SITE_ID = 1  # Ensure this matches the ID of your site in the admin
-ALLAUTH_UI_THEME = "place-holder" # MUST NOT BE AN ACTUAL DAISY UI THEME (OVERWRITES CUSTOM STYLES)
+ALLAUTH_UI_THEME = (
+    "place-holder"  # MUST NOT BE AN ACTUAL DAISY UI THEME (OVERWRITES CUSTOM STYLES)
+)
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -77,26 +73,24 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-
     "allauth.account.middleware.AccountMiddleware",
-
-    "django_browser_reload.middleware.BrowserReloadMiddleware", # NOT FOR PRODUCTION
+    "django_browser_reload.middleware.BrowserReloadMiddleware",  # NOT FOR PRODUCTION
 ]
 
 # Custom Django Allauth configuration (Overwrites default settings)
-ACCOUNT_SIGNUP_FIELDS = ['email*'] #, 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ["email*"]  # , 'password1*', 'password2*']
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
-ACCOUNT_LOGIN_METHODS = ['email']
+ACCOUNT_LOGIN_METHODS = ["email"]
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 LOGIN_REDIRECT_URL = "core:dashboard"
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS') == 'True'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get("EMAIL_HOST")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS") == "True"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
@@ -106,7 +100,6 @@ SOCIALACCOUNT_PROVIDERS = {
             "key": "",
         },
     },
-
     "github": {
         "APP": {
             "client_id": os.environ.get("GITHUB_OAUTH_CLIENT_ID"),
@@ -121,14 +114,13 @@ ROOT_URLCONF = "Papertrail.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'templates'],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-
                 "django.template.context_processors.request",
             ],
         },
@@ -140,10 +132,9 @@ STATIC_URL = "static/"
 
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
-    'django.contrib.auth.backends.ModelBackend',
-
+    "django.contrib.auth.backends.ModelBackend",
     # `allauth` specific authentication methods, such as login by email
-    'allauth.account.auth_backends.AuthenticationBackend',
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 WSGI_APPLICATION = "Papertrail.wsgi.application"
@@ -156,6 +147,14 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+# Storages
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+R2_STORAGE_BUCKET_NAME = os.environ.get("R2_STORAGE_BUCKET_NAME")
+R2_S3_ENDPOINT_URL = os.environ.get("R2_S3_ENDPOINT_URL")
+R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = os.environ.get("R2_PAPERTRAIL_STORAGE_ACCOUNT_ID")
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -184,4 +183,3 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 STATIC_URL = "static/"
-

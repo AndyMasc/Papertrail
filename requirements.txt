@@ -1,6 +1,8 @@
 arrow==1.4.0
 asgiref==3.11.1
 binaryornot==0.6.0
+boto3==1.43.36
+botocore==1.43.36
 certifi==2026.5.20
 cffi==2.0.0
 charset-normalizer==3.4.7
@@ -11,6 +13,7 @@ Django==6.0.6
 django-allauth==65.18.0
 django-allauth-ui==1.8.1
 django-browser-reload==1.21.0
+django-storages==1.14.6
 django-tailwind==4.5.0
 django-widget-tweaks==1.5.1
 google-api-core==2.31.0
@@ -26,6 +29,7 @@ honcho==2.0.0
 httplib2==0.31.2
 idna==3.18
 Jinja2==3.1.6
+jmespath==1.1.0
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
@@ -46,6 +50,7 @@ PyYAML==6.0.3
 requests==2.34.2
 requests-oauthlib==2.0.0
 rich==15.0.0
+s3transfer==0.19.0
 six==1.17.0
 slippers==0.6.3
 sqlparse==0.5.5
