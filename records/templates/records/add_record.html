@@ -1,9 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
+    {% if document is not None %}
+        <h1 class="dark:text-white text-3xl font-semibold mb-2">Is this correct?</h1>
+    {% else %}
+        <h1 class="dark:text-white text-3xl font-semibold mb-2">Add a record.</h1>
+    {% endif %}
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {% for field in form %}
+        <p>
+            <label>{{ field.label }}</label>
+            {{ field }}
+        </p>
+        {% endfor %}
+        {% if form.errors %}
+        <p>{{ form.errors }}</p>
+        {% endif %}
         <button type="submit">Add</button>
     </form>
 {% endblock %}

@@ -1,10 +1,13 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic.base import View
 from django.views.generic.list import ListView
+from documents.models import Document_data
+from documents.scan_doc import extract_document
+from documents.storage_helpers import generate_read_presigned_url
 
-from .models import Record
 from .forms import AddRecordForm
+from .models import Record
 
 
 # Create your views here.
@@ -16,28 +19,56 @@ class RecordListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return Record.objects.filter(user=self.request.user)
 
+
 class AddRecord(LoginRequiredMixin, View):
-    model = Record
     template_name = "records/add_record.html"
-    
-    def get(self, request):
-        form = AddRecordForm()
-        return render(request, self.template_name, {"form": form})
-    
-    def post(self, request):
+
+    def get_document(self, document_id, request):
+        return get_object_or_404(Document_data, id=document_id, user=request.user)
+
+    def get(self, request, document_id=None):
+        document = None
+        initial = {}
+
+        if document_id:
+            document = self.get_document(document_id, request)
+            signed_url = generate_read_presigned_url(document.filepath)
+
+            try:
+                ocr_result = extract_document(signed_url)
+                data = ocr_result.model_dump()
+            except Exception as e:
+                context = {"form": AddRecordForm(initial=initial), "document": document, "error": str(e)}
+                return render(request, self.template_name, context)
+
+            initial = {
+                "title": data.get("title"),
+                "product": data.get("product"),
+                "merchant": data.get("merchant"),
+                "balance": data.get("balance"),
+                "transaction_date": data.get("transaction_date"),
+                "expiry_date": data.get("expiry_date"),
+                "record_type": data.get("record_type"),
+            }
+            
+        form = AddRecordForm(initial=initial)
+        context = {"form": form, "document": document}
+        return render(request, self.template_name, context)
+        
+
+    def post(self, request, document_id=None):
+        if document_id:
+            document = get_object_or_404(Document_data, id=document_id, user=request.user)
+        else:
+            document = None
+
         form = AddRecordForm(request.POST)
         if form.is_valid():
-            
-            Record.objects.create(
-                user = request.user,
-                title = form.cleaned_data['title'],
-                product = form.cleaned_data['product'],
-                merchant = form.cleaned_data['merchant'],
-                balance = form.cleaned_data['balance'],
-                transaction_date = form.cleaned_data['transaction_date'],
-                expiry_date = form.cleaned_data['expiry_date'],
-                record_type = form.cleaned_data['record_type'],
-            )
-            
+            record = form.save(commit=False)
+            record.user = request.user
+            record.associated_document = document
+            record.save()
             return redirect("records:view_all_records")
-        return render(request, self.template_name, {"form": form})
+
+        context = {"form": form, "document": document}
+        return render(request, self.template_name, context)

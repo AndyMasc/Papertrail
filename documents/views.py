@@ -15,7 +15,6 @@ from .storage_helpers import (
     generate_write_presigned_url,
     s3,
 )
-from .scan_doc import extract_document
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -36,15 +35,17 @@ class UploadView(LoginRequiredMixin, View):
         extension = Path(filename).suffix
         key = f"users/{request.user.id}/{uuid.uuid4()}{extension}"
 
-        Document_data.objects.create(
-            user=request.user, filepath=key
-        )  # Save filepath in cloud storage to database for reference
+        document = Document_data.objects.create(
+            user=request.user,
+            filepath=key,
+        )
         upload_url = generate_write_presigned_url(key, content_type)
-
+        
         return JsonResponse(
             {
                 "upload_url": upload_url,
                 "key": key,
+                "document_id": document.id,
             }
         )
 
@@ -57,10 +58,6 @@ class ViewDocument(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
-        try:
-            context["ocr_result"] = extract_document(context["view_url"])
-        except Exception as e:
-            context["ocr_result"] = {"error": str(e)}
         return context
 
 

@@ -6,7 +6,7 @@
     {% if documents %}
         <h1>Recents:</h1>
         {% for document in documents %}
-            <a href="{% url 'documents:view_document' document.pk %}" class="underline text-blue-500">Untitled</a> 
+            <a href="{% url 'documents:view_document' document.pk %}" class="underline text-blue-500">{{ document.filepath }}</a> 
 
             <form action="{% url 'documents:delete_document' document.pk %}" method="POST">
                 {% csrf_token %}
