@@ -43,9 +43,10 @@
                     <div class="group border-b border-zinc-100 px-6 py-4 transition-all duration-200 focus-within:bg-zinc-50 dark:border-zinc-800 dark:focus-within:bg-zinc-800/40">
                         <label for="{{ field.id_for_label }}" class="flex items-center w-full justify-between whitespace-nowrap mb-1 text-sm text-zinc-600 dark:text-zinc-300">
                             {% if field.label == 'Title' %}
-                             Descriptive
+                                Descriptive title
+                            {% else %}
+                                {{ field.label }}
                             {% endif %}
-                            {{ field.label }}
                         </label>
 
                         {% render_field field class="text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-700 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-500" %} 

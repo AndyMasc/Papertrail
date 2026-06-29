@@ -68,9 +68,6 @@ class DeleteDocument(LoginRequiredMixin, View):
     def post(self, request, pk):
         document = get_object_or_404(Document_data, user=request.user, pk=pk)
         try:
-            s3.delete_object(
-                Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=document.filepath
-            )
             document.delete()
         except Exception as e:
             return JsonResponse({"Error deleting from Cloudflare": str(e)}, status=500)
