@@ -37,28 +37,37 @@ class AddRecord(LoginRequiredMixin, View):
             try:
                 ocr_result = extract_document(signed_url)
                 data = ocr_result.model_dump()
+
+                products_list = data.get("products") or []
+                products_text = "\n".join(products_list)
+
+                initial = {
+                    "title": data.get("title"),
+                    "products": products_text,
+                    "merchant": data.get("merchant"),
+                    "balance": data.get("balance"),
+                    "transaction_date": data.get("transaction_date"),
+                    "expiry_date": data.get("expiry_date"),
+                    "record_type": data.get("record_type"),
+                }
+
             except Exception as e:
-                context = {"form": AddRecordForm(initial=initial), "document": document, "error": str(e)}
+                context = {
+                    "form": AddRecordForm(initial=initial),
+                    "document": document,
+                    "error": str(e),
+                }
                 return render(request, self.template_name, context)
 
-            initial = {
-                "title": data.get("title"),
-                "product": data.get("product"),
-                "merchant": data.get("merchant"),
-                "balance": data.get("balance"),
-                "transaction_date": data.get("transaction_date"),
-                "expiry_date": data.get("expiry_date"),
-                "record_type": data.get("record_type"),
-            }
-            
         form = AddRecordForm(initial=initial)
         context = {"form": form, "document": document}
         return render(request, self.template_name, context)
-        
 
     def post(self, request, document_id=None):
         if document_id:
-            document = get_object_or_404(Document_data, id=document_id, user=request.user)
+            document = get_object_or_404(
+                Document_data, id=document_id, user=request.user
+            )
         else:
             document = None
 
@@ -67,6 +76,7 @@ class AddRecord(LoginRequiredMixin, View):
             record = form.save(commit=False)
             record.user = request.user
             record.associated_document = document
+
             record.save()
             return redirect("records:view_all_records")
 

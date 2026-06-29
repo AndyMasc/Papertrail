@@ -1,22 +1,82 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% load widget_tweaks %} {% block content %}
 
-{% block content %}
-    {% if document is not None %}
-        <h1 class="dark:text-white text-3xl font-semibold mb-2">Is this correct?</h1>
-    {% else %}
-        <h1 class="dark:text-white text-3xl font-semibold mb-2">Add a record.</h1>
-    {% endif %}
-    <form method="post">
-        {% csrf_token %}
-        {% for field in form %}
-        <p>
-            <label>{{ field.label }}</label>
-            {{ field }}
-        </p>
-        {% endfor %}
-        {% if form.errors %}
-        <p>{{ form.errors }}</p>
-        {% endif %}
-        <button type="submit">Add</button>
-    </form>
+<main class="relative min-h-screen overflow-hidden bg-linear-to-b from-zinc-50 via-zinc-50 to-zinc-100 dark:from-zinc-950 dark:via-zinc-950 dark:to-black">
+    <!-- soft background glow -->
+    <div class="absolute inset-x-0 top-0 h-80 bg-linear-to-b from-zinc-200/60 to-transparent blur-3xl dark:from-zinc-800/30"></div>
+
+    <div class="relative mx-auto flex min-h-screen max-w-6xl items-start justify-center px-6 pt-10 pb-8">
+        <div class="w-full max-w-xl">
+            <!-- Header -->
+            <header class="mb-8 text-center">
+                {% if document %}
+                    <div class="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white/70 px-3 py-1 text-xs text-zinc-500 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
+                        Automatic data extraction
+                    </div>
+    
+                    <h1 class="mt-5 text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">
+                        Review before saving.
+                    </h1>
+    
+                    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        Everything below is editable.
+                    </p>
+                {% else %}
+                    <div accesskey=""class="inline-flex rounded-full border border-zinc-200 bg-white/70 px-3 py-1 text-xs text-zinc-500 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
+                        Manual entry
+                    </div>
+    
+                    <h1 accesskey=""class="mt-5 text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">
+                        Create a new record.
+                    </h1>
+    
+                    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        Enter the purchase information below.
+                    </p>
+                {% endif %}
+            </header>
+
+            <!-- Card -->
+            <section class="overflow-hidden rounded-[30px] border border-zinc-200 bg-white/75 backdrop-blur-xl shadow-xl shadow-zinc-300/20 dark:border-zinc-800 dark:bg-zinc-900/70 dark:shadow-black/20">
+                <form method="post">
+                    {% csrf_token %} {% for field in form %}
+
+                    <div class="group border-b border-zinc-100 px-6 py-4 transition-all duration-200 focus-within:bg-zinc-50 dark:border-zinc-800 dark:focus-within:bg-zinc-800/40">
+                        <label for="{{ field.id_for_label }}" class="flex items-center w-full justify-between whitespace-nowrap mb-1 text-[11px] uppercase tracking-[0.18em] text-zinc-400">
+                            {{ field.label }}
+                        </label>
+
+                        {% render_field field class="text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-600 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-200/90" %} 
+                        
+                        {% if field.errors %}
+                            <p class="mt-2 text-xs text-rose-400">
+                                {{ field.errors|join:", " }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    {% endfor %} {% if form.non_field_errors %}
+                    <div class="p-5 text-red-500">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+
+                    <div class="flex items-center justify-end gap-3 p-5">
+                        <a href="{% url 'core:dashboard' %}" class="rounded-full px-4 py-2 text-sm text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                            Cancel
+                        </a>
+
+                        <button type="submit" class="cursor-pointer rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-px hover:bg-zinc-800 active:translate-y-0 active:scale-[0.98] dark:bg-white dark:text-black dark:hover:bg-zinc-200">
+                            Save Record
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <p class="mt-5 text-center text-xs text-zinc-400 dark:text-zinc-600">
+                Securely stored • Encrypted • Private to your account
+            </p>
+        </div>
+    </div>
+</main>
+
 {% endblock %}

@@ -5,18 +5,29 @@ from django.conf import settings
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+from typing import Literal
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+RecordTypes = Literal[
+    "expense_receipt",
+    "vendor_invoice",
+    "purchase_order",
+    "service_contract",
+    "corporate_credit",
+    "tax_document",
+    "gift_voucher",
+    "other"]
 
 class OCRResult(BaseModel):
     title: str
+    description: str | None = None
     merchant: str | None = None
     balance: float | None = None
-    product: str | None = None
+    products: list[str] | None = None
     transaction_date: str | None = None
     expiry_date: str | None = None
-    record_type: str
+    record_type: RecordTypes
 
 
 CONFIG = types.GenerateContentConfig(
@@ -26,40 +37,17 @@ CONFIG = types.GenerateContentConfig(
 
 
 PROMPT = """
-You are an expert document extraction system.
-Extract information from the attached purchase document.
-Return structured data matching the provided schema.
+You are an expert document extraction system. 
+Analyze the attached financial document and extract the requested fields into the structured schema provided.
 
-Rules:
-- Never invent information.
-- Unknown values must be null.
-- Dates must use YYYY-MM-DD.
-- Balance must be a number only (no currency symbols).
-- Choose exactly one record type:
-- If a title cannot be extracted, set the title as "untitled". If a record type cannot be determined, set it as "other".
-
-Record type must be one of:
-- expense_receipt
-- vendor_invoice
-- purchase_order
-- service_contract
-- corporate_credit
-- tax_document
-- gift_voucher
-- other
-
-schema:
-{
-  "title": string,
-  "merchant": string | null,
-  "balance": number | null,
-  "product": string | null,
-  "transaction_date": string | null,
-  "expiry_date": string | null,
-  "record_type": string
-}
+Strict Rules:
+1. Accuracy First: Extract data exactly as it appears. Never hallucinate or invent information.
+2. Missing Data: If data for ANY field cannot be found, leave it blank by setting it to null. (IMPORTANT)
+3. Date Formatting: Convert all extracted dates to YYYY-MM-DD format.
+4. Currency Formatting: Extract the balance as a clean number only. Do not include currency symbols (e.g., $, €, £) or commas.
+5. Contextual Inference & Data Standardization: You may infer data ONLY when there is overwhelming visual or contextual evidence (e.g., identifying a merchant from a prominent logo like "PB Tech"). You are explicitly authorized to clean, fix typos, and expand shorthand abbreviations or truncated product descriptions found on receipts into full, readable product names (e.g., converting "Banan yogurt" to "Banana Yogurt"). ALL product names, should be converted to title case. If the evidence is weak, ambiguous, or a shorthand name cannot be confidently identified, default strictly to null.
+6. Descriptions should be brief, concise, and to the point. If a valid description is not able to be produced, default to null.
 """
-
 
 class GeminiOCRError(Exception):
     """Raised when Gemini OCR fails."""
@@ -69,11 +57,7 @@ def extract_document(signed_url: str) -> OCRResult:
     """
     Downloads a document from Cloudflare R2 and extracts
     structured information using Gemini.
-
-    Returns:
-        OCRResult
     """
-
     try:
         response = requests.get(signed_url, timeout=30)
         response.raise_for_status()
@@ -104,7 +88,7 @@ def extract_document(signed_url: str) -> OCRResult:
         return OCRResult.model_validate_json(result.text)
 
     except requests.RequestException as e:
-        raise GeminiOCRError(f"Failed to download document: {exc}") from exc
+        raise GeminiOCRError(f"Failed to download document: {e}") from e
 
     except Exception as exc:
         raise GeminiOCRError(f"Gemini OCR failed: {exc}") from exc

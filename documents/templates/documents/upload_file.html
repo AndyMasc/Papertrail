@@ -3,31 +3,32 @@
 {% block content %} 
 {% csrf_token %}
 
-<section class="dark:text-white flex flex-col items-center justify-center w-full min-h-screen">
-    <p id="status" class="px-4 mb-5 dark:text-white text-black rounded-4xl text-sm"></p>
-
-    <h1 class="dark:text-white text-3xl font-semibold mb-2">Upload a record.</h1>
-
-    <p class="text-sm text-zinc-400">Automatically extract information from your financial record.</p>
-    <div id="dropzone" class="mt-5 mb-1 container mx-auto flex items-center justify-center w-xl dark:bg-zinc-800/50 rounded-4xl border border-zinc-400 dark:border-zinc-600 bg-zinc-100">
-      <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
-        <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
-      <svg class="w-8 h-8 mb-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
-      <p class="mb-2 text-sm" id="file-status">Click the button below to upload</p>
-      <p class="text-xs mb-4">Max. File Size: <span class="font-semibold">5MB</span></p>
-      <button type="button" onclick="document.getElementById('fileInput').click()" class="border inline-flex rounded-4xl items-center text-black dark:text-white bg-brand hover:bg-brand-strong box-border shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-1 my-2 cursor-pointer hover:bg-zinc-300/30 dark:hover:bg-black focus:outline-none">
-        Browse files
-      </button>
-    </div>
-  </div>
-  <!-- Hidden File Input (Outside Label) -->
-  <input type="file" id="fileInput" required class="hidden"/>
-</div>
-<button onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white px-4 py-2 rounded-4xl text-sm w-xl cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all transition-ease-in-out transition-800"> Upload </button>
-<hr class="w-sm my-7 text-zinc-200 dark:text-zinc-800 mb-5">
-<a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all transition-ease-in-out transition-800 mt-0">Add details manually</a> 
-
-</section>
+<main class="dark:text-white w-full min-h-screen flex flex-col items-center justify-center">
+    <section class="container mx-auto w-11/12 md:w-4/5 lg:w-2/3 xl:w-1/2 max-w-md flex flex-col items-center">
+        <p id="status" class="px-4 mb-5 dark:text-white text-black rounded-4xl text-sm text-center"></p>
+    
+        <h1 class="dark:text-white text-3xl font-semibold mb-2">Upload a financial record.</h1>
+        <p class="text-sm text-zinc-400 text-center">Automatically extract information from a financial record.</p>
+        
+        <div id="dropzone" class="mt-8 mb-2 mx-auto flex flex-col p-10 rounded-4xl dark:bg-zinc-800/30 border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100">
+        <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
+            <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
+                <svg class="w-8 h-8 mb-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
+                <p class="mb-2 text-sm text-center" id="file-status">Click the button below. Or drag into the zone.</p>
+                <p class="text-xs mb-4 text-center text-zinc-400">Max File Size: <span class="font-semibold">5MB</span>.<br> PNG, JPEG, WEBP, PDF, HEIC.</p>
+                <button type="button" onclick="document.getElementById('fileInput').click()" class="border inline-flex rounded-4xl items-center text-black dark:text-white bg-brand hover:bg-brand-strong box-border shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-1 my-2 cursor-pointer hover:bg-zinc-300/30 dark:hover:bg-black focus:outline-none">
+                    Browse files
+                </button>
+            </div>
+        </div>
+        <!-- Hidden File Input (Outside Label) -->
+        <input type="file" id="fileInput" required class="hidden" accept=".jpg, .png, .jpeg, .webp, .pdf, .heic"/>
+        </div>
+        <button onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white px-4 py-2 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all transition-ease-in-out transition-800"> Upload and proceed </button>
+        <hr class="w-sm my-7 text-zinc-200 dark:text-zinc-800 mb-5">
+        <a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all transition-ease-in-out transition-800 mt-0">Or add details manually.</a> 
+    </section>
+</main>
 
 <script>
     const dropzone = document.getElementById('dropzone');
@@ -35,18 +36,37 @@
     const fileStatus = document.getElementById('file-status');
     const status = document.getElementById('status');
 
-    // 1. Keep track of the file in a variable
     let selectedFile = null;
 
-    // 2. Handle manual selection
+    // Validation Logic (file type and size)
+    function validateAndSetFile(file) {
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+        const ALLOWED_EXTENSIONS = ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'heic'];
+        const fileExt = file.name.split('.').pop().toLowerCase();
+
+        if (file.size > MAX_SIZE) {
+            status.textContent = "Error: File size exceeds 5MB.";
+            return false;
+        }
+        if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
+            status.textContent = "Error: Invalid file type.";
+            return false;
+        }
+
+        selectedFile = file;
+        fileStatus.textContent = `Selected: ${file.name}`;
+        status.textContent = ""; // Clear any previous errors
+        return true;
+    }
+
+    // 1. Handle manual selection
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            selectedFile = e.target.files[0];
-            fileStatus.textContent = `Selected: ${selectedFile.name}`;
+            validateAndSetFile(e.target.files[0]);
         }
     });
 
-    // 3. Handle Drag & Drop
+    // 2. Handle Drag & Drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropzone.addEventListener(eventName, (e) => {
             e.preventDefault();
@@ -57,20 +77,19 @@
     dropzone.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            selectedFile = files[0];
-            fileStatus.textContent = `Selected: ${selectedFile.name}`;
+            validateAndSetFile(files[0]);
         }
     }, false);
 
-    // 4. Update the upload function to use the variable
+    // 3. Upload Function
     async function uploadFile() {
-        // Use our tracked variable
-        const file = selectedFile; 
-
-        if (!file) {
-            status.textContent = "No file selected";
+        if (!selectedFile) {
+            status.textContent = "No valid file selected.";
             return;
         }
+
+        // Final check before network request
+        if (!validateAndSetFile(selectedFile)) return;
 
         try {
             status.textContent = "Getting upload URL...";
@@ -81,8 +100,8 @@
                     "X-CSRFToken": getCSRFToken(),
                 },
                 body: JSON.stringify({
-                    filename: file.name,
-                    content_type: file.type || "application/octet-stream",
+                    filename: selectedFile.name,
+                    content_type: selectedFile.type || "application/octet-stream",
                 }),
             });
 
@@ -93,8 +112,8 @@
 
             const uploadRes = await fetch(upload_url, {
                 method: "PUT",
-                headers: { "Content-Type": file.type || "application/octet-stream" },
-                body: file,
+                headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
+                body: selectedFile,
             });
 
             if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
