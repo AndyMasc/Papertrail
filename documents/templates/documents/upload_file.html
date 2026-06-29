@@ -4,130 +4,200 @@
 {% csrf_token %}
 
 <main class="dark:text-white w-full min-h-screen flex flex-col items-center justify-center">
-    <section class="container mx-auto w-11/12 md:w-4/5 lg:w-2/3 xl:w-1/2 max-w-md flex flex-col items-center">
-        <p id="status" class="px-4 mb-5 dark:text-white text-black rounded-4xl text-sm text-center"></p>
+    <section class="container mx-auto w-11/12 md:w-3/5 max-w-11/12 lg:w-lg flex flex-col items-center">
+        <p id="status" class="mb-4 text-sm text-center text-zinc-500 dark:text-zinc-400 min-h-5"></p>
     
-        <h1 class="dark:text-white text-3xl font-semibold mb-2">Upload a financial record.</h1>
-        <p class="text-sm text-zinc-400 text-center">Automatically extract information from a financial record.</p>
+        <h1 class="dark:text-white text-3xl md:text-4xl font-semibold mb-2 text-center">Upload a financial record.</h1>
+        <p class="text-sm text-zinc-400 text-center">We’ll extract and organize the details automatically.</p>
         
-        <div id="dropzone" class="mt-8 mb-2 mx-auto flex flex-col p-10 rounded-4xl dark:bg-zinc-800/30 border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100">
+        <div id="dropzone" class="max-h-60 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-900/80 cursor-pointer mt-8 mb-2 mx-auto flex flex-col items-center justify-center p-10 rounded-4xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/30">
         <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
             <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
-                <svg class="w-8 h-8 mb-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
-                <p class="mb-2 text-sm text-center" id="file-status">Click the button below. Or drag into the zone.</p>
-                <p class="text-xs mb-4 text-center text-zinc-400">Max File Size: <span class="font-semibold">5MB</span>.<br> PNG, JPEG, WEBP, PDF, HEIC.</p>
-                <button type="button" onclick="document.getElementById('fileInput').click()" class="border inline-flex rounded-4xl items-center text-black dark:text-white bg-brand hover:bg-brand-strong box-border shadow-xs font-medium leading-5 rounded-base text-sm px-4 py-1 my-2 cursor-pointer hover:bg-zinc-300/30 dark:hover:bg-black focus:outline-none">
-                    Browse files
-                </button>
+                <svg class="size-12 mb-4 text-zinc-500 dark:text-zinc-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
+                <p class="text-sm text-zinc-600 dark:text-zinc-300">
+                    Drop your file here or click to browse
+                </p>
+                
+                <p class="mt-2 text-xs text-zinc-400">
+                    PNG, JPG, PDF, WEBP, HEIC · up to 5MB
+                </p>
             </div>
         </div>
         <!-- Hidden File Input (Outside Label) -->
         <input type="file" id="fileInput" required class="hidden" accept=".jpg, .png, .jpeg, .webp, .pdf, .heic"/>
         </div>
-        <button onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white px-4 py-2 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all transition-ease-in-out transition-800"> Upload and proceed </button>
-        <hr class="w-sm my-7 text-zinc-200 dark:text-zinc-800 mb-5">
-        <a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all transition-ease-in-out transition-800 mt-0">Or add details manually.</a> 
+        <button id="uploadButton" onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white px-4 py-2.5 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200"> Upload and continue </button>
+        <hr class="w-xs my-7 text-zinc-200 dark:text-zinc-800 mb-5">
+        <a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all ease-in-out duration-200 mt-0">Or enter record details manually.</a> 
     </section>
 </main>
 
 <script>
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const fileStatus = document.getElementById('file-status');
-    const status = document.getElementById('status');
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const status = document.getElementById('status');
+const uploadButton = document.getElementById('uploadButton');
 
-    let selectedFile = null;
+/* Create file status element dynamically (fixes your missing DOM issue) */
+const fileStatus = document.createElement('div');
+fileStatus.className = "mt-3 text-center text-sm text-zinc-500 dark:text-zinc-400";
+dropzone.appendChild(fileStatus);
 
-    // Validation Logic (file type and size)
-    function validateAndSetFile(file) {
-        const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-        const ALLOWED_EXTENSIONS = ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'heic'];
-        const fileExt = file.name.split('.').pop().toLowerCase();
+let selectedFile = null;
 
-        if (file.size > MAX_SIZE) {
-            status.textContent = "Error: File size exceeds 5MB.";
-            return false;
-        }
-        if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
-            status.textContent = "Error: Invalid file type.";
-            return false;
-        }
+/* UI STATES  */
 
-        selectedFile = file;
-        fileStatus.textContent = `Selected: ${file.name}`;
-        status.textContent = ""; // Clear any previous errors
-        return true;
+function setStatus(msg, type = "idle") {
+    status.textContent = msg;
+
+    status.className =
+        "mb-4 text-sm text-center min-h-5 transition-all duration-200 " +
+        (
+            type === "error"
+                ? "text-red-500"
+                : type === "success"
+                ? "text-emerald-500"
+                : "text-zinc-500 dark:text-zinc-400"
+        );
+}
+
+function setFileSuccess(file) {
+    fileStatus.innerHTML = "";
+
+    const name = document.createElement("div");
+    name.className = "text-emerald-500 font-medium text-sm";
+    name.textContent = "✓ " + file.name;
+
+    const meta = document.createElement("div");
+    meta.className = "text-xs text-zinc-400 mt-1";
+    meta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB · ready`;
+
+    fileStatus.appendChild(name);
+    fileStatus.appendChild(meta);
+}
+
+function setDropzoneActive(active) {
+    dropzone.classList.toggle('scale-[1.01]', active);
+    dropzone.classList.toggle('!border-black', active);
+    dropzone.classList.toggle('dark:!border-white', active);
+}
+
+/*  VALIDATION  */
+
+function validate(file) {
+    const MAX = 5 * 1024 * 1024;
+    const allowed = ['jpg','png','jpeg','webp','pdf','heic'];
+
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (file.size > MAX) {
+        setStatus("File exceeds 5MB limit.", "error");
+        return false;
     }
 
-    // 1. Handle manual selection
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            validateAndSetFile(e.target.files[0]);
-        }
-    });
-
-    // 2. Handle Drag & Drop
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        }, false);
-    });
-
-    dropzone.addEventListener('drop', (e) => {
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            validateAndSetFile(files[0]);
-        }
-    }, false);
-
-    // 3. Upload Function
-    async function uploadFile() {
-        if (!selectedFile) {
-            status.textContent = "No valid file selected.";
-            return;
-        }
-
-        // Final check before network request
-        if (!validateAndSetFile(selectedFile)) return;
-
-        try {
-            status.textContent = "Getting upload URL...";
-            const res = await fetch("/documents/upload/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCSRFToken(),
-                },
-                body: JSON.stringify({
-                    filename: selectedFile.name,
-                    content_type: selectedFile.type || "application/octet-stream",
-                }),
-            });
-
-            if (!res.ok) throw new Error(`Failed to get upload URL (${res.status})`);
-
-            const { upload_url, document_id } = await res.json();
-            status.textContent = "Uploading...";
-
-            const uploadRes = await fetch(upload_url, {
-                method: "PUT",
-                headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
-                body: selectedFile,
-            });
-
-            if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
-
-            status.textContent = "Upload complete. Redirecting...";
-            window.location.href = `/records/add_record/${document_id}`;
-        } catch (err) {
-            console.error(err);
-            status.textContent = "Upload failed: " + err.message;
-        }
+    if (!allowed.includes(ext)) {
+        setStatus("Unsupported file type.", "error");
+        return false;
     }
 
-    function getCSRFToken() {
-        return document.cookie.split("; ").find(row => row.startsWith("csrftoken="))?.split("=")[1];
+    return true;
+}
+
+function setFile(file) {
+    if (!validate(file)) return;
+
+    selectedFile = file;
+    setFileSuccess(file);
+    setStatus(""); // clear
+}
+
+/*  EVENTS  */
+
+dropzone.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+});
+
+['dragenter','dragover'].forEach(evt =>
+    dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        setDropzoneActive(true);
+    })
+);
+
+['dragleave','drop'].forEach(evt =>
+    dropzone.addEventListener(evt, e => {
+        e.preventDefault();
+        setDropzoneActive(false);
+    })
+);
+
+dropzone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+});
+
+/* UPLOAD */
+
+async function uploadFile() {
+    if (!selectedFile) {
+        setStatus("Select a file first.", "error");
+        return;
     }
+
+    uploadButton.disabled = true;
+    uploadButton.textContent = "Uploading...";
+
+    try {
+        setStatus("Preparing upload...");
+
+        const res = await fetch("/documents/upload/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken(),
+            },
+            body: JSON.stringify({
+                filename: selectedFile.name,
+                content_type: selectedFile.type || "application/octet-stream",
+            }),
+        });
+
+        if (!res.ok) throw new Error();
+
+        const { upload_url, document_id } = await res.json();
+
+        setStatus("Uploading file...");
+
+        const uploadRes = await fetch(upload_url, {
+            method: "PUT",
+            headers: {
+                "Content-Type": selectedFile.type || "application/octet-stream",
+            },
+            body: selectedFile,
+        });
+
+        if (!uploadRes.ok) throw new Error();
+
+        setStatus("Processing document...", "success");
+
+        window.location.href = `/records/add_record/${document_id}`;
+
+    } catch (err) {
+        console.error(err);
+        setStatus("Upload failed. Try again.", "error");
+    } finally {
+        uploadButton.disabled = false;
+        uploadButton.textContent = "Upload and continue";
+    }
+}
+
+function getCSRFToken() {
+    return document.cookie
+        .split("; ")
+        .find(r => r.startsWith("csrftoken="))
+        ?.split("=")[1];
+}
 </script>
 {% endblock %}

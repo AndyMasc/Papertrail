@@ -82,3 +82,13 @@ class AddRecord(LoginRequiredMixin, View):
 
         context = {"form": form, "document": document}
         return render(request, self.template_name, context)
+
+class DeleteRecord(LoginRequiredMixin, View):
+    def post(self, request, record_id):
+        record = get_object_or_404(
+            Record,
+            id=record_id,
+            user=request.user,
+        )
+        record.delete()
+        return redirect("records:view_all_records")

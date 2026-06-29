@@ -12,12 +12,9 @@
                 {% csrf_token %}
                 <button type="submit" class="underline text-red-500">Delete</button>
             </form>
-            
-            
         {% endfor %}
     {% else %}
         <p>No documents found.</p>
-        <a href="{% url 'documents:upload_document' %}" class="underline text-blue-500">Upload one now?</a>
     {% endif %}
-    
+    <a href="{% url 'documents:upload_document' %}" class="underline text-blue-500">Upload one now?</a>
 {% endblock %}

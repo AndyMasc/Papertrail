@@ -22,8 +22,7 @@
         <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
         <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
     </head>
-    <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col items-center">
-        
+    <body class="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex flex-col items-center">        
         {% if user.is_authenticated %}
         <div x-data="{ isOpen: false, openedWithKeyboard: false }" class="absolute top-3 left-3 w-fit" x-on:keydown.esc.window="isOpen = false, openedWithKeyboard = false">
             <!-- Toggle Button -->
