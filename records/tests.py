@@ -1,6 +1,7 @@
 from django.test import TestCase
 from records.models import Record
 from django.contrib.auth.models import User
+from django.urls import reverse
 
 
 class RecordTestCase(TestCase):
@@ -40,3 +41,22 @@ class RecordTestCase(TestCase):
         self.assertEqual(self.record2.record_type, "expense_receipt")
         self.assertEqual(self.record2.merchant, "Test Merchant 2")
         self.assertEqual(self.record2.expiry_date, None)
+        
+
+    def test_record_access(self):
+        user1 = User.objects.create_user(username="u1", password="pass")
+        user2 = User.objects.create_user(username="u2", password="pass")
+    
+        Record.objects.create(user=user1, title="A")
+        Record.objects.create(user=user2, title="B")
+    
+        self.client.force_login(user1)
+        response = self.client.get(reverse("records:view_all_records"))
+    
+        records = response.context["records"]
+    
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0].title, "A")
+        
+        titles = [record.title for record in records]
+        self.assertNotIn("B", titles)

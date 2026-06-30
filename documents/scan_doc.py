@@ -11,6 +11,7 @@ client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 RecordTypes = Literal[
     "expense_receipt",
+    "voucher",
     "warranty_certificate",
     "vendor_invoice",
     "customer_invoice",
@@ -27,7 +28,7 @@ RecordTypes = Literal[
 
 class OCRResult(BaseModel):
     title: str
-    description: str | None = None
+    # Notes: Notes these should be written by the user personally, only if necessary - Not OCR-generated.
     merchant: str | None = None
     balance: float | None = None
     products: list[str] | None = None
