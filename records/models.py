@@ -1,8 +1,24 @@
 from django.contrib.auth.models import User
 from django.db import models
 
-# Create your models here.
+record_type_choices = [ # for Record model
+    ("expense_receipt", "Expense Receipt"),
+    ("warranty_certificate", "Warranty Certificate"),
+    ("vendor_invoice", "Vendor Invoice"),
+    ("customer_invoice", "Customer Invoice"),
+    ("loan_document", "Loan Document"),
+    ("credit_card_statement", "Credit Card Statement"),
+    ("bank_statement", "Bank Statement"),
+    ("purchase_order", "Purchase Order"),
+    ("payslip", "Payslip / Salary"),
+    ("tax_document", "Tax Document"),
+    ("service_contract", "Service Contract"),
+    ("lease_agreement", "Lease / Rental Agreement"),
+    ("insurance_policy", "Insurance Policy"),
+    ("other", "Other"),
+]
 
+# Create your models here.
 
 class Record(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -19,18 +35,8 @@ class Record(models.Model):
     expiry_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
-    record_type_choices = [
-        ("expense_receipt", "Expense Receipt"),
-        ("vendor_invoice", "Vendor Invoice"),
-        ("purchase_order", "Purchase Order"),
-        ("service_contract", "Service Contract / Warranty"),
-        ("corporate_credit", "Corporate Credit / Voucher"),
-        ("tax_document", "Tax Document"),
-        ("gift_voucher", "Gift Voucher"),
-        ("other", "Other"),
-    ]
     record_type = models.CharField(
-        max_length=20, choices=record_type_choices, default="expense_receipt"
+        max_length=30, choices=record_type_choices, default="expense_receipt"
     )
 
     def __str__(self):

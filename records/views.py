@@ -91,4 +91,4 @@ class DeleteRecord(LoginRequiredMixin, View):
             user=request.user,
         )
         record.delete()
-        return redirect("records:view_all_records")
+        return redirect("core:dashboard")

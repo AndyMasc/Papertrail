@@ -1,20 +1,95 @@
 {% extends "base.html" %}
 
 {% block content %}
+<aside id="default-sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0" aria-label="Sidenav">
+  <div class="overflow-y-auto py-8 px-4 h-full bg-white border-r border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800">
+      
+      <div class="mb-10 text-center">
+          <h1 class="font-black text-2xl text-zinc-900 dark:text-white">Overview</h1>
+          <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">{{ request.user.username }}</p>
+      </div>
 
-    <h1>{{ request.user.username }}'s dashboard </h1>
-    {% if documents %}
-        <h1>Recents:</h1>
-        {% for document in documents %}
-            <a href="{% url 'documents:view_document' document.pk %}" class="underline text-blue-500">{{ document.filepath }}</a> 
+      <ul class="space-y-1">
+          <li>
+              <a href="#" class="flex items-center p-2 text-sm text-zinc-900 rounded-xl hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-900 transition-all">
+                  <span class="ml-3">All Records</span>
+              </a>
+          </li>
 
-            <form action="{% url 'documents:delete_document' document.pk %}" method="POST">
-                {% csrf_token %}
-                <button type="submit" class="underline text-red-500">Delete</button>
-            </form>
-        {% endfor %}
-    {% else %}
-        <p>No documents found.</p>
-    {% endif %}
-    <a href="{% url 'documents:upload_document' %}" class="underline text-blue-500">Upload one now?</a>
+          <li>
+              <a href="{% url 'documents:upload_document' %}" class="flex items-center p-2 text-sm text-zinc-900 rounded-xl hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-900 transition-all">
+                  <span class="ml-3">Quick upload</span>
+              </a>
+          </li>
+      </ul>
+
+      <ul class="pt-6 mt-6 space-y-1 border-t border-zinc-200 dark:border-zinc-800">
+          <li>
+              <a href="{% url 'account_email' %}" class="flex items-center p-2 text-sm font-medium text-zinc-500 rounded-xl hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900 transition-all">
+                  <span class="ml-3">Settings</span>
+              </a>
+          </li>
+
+      </ul>
+  </div>
+</aside>
+
+<main class="ml-0 sm:ml-64 p-8 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        
+        <div class="flex items-center justify-between mb-5">
+            {% if records %}
+                <h1 class="text-2xl font-semibold text-zinc-900 dark:text-white">Recent records</h1>
+            {% else %}
+                <h1 class="text-2xl font-semibold text-zinc-900 dark:text-white">No records</h1>
+            {% endif %}
+            <a href="{% url 'documents:upload_document' %}" class="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                + Upload New
+            </a>
+        </div>
+
+        {% if records %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {% for record in records %}
+                    <div class="group bg-zinc-50/50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm hover:shadow-md">
+                        <h2 class="text-lg font-semibold text-zinc-900 dark:text-white truncate capitalize">{{ record.title }}</h2>
+
+                        {% if record.merchant %}
+                            <p class="text-xs uppercase tracking-wider font-semibold mb-4 text-black dark:text-white">{{ record.merchant }} · <span class="dark:text-zinc-400 text-zinc-500">{{ record.date_added|date:"d M, Y" }}</span></p>
+                        {% endif %}
+
+                        {% if record.balance %}
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">${{ record.balance }} </p>
+                        {% endif %}
+                        
+                        <p class="text-xs text-zinc-500 dark:text-zinc-400 capitalize mb-10">{{ record.get_record_type_display }}</p>
+                        
+                        {% if record.expiry_date %}
+                            <div class="mb-6 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900">
+                                <p class="text-xs text-zinc-400 uppercase tracking-wider font-semibold">Expires</p>
+                                <p class="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{{ record.expiry_date|date:"M d, Y" }}</p>
+                            </div>
+                        {% endif %}
+
+                        <div class="flex items-center gap-3">
+                            <a href="#" class="flex-1 text-center py-2 text-sm font-medium bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 rounded-lg hover:opacity-90 transition-opacity">
+                                View
+                            </a>
+                            <form action="{% url 'records:delete_record' record.pk %}" method="POST">
+                                {% csrf_token %}
+                                <button type="submit" class="p-2 text-zinc-400 hover:text-red-500 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-20 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl">
+                <p class="text-zinc-500 dark:text-zinc-400">No records found. <a href="{% url 'documents:upload_document' %}" class="text-blue-500 underline">Upload one now?</a></p>
+            </div>
+        {% endif %}
+    </div>
+</main>
 {% endblock %}
