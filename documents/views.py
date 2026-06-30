@@ -2,7 +2,6 @@ import json
 import uuid
 from pathlib import Path
 
-from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,11 +9,7 @@ from django.views import View
 from django.views.generic import DetailView
 
 from .models import Document_data
-from .storage_helpers import (
-    generate_read_presigned_url,
-    generate_write_presigned_url,
-    s3,
-)
+from .storage_helpers import generate_read_presigned_url, generate_write_presigned_url
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -40,7 +35,7 @@ class UploadView(LoginRequiredMixin, View):
             filepath=key,
         )
         upload_url = generate_write_presigned_url(key, content_type)
-        
+
         return JsonResponse(
             {
                 "upload_url": upload_url,
