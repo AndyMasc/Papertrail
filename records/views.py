@@ -5,7 +5,6 @@ from django.views.generic.list import ListView
 from documents.models import Document_data
 from documents.scan_doc import extract_document
 from documents.storage_helpers import generate_read_presigned_url
-from django.core.exceptions import ValidationError
 
 from .forms import AddRecordForm
 from .models import Record
@@ -70,7 +69,11 @@ class AddRecord(LoginRequiredMixin, View):
                 Document_data, id=document_id, user=request.user
             )
             if document.associated_record:
-                return render(request, self.template_name, {"error": "This document is already associated with a record."})
+                return render(
+                    request,
+                    self.template_name,
+                    {"error": "This document is already associated with a record."},
+                )
         else:
             document = None
 
@@ -79,15 +82,16 @@ class AddRecord(LoginRequiredMixin, View):
             record = form.save(commit=False)
             record.user = request.user
             record.save()
-        
+
             if document:
                 document.associated_record = record
                 document.save()
-            
+
             return redirect("records:view_all_records")
-            
+
         context = {"form": form, "document": document}
         return render(request, self.template_name, context)
+
 
 class DeleteRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):

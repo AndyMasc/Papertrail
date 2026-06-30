@@ -11,4 +11,4 @@ class dashboard(ListView):
     context_object_name = 'records'
 
     def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user)
+        return super().get_queryset().filter(user=self.request.user).order_by('-date_added')[:5]

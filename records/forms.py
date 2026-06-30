@@ -10,7 +10,7 @@ class AddRecordForm(forms.ModelForm):
     transaction_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     expiry_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     record_type = forms.ChoiceField(choices=record_type_choices, initial="expense_receipt")
-    notes = forms.CharField(widget=forms.Textarea, required=False)
+    notes = forms.CharField(widget=forms.Textarea, required=False, max_length=500)
 
     class Meta:
         model = Record

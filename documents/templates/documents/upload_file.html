@@ -10,7 +10,7 @@
         <h1 class="dark:text-white text-3xl md:text-4xl font-semibold mb-2 text-center">Upload a financial record.</h1>
         <p class="text-sm text-zinc-400 text-center">We’ll extract and organize the details automatically.</p>
         
-        <div id="dropzone" class="max-h-60 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-900/80 cursor-pointer mt-8 mb-2 mx-auto flex flex-col items-center justify-center p-10 rounded-4xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/30">
+        <div id="dropzone" class="max-h-70 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-900/80 cursor-pointer mt-8 mb-2 mx-auto flex flex-col items-center justify-center p-10 rounded-4xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/40">
         <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
             <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
                 <svg class="size-12 mb-4 text-zinc-500 dark:text-zinc-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v9m-5 0H5a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1h-2M8 9l4-5 4 5m1 8h.01"/></svg>
@@ -26,7 +26,7 @@
         <!-- Hidden File Input (Outside Label) -->
         <input type="file" id="fileInput" required class="hidden" accept=".jpg, .png, .jpeg, .webp, .pdf, .heic"/>
         </div>
-        <button id="uploadButton" onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white px-4 py-2.5 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200"> Upload and continue </button>
+        <button id="uploadButton" onclick="uploadFile()" class="mt-2 bg-black dark:bg-white dark:text-black text-white py-2 px-4 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200"> Upload and continue </button>
         <hr class="w-xs my-7 text-zinc-200 dark:text-zinc-800 mb-5">
         <a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all ease-in-out duration-200 mt-0">Or enter record details manually.</a> 
     </section>
