@@ -1,14 +1,14 @@
 from django.shortcuts import render
 from django.views.generic import ListView
-from documents.models import Document_data
+from records.models import Record
 
 def index(request):
     return render(request, 'core/home.html')
 
 class dashboard(ListView):
-    model = Document_data
+    model = Record
     template_name = 'core/dashboard.html'
-    context_object_name = 'documents'
+    context_object_name = 'records'
 
     def get_queryset(self):
-        return super().get_queryset().order_by('-date_added')[:5]
+        return super().get_queryset().order_by('date_added')[:5]

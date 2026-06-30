@@ -35,7 +35,7 @@ class UploadView(LoginRequiredMixin, View):
             filepath=key,
         )
         upload_url = generate_write_presigned_url(key, content_type)
-        
+
         return JsonResponse(
             {
                 "upload_url": upload_url,
