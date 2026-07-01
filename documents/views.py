@@ -21,7 +21,7 @@ class UploadView(LoginRequiredMixin, View):
             data = json.loads(request.body or "{}")
         except json.JSONDecodeError:
             return JsonResponse({"error": "invalid JSON"}, status=400)
-
+        
         filename = data.get("filename")
         content_type = data.get("content_type")
         if not filename or not content_type:
@@ -29,13 +29,9 @@ class UploadView(LoginRequiredMixin, View):
 
         extension = Path(filename).suffix
         key = f"users/{request.user.id}/{uuid.uuid4()}{extension}"
-
-        document = Document_data.objects.create(
-            user=request.user,
-            filepath=key,
-        )
+        document = Document_data.objects.create(user=request.user, filepath=key)
+        
         upload_url = generate_write_presigned_url(key, content_type)
-
         return JsonResponse(
             {
                 "upload_url": upload_url,

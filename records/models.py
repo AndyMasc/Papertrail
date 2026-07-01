@@ -23,7 +23,8 @@ record_type_choices = [ # for Record model
 
 class Record(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    date_added = models.DateField(auto_now_add=True)
+    date_added = models.DateField(auto_now_add=True) # Set to current date/time when record is added only
+    last_edited = models.DateTimeField(auto_now=True) # Set to current date/time when record is edited
 
     title = models.CharField(max_length=255)
     merchant = models.CharField(max_length=255, blank=True, null=True)
