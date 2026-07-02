@@ -2,7 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render
 from django.views.generic import ListView
 from records.models import Record
-from django.db.models import Count
+from django.db.models import Sum
 from django.utils import timezone
 from datetime import timedelta
 
@@ -20,11 +20,12 @@ class dashboard(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['expiring_soon'] = Record.objects.filter(user=self.request.user, expiry_date__lte=timezone.now() + timedelta(days=30)).order_by('-date_added')[:4]
+
+        monthly_expenses = Record.objects.filter(
+            user=self.request.user, 
+            date_added__month=timezone.now().month, 
+            date_added__year=timezone.now().year).aggregate(total=Sum('balance'))
         
-        popular_dict = Record.objects.filter(user=self.request.user).values('record_type').annotate(count=Count('record_type')).order_by('-count').first()
-        if popular_dict:
-            temp_record = Record(record_type=popular_dict['record_type'])
-            popular_dict['display_name'] = temp_record.get_record_type_display()
-        context['most_popular_record_type'] = popular_dict
+        context['monthly_expenses'] = monthly_expenses['total']
         
         return context

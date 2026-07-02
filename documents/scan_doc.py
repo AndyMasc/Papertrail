@@ -5,26 +5,9 @@ from django.conf import settings
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
-from typing import Literal
+from records.models import Record
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
-
-RecordTypes = Literal[
-    "expense_receipt",
-    "voucher",
-    "warranty_certificate",
-    "vendor_invoice",
-    "customer_invoice",
-    "loan_document",
-    "credit_card_statement",
-    "bank_statement",
-    "purchase_order",
-    "payslip",
-    "tax_document",
-    "service_contract",
-    "lease_agreement",
-    "insurance_policy",
-    "other"]
 
 class OCRResult(BaseModel):
     title: str
@@ -34,7 +17,7 @@ class OCRResult(BaseModel):
     products: list[str] | None = None
     transaction_date: str | None = None
     expiry_date: str | None = None
-    record_type: RecordTypes
+    record_type: Record.RecordTypes
 
 
 CONFIG = types.GenerateContentConfig(
@@ -55,6 +38,9 @@ Strict Rules:
 4. Currency Formatting: Extract the balance as a clean number only. Do not include currency symbols (e.g., $, €, £) or commas.
 5. Contextual Inference & Data Standardization: You may infer data ONLY when there is overwhelming visual or contextual evidence (e.g., identifying a merchant from a prominent logo like "PB Tech"). You are explicitly authorized to clean, fix typos, and expand shorthand abbreviations or truncated product descriptions found on receipts into full, readable product names (e.g., converting "Banan yogurt" to "Banana Yogurt"). ALL product names, should be converted to title case. If the evidence is weak, ambiguous, or a shorthand name cannot be confidently identified, default strictly to null.
 6. Descriptions should be brief, concise, and to the point. If a valid description is not able to be produced, default to null.
+
+Note:
+- 'Balance' refers to the total monetary sum extracted or stated on the submitted document (not restricted to a "remaining" amount, like a voucher balance).
 """
 
 class GeminiOCRError(Exception):

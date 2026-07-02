@@ -2,250 +2,65 @@
 
 {% block content %}
 
-<aside id="default-sidebar" class="fixed top-0 left-0 z-50 sm:z-40 w-64 h-screen transition-transform duration-200 -translate-x-full sm:translate-x-0" aria-label="Sidenav">
-    
-    <div class="overflow-y-auto py-8 px-5 h-full bg-zinc-100 border-r border-zinc-200/80 backdrop-blur-sm dark:bg-zinc-900/90 rounded-r-4xl dark:border-zinc-900">
-        
-        <div class="mb-8 px-2">
-            <h1 class="font-bold text-xl tracking-tight text-zinc-900 dark:text-white">Overview</h1>
-            <p class="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 tracking-wide">{{ request.user.username }}</p>
-        </div>
+<main class="sm:p-8 lg:p-12 pb-10 mt-10 sm:mt-5">
 
-        <div class="space-y-6">
-            <div>
-                <p class="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">Workspace</p>
-                <ul class="space-y-1">
-                    <li>
-                        <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-zinc-900 rounded-lg bg-zinc-200 dark:bg-zinc-800/60 dark:text-white transition-all duration-200">
-                            <span>All Records</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'documents:upload_document' %}" class="flex items-center px-3 py-2 text-sm font-medium text-zinc-600 rounded-lg hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800/60 transition-all duration-200">
-                            <span>Quick record</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'records:add_record_manual' %}" class="flex items-center px-3 py-2 text-sm font-medium text-zinc-600 rounded-lg hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800/60 transition-all duration-200">
-                            <span>New record</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="pt-4 border-t border-zinc-200 dark:border-zinc-900">
-                <ul class="space-y-1">
-                    <li>
-                        <a href="{% url 'account_email' %}" class="flex items-center px-3 py-2 text-sm font-medium text-zinc-500 rounded-lg hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-900/60 transition-all duration-200">
-                            <span>Settings</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</aside>
-
-<div id="sidebar-backdrop" class="fixed inset-0 z-40 bg-zinc-950/20 backdrop-blur-xs hidden sm:hidden transition-opacity duration-200"></div>
-
-<main id="main" class="ml-0 sm:ml-64 p-4 sm:p-8 lg:p-12 min-h-screen bg-white dark:bg-zinc-950 transition-all duration-200 pb-10 mt-5">
-
-    <section class="max-w-7xl mb-15 mx-auto">
+    <section class="max-w-7xl mb-15 mx-auto ">
         <header class="mb-5">
-            <h1 class="dark:text-white font-bold tracking-tight text-xl sm:text-2xl">{{ request.user.username }}'s Analytics</h1>
-            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">How you've used Papertrail.</p>
-            
-            <button 
-                id="sidebar-toggle" 
-                class="block fixed top-5 right-4 z-50 p-2 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 backdrop-blur-md shadow-sm hover:text-zinc-900 dark:hover:text-zinc-100 transition-all active:scale-95"
-                aria-label="Toggle Sidebar"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
-            </button>
-            
+            <h1 class="dark:text-white font-bold tracking-tight text-xl sm:text-2xl text-center sm:text-left">{{ request.user.username }}'s Analytics</h1>
+            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 text-center sm:text-left">How you've used Papertrail.</p>
         </header>
+        
         <div class="grid grid-cols-1 md:grid-cols-3 text-center gap-5 dark:text-white font-semibold uppercase tracking-widest">
             <div class="py-8 bg-zinc-50 dark:bg-zinc-900/80 rounded-4xl flex flex-col items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-800">
                 <p class="text-xs text-zinc-500">Total Records</p>
-                <p class="font-bold">{{ records.count }}</p>
+                <p class="font-bold text-2xl">{{ records.count }}</p>
             </div>
             <div class="py-8 rounded-4xl bg-zinc-50 dark:bg-zinc-900/80 flex flex-col items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-800">
                 <p class="text-xs text-zinc-500">Expiring within the month</p>
-                <p class="font-bold">{{ expiring_soon.count }}</p>
+                <p class="font-bold text-2xl">{{ expiring_soon.count }}</p>
             </div>
             <div class="py-8 rounded-4xl bg-zinc-50 dark:bg-zinc-900/80 flex flex-col items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-800">
-                <p class="text-xs text-zinc-500">Most Popular Record Type</p>
-                {% if most_popular_record_type %}
-                    <p class="font-bold">{{ most_popular_record_type.display_name }}</p>
-                {% else %}
-                    <p>No data available</p>
-                {% endif %}
+                <p class="text-xs text-zinc-500">Tracked monthly expenses</p>
+                <p class="font-bold text-2xl">${{ monthly_expenses|floatformat:2 }}</p>
             </div>
         </div>
     </section>
 
-    <section>
-        <div class="max-w-7xl mx-auto">
-            
-            <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-5 sm:mb-10">
-                <div class="w-full">
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 dark:text-white w-full inline-flex items-center justify-between">
-                        {% if records %}
-                            Recent Records 
-                        {% else %}
-                            No Records
-                        {% endif %}
-                        
-                        {% if records.count > 1 %}
-                            <span class="text-xs mt-0.5 sm:hidden text-zinc-400">Side scroll</span>
-                        {% endif %}
-                    </h1>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Manage and track your asset history.</p>
-                </div>
-                <a href="{% url 'documents:upload_document' %}" class="whitespace-nowrap sm:w-auto text-center hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-xl transition-all duration-200 shadow-sm">
-                    + Upload New
+    <section class="max-w-7xl mx-auto">
+        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-5 sm:mb-10">
+            <div class="w-full">
+                <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 dark:text-white w-full inline-flex items-center justify-between">
+                    {% if records %}Recent Records{% else %}No Records{% endif %}
+                    {% if records.count > 1 %}
+                        <span class="text-xs mt-0.5 sm:hidden text-zinc-400">Side scroll</span>
+                    {% endif %}
+                </h1>
+                <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Manage and track your asset history.</p>
+            </div>
+            <a href="{% url 'documents:upload_document' %}" class="whitespace-nowrap sm:w-auto text-center hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-xl transition-all duration-200 shadow-sm">
+                + Upload New
+            </a>
+        </div>
+
+        {% if records %}
+            <div class="flex overflow-x-auto snap-x snap-mandatory pb-6 gap-5 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
+                
+            </div>    
+        
+        
+            <div class="flex overflow-x-auto snap-x snap-mandatory pb-6 gap-5 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
+                {% for record in records %}
+                    {% include 'records/record_card.html' %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-24 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/30 dark:bg-zinc-900/10">
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">No records found active in this workspace.</p>
+                <a href="{% url 'documents:upload_document' %}" class="sm:inline-block text-xs font-semibold underline text-zinc-950 dark:text-white mt-2 hover:opacity-80 transition-opacity">
+                    Upload your first document now
                 </a>
             </div>
-    
-            {% if records %}
-                <div class="flex overflow-x-auto snap-x snap-mandatory pb-6 gap-5 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
-                    {% for record in records %}
-                        <div class="flex-none w-[85vw] sm:w-full snap-start flex flex-col h-[360px] sm:h-[380px] group relative bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/60 rounded-2xl p-5 sm:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-none hover:border-zinc-300 dark:hover:border-zinc-700 dark:hover:ring-zinc-700">
-                            
-                            <div class="h-12 mb-2">
-                                <h2 class="text-lg sm:text-xl font-semibold text-zinc-900 dark:text-white truncate capitalize tracking-tight" title="{{ record.title }}">
-                                    {{ record.title }}
-                                </h2>
-                                <p class="text-[10px] uppercase tracking-widest font-bold mt-1 text-zinc-400 dark:text-zinc-500 truncate">
-                                    {% if record.merchant %}
-                                        {{ record.merchant }} <span class="mx-1 text-zinc-300 dark:text-zinc-700">·</span> 
-                                    {% endif %}
-                                    {% if record.transaction_date %}{{ record.transaction_date|date:"d M, Y" }}{% else %}{{ record.date_added|date:"d M, Y" }}{% endif %}
-                                </p>
-                            </div>
-                    
-                            <div class="h-10 flex items-center mb-2">
-                                {% if record.balance %}
-                                    <p class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">${{ record.balance }}</p>
-                                {% else %}
-                                    <p class="text-xl font-medium tracking-tight text-zinc-300 dark:text-zinc-700">—</p>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="mb-4">
-                                {% if record.record_type == "expense_receipt" %}
-                                    <span class="bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "voucher" %}
-                                    <span class="bg-teal-500/10 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "warranty_certificate" %}
-                                    <span class="bg-amber-500/10 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "vendor_invoice" %}
-                                    <span class="bg-blue-500/10 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "customer_invoice" %}
-                                    <span class="bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "loan_document" %}
-                                    <span class="bg-rose-500/10 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "credit_card_statement" %}
-                                    <span class="bg-orange-500/10 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "bank_statement" %}
-                                    <span class="bg-sky-500/10 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400 border border-sky-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "purchase_order" %}
-                                    <span class="bg-violet-500/10 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 border border-violet-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "payslip" %}
-                                    <span class="bg-lime-500/10 text-lime-600 dark:bg-lime-500/10 dark:text-lime-400 border border-lime-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% elif record.record_type == "tax_document" %}
-                                    <span class="bg-red-500/10 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-500/20 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-                                        {{ record.get_record_type_display }}
-                                    </span>
-                                {% endif %}
-                            </div>
-                    
-                            <div class="flex-1 min-h-0 mb-4 overflow-hidden">
-                                <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 italic">
-                                    {{ record.products }}
-                                </p>
-                            </div>
-                            
-                            <div class="pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
-                                <div class="flex justify-between items-center h-8">
-                                    <div>
-                                        <p class="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest font-bold">Expires</p>
-                                        <p class="text-xs text-zinc-700 dark:text-zinc-300 font-medium mt-0.5">
-                                            {% if record.expiry_date %}{{ record.expiry_date|timeuntil }}{% else %}<span class="text-zinc-300 dark:text-zinc-700">No Expiry</span>{% endif %}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                    
-                            <div class="flex items-center gap-2 mt-4">
-                                <a href="#" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-xl transition-all duration-200">
-                                    View Details
-                                </a>
-                                <form action="{% url 'records:delete_record' record.pk %}" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this record?');" class="inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="p-2.5 sm:p-2 text-zinc-400 hover:text-rose-500 dark:hover:text-rose-400 bg-zinc-50 hover:bg-rose-50 dark:bg-zinc-900/50 dark:hover:bg-rose-950/30 rounded-xl transition-all duration-200" title="Delete record">
-                                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                        </svg>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-24 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/30 dark:bg-zinc-900/10">
-                    <p class="text-sm text-zinc-500 dark:text-zinc-400">No records found active in this workspace.</p>
-                    <a href="{% url 'documents:upload_document' %}" class="sm:inline-block text-xs font-semibold underline text-zinc-950 dark:text-white mt-2 hover:opacity-80 transition-opacity">
-                        Upload your first document now
-                    </a>
-                </div>
-            {% endif %}
-        </div>
+        {% endif %}
     </section>
 </main>
-
-<script>
-  const sidebarToggle = document.getElementById('sidebar-toggle');
-  const sidebar = document.getElementById('default-sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  const main = document.getElementById('main');
-
-  function handleSidebarToggle() {
-    const isDesktop = window.innerWidth >= 640; 
-
-    if (isDesktop) {
-      sidebar.classList.toggle('sm:translate-x-0');
-      main.classList.toggle('sm:ml-64');
-    } else {
-      sidebar.classList.toggle('translate-x-0');
-      backdrop.classList.toggle('hidden');
-    }
-  }
-
-  sidebarToggle.addEventListener('click', handleSidebarToggle);
-  backdrop.addEventListener('click', handleSidebarToggle);
-</script>
 {% endblock %}
