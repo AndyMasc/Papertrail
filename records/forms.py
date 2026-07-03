@@ -23,10 +23,16 @@ class AddRecordForm(forms.ModelForm):
         fields = '__all__'
         exclude = ['user', 'date_added', 'last_edited', 'is_active']
 
+    def clean_transaction_date(self):
+        transaction_date = self.cleaned_data.get('transaction_date')
+        if transaction_date and transaction_date > timezone.localdate():
+            raise ValidationError('Transaction date cannot be in the future.')
+        return transaction_date
+
     def clean(self): # clean is a method name. Only works with clean_<field_name>, where field_name is from model
         cleaned_data = super().clean()
         expiry_date = cleaned_data.get('expiry_date')
         transaction_date = cleaned_data.get('transaction_date')
         if (expiry_date and transaction_date) and (expiry_date < transaction_date):
-            raise ValidationError({'expiry_date': 'Expiry date cannot be before transaction date.', 'transaction_date': 'Transaction date cannot be after expiry date.'})
+            raise ValidationError({'expiry_date': 'Expiry date cannot be before transaction date.'})
         return cleaned_data

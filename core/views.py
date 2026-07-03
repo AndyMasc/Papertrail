@@ -15,11 +15,11 @@ class dashboard(LoginRequiredMixin, ListView):
     context_object_name = 'records'
 
     def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user).order_by('-last_edited')[:4]
+        return super().get_queryset().filter(user=self.request.user, is_active=True).order_by('-last_edited')[:4]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['expiring_soon'] = Record.objects.filter(user=self.request.user, expiry_date__lte=timezone.now() + timedelta(days=30)).order_by('-date_added')[:4]
+        context['expiring_soon'] = Record.objects.filter(user=self.request.user, is_active=True, expiry_date__lte=timezone.now() + timedelta(days=30)).order_by('-date_added')[:4]
 
         monthly_expenses = Record.objects.filter(
             user=self.request.user, 

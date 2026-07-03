@@ -13,11 +13,11 @@ from .models import Record
 # Create your views here.
 class RecordListView(LoginRequiredMixin, ListView):
     model = Record
-    template_name = "records/view_all_records.html"
+    template_name = "records/record_list_view.html"
     context_object_name = "records"
 
     def get_queryset(self):
-        return Record.objects.filter(user=self.request.user)
+        return Record.objects.filter(user=self.request.user, is_active=True)
 
 
 class AddRecord(LoginRequiredMixin, View):
@@ -92,6 +92,34 @@ class AddRecord(LoginRequiredMixin, View):
         context = {"form": form, "document": document}
         return render(request, self.template_name, context)
 
+class ArchiveRecord(LoginRequiredMixin, ListView):
+    template_name = "records/record_list_view.html"
+    context_object_name = "records"
+
+    def get_queryset(self):
+        return Record.objects.filter(user=self.request.user, is_active=False)
+
+    def post(self, request, record_id):
+        record = get_object_or_404(
+            Record,
+            id=record_id,
+            user=request.user,
+        )
+        record.is_active = False
+        record.save()
+        return redirect("records:view_all_records")
+
+class UnarchiveRecord(LoginRequiredMixin, View):
+    def get(self, request, record_id):
+        record = get_object_or_404(
+            Record,
+            id=record_id,
+            user=request.user,
+            is_active=False,
+        )
+        record.is_active = True
+        record.save()
+        return redirect("records:view_all_records")
 
 class DeleteRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):
