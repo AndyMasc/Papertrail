@@ -7,8 +7,22 @@
         <h1 class="text-black dark:text-white">All Records</h1>
     {% endif %}
 
+    <form method="get" class="mb-4">
+        <div class="form-group">
+            <label for="id_expiring_soon">Filter Options:</label>
+            {{ filter.form.expiring_soon }} 
+            {{ filter.form.record_type }}
+            {{ filter.form.is_active }}
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        <a href="{% url 'records:view_all_records' %}" class="btn btn-secondary btn-sm">Clear</a>
+    </form>
+    
+    <hr>
+
     {% if records %}
-        <div class="flex overflow-x-auto snap-x snap-mandatory      pb-6 gap-6 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
+        <div class="flex overflow-x-auto snap-x snap-mandatory pb-6 gap-6 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
             {% for record in records %}
                 {% include 'records/record_card.html' %}
             {% endfor %}

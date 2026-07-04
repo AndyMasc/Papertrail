@@ -11,16 +11,20 @@ charset-normalizer==3.4.7
 click==8.4.1
 cookiecutter==2.7.1
 cryptography==48.0.0
+cssbeautifier==2.0.3
 distro==1.9.0
 Django==6.0.6
 django-allauth==65.18.0
 django-allauth-ui==1.8.1
 django-browser-reload==1.21.0
+django-filter==25.2
 django-storages==1.14.6
 django-tailwind==4.5.0
 django-widget-tweaks==1.5.1
+djlint==1.40.2
 docopt==0.6.2
 easyocr==1.7.2
+EditorConfig==0.17.1
 filelock==3.29.4
 fsspec==2026.6.0
 google-api-core==2.31.0
@@ -42,6 +46,8 @@ idna==3.18
 ImageIO==2.37.3
 Jinja2==3.1.6
 jmespath==1.1.0
+jsbeautifier==2.0.3
+json5==0.15.0
 lazy-loader==0.5
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
@@ -53,6 +59,7 @@ numpy==2.5.0
 oauthlib==3.3.1
 opencv-python-headless==4.13.0.92
 packaging==26.2
+pathspec==1.1.1
 pillow==12.2.0
 proto-plus==1.28.0
 protobuf==7.35.1
@@ -72,6 +79,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-slugify==8.0.4
 PyYAML==6.0.3
+regex==2026.6.28
 requests==2.34.2
 requests-oauthlib==2.0.0
 requirements-parser==0.13.1

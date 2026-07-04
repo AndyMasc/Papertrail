@@ -1,4 +1,6 @@
 {% load sidebar_tags %}
+{% load form_tags %}
+
 {# Fixed navigation item curves to 2xl so they don't look like awkward pills inside a 4xl container #}
 {% with base_css="text-zinc-500 dark:text-zinc-400 flex items-center px-3 py-2 text-sm rounded-2xl hover:bg-zinc-200 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200 hover:text-zinc-800 transition-all duration-200" %}
 {% with active_css="text-black dark:text-white bg-zinc-200 dark:bg-zinc-800 flex items-center px-3 py-2 text-sm rounded-2xl" %}
@@ -28,7 +30,7 @@
                 <ul class="space-y-1">
                     <li>
                         <a href="{% url 'records:view_all_records' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                            <span>Active Records</span>
+                            <span>Records</span>
                         </a>
                     </li>
                     <li>
@@ -42,7 +44,7 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'records:archive_view' %}" class="{% active_link 'records:archive_view' base_css active_css %}">
+                        <a href="{% filter_url 'records:view_all_records' is_active='False' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
                             <span>Archive</span>
                         </a>
                     </li>

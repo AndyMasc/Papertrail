@@ -5,16 +5,19 @@ from django.views.generic.list import ListView
 from documents.models import Document_data
 from documents.scan_doc import extract_document
 from documents.storage_helpers import generate_read_presigned_url
+from django_filters.views import FilterView
+from .filters import RecordFilter
 
 from .forms import AddRecordForm
 from .models import Record
 
 
 # Create your views here.
-class RecordListView(LoginRequiredMixin, ListView):
+class RecordListView(LoginRequiredMixin, FilterView):
     model = Record
     template_name = "records/record_list_view.html"
     context_object_name = "records"
+    filterset_class = RecordFilter # Hook up the filter
 
     def get_queryset(self):
         return Record.objects.filter(user=self.request.user, is_active=True)
@@ -95,9 +98,6 @@ class AddRecord(LoginRequiredMixin, View):
 class ArchiveRecord(LoginRequiredMixin, ListView):
     template_name = "records/record_list_view.html"
     context_object_name = "records"
-
-    def get_queryset(self):
-        return Record.objects.filter(user=self.request.user, is_active=False)
 
     def post(self, request, record_id):
         record = get_object_or_404(
