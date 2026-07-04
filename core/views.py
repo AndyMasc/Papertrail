@@ -15,7 +15,7 @@ class dashboard(LoginRequiredMixin, ListView):
     context_object_name = 'records'
 
     def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user, is_active=True).order_by('-last_edited')
+        return super().get_queryset().filter(user=self.request.user, is_active=True).order_by('-last_edited')[:4]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -29,3 +29,6 @@ class dashboard(LoginRequiredMixin, ListView):
         context['monthly_expenses'] = monthly_expenses['total']
         
         return context
+
+def privacy_policy(request):
+    return render(request, 'core/privacy_policy.html')

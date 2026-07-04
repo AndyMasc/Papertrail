@@ -20,7 +20,16 @@ class RecordListView(LoginRequiredMixin, FilterView):
     filterset_class = RecordFilter # Hook up the filter
 
     def get_queryset(self):
-        return Record.objects.filter(user=self.request.user, is_active=True)
+        return Record.objects.filter(user=self.request.user)
+
+
+class RecordDetailView(LoginRequiredMixin, View):
+    template_name = "records/record_detail_view.html"
+
+    def get(self, request, record_id):
+        record = get_object_or_404(Record, user=request.user, pk=record_id)
+        context = {"record": record}
+        return render(request, self.template_name, context)
 
 
 class AddRecord(LoginRequiredMixin, View):
@@ -89,8 +98,8 @@ class AddRecord(LoginRequiredMixin, View):
             if document:
                 document.associated_record = record
                 document.save()
-
-            return redirect("records:view_all_records")
+                
+            return redirect("documents:add_support_docs", record_id=record.id)
 
         context = {"form": form, "document": document}
         return render(request, self.template_name, context)
@@ -129,4 +138,4 @@ class DeleteRecord(LoginRequiredMixin, View):
             user=request.user,
         )
         record.delete()
-        return redirect("core:dashboard")
+        return redirect("records:view_all_records")

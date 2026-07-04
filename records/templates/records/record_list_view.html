@@ -1,12 +1,9 @@
 {% extends "base.html" %} 
 
 {% block content %}
-    {% if request.path == '/records/archive/' %}
-        <h1 class="text-black dark:text-white">Archived Records</h1>
-    {% else %}
-        <h1 class="text-black dark:text-white">All Records</h1>
-    {% endif %}
-
+    <h1 class="text-black dark:text-white">Records Home</h1>
+    <p>This is the centralized view for all your records.</p>
+    
     <form method="get" class="mb-4">
         <div class="form-group">
             <label for="id_expiring_soon">Filter Options:</label>

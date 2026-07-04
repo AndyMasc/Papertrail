@@ -14,7 +14,6 @@ s3 = boto3.client(
     config=Config(signature_version="s3v4"),
 )
 
-
 def generate_write_presigned_url(key, content_type):
     return s3.generate_presigned_url(
         "put_object",
@@ -25,7 +24,6 @@ def generate_write_presigned_url(key, content_type):
         },
         ExpiresIn=900,
     )
-
 
 def generate_read_presigned_url(key):
     return s3.generate_presigned_url(

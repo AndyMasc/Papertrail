@@ -4,11 +4,10 @@
 {% block title %}Dashboard | Papertrail{% endblock %}
 
 {% block content %}
-<!-- Main semantic container wrapping all unique body content -->
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10 overflow-x-hidden">
     
     <!-- Header Landmark -->
-    <header class="bg-white dark:bg-zinc-900/50 relative overflow-hidden rounded-4xl border border-zinc-200/80 dark:border-zinc-800/50 p-6 flex flex-col md:flex-row items-center text-center md:text-left justify-between gap-6">
+    <header class="bg-white dark:bg-zinc-900/50 relative overflow-hidden rounded-4xl border border-zinc-200/80 dark:border-zinc-800/50 p-6 flex flex-col lg:flex-row items-center text-center md:text-left justify-between gap-6">
         <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
 
         <div class="flex flex-col items-center md:items-start relative z-10">
@@ -26,11 +25,11 @@
             </p>
         </div>
 
-        <a href="{% url 'documents:upload_document' %}" class="relative z-10 inline-flex items-center justify-center gap-2 px-5 py-3 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-4xl transition-all duration-200 shadow-md shadow-zinc-950/10 dark:shadow-none group active:scale-[0.98] shrink-0">
+        <a href="{% url 'documents:upload_document' %}" class="w-full lg:w-auto relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-4xl transition-all duration-200 shadow-md shadow-zinc-950/10 dark:shadow-none group active:scale-[0.98] shrink-0">
             <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-90 duration-300" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Upload New Document
+            Upload a record
         </a>
     </header>
 
@@ -47,7 +46,6 @@
                     </div>
                 </div>
                 <div>
-                    <!-- Replaced .count with |length to prevent redundant SQL evaluation -->
                     <p class="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">{{ records|length }}</p>
                     <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
                         Active record{% if records|length != 1 %}s{% endif %}
@@ -56,7 +54,7 @@
             </div>
         </a>
 
-        <a href="{% filter_url 'records:view_all_records' expiring_soon='True' %}" class="group block">
+        <a href="{% filter_url 'records:view_all_records' expiring_soon='True' is_active='True' %}" class="group block">
             <div class="group-hover:-translate-y-1 group-hover:shadow-xl group-hover:bg-zinc-50/80 group-hover:dark:bg-zinc-900/80 relative overflow-hidden p-6 rounded-4xl bg-white dark:bg-zinc-900/40 border border-zinc-200/70 dark:border-zinc-800/60 flex flex-col justify-between h-44 transition-all duration-300">
                 <div class="flex items-center justify-between gap-4">
                     <span class="text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Expiring Within the Month</span>
@@ -68,8 +66,10 @@
                 </div>
                 <div>
                     <p class="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">{{ expiring_soon|length }}</p>
-                    {% if expiring_soon %}
-                        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Expiring soon: Requires attention</p>
+                    {% if expiring_soon|length > 1 %}
+                        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Active records expiring soon</p>
+                    {% elif expiring_soon|length == 1 %}
+                        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Active record expiring soon</p>
                     {% else %}
                         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Nothing expiring soon</p>
                     {% endif %}
@@ -88,7 +88,7 @@
                 </div>
             </div>
             <div class="z-10">
-                <p class="text-4xl font-bold tracking-tight text-black dark:text-white">
+                <p class="text-4xl font-bold tracking-tight text-black dark:text-white truncate">
                     ${{ monthly_expenses|default:0|floatformat:2 }}
                 </p>
                 <span class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Aggregate monthly expenses</span>
@@ -99,24 +99,7 @@
     <div class="w-full h-px bg-zinc-200/60 dark:bg-zinc-900" aria-hidden="true"></div>
 
     <!-- Record Collections Sections -->
-    <div class="space-y-10">
-        <section class="flex flex-col gap-y-4 min-w-0" aria-labelledby="heading-expiring">
-            {% if expiring_soon %}
-                <div>
-                    <h2 id="heading-expiring" class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                        <span class="size-2 mb-0.5 mr-1 inline-block rounded-full bg-amber-500 animate-pulse" aria-hidden="true"></span> Expiring Soon
-                    </h2>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Review these records.</p>
-                </div>
-
-                <div class="w-full overflow-x-auto snap-x snap-mandatory pb-4 gap-6 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:pb-0 flex">
-                    {% for record in expiring_soon %}
-                        {% include 'records/record_card.html' %}
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </section>
-
+    <div class="flex flex-col space-y-10 gap-5">
         <section class="flex flex-col gap-y-4 min-w-0" aria-labelledby="heading-recent">
             <div class="flex items-center justify-between gap-4">
                 <div>
@@ -134,18 +117,18 @@
                     {% endfor %}
                 </div>
             {% else %}
-                <div class="text-center py-20 border border-dashed border-zinc-200 dark:border-zinc-800/60 rounded-4xl bg-gradient-to-b from-zinc-50/50 to-transparent dark:from-zinc-900/10 dark:to-transparent flex flex-col items-center justify-center p-6 gap-y-2">
+                <div class="text-center py-10 border border-dashed border-zinc-200 dark:border-zinc-800/60 rounded-4xl bg-linear-to-b from-zinc-50/50 to-transparent dark:from-zinc-900/10 dark:to-transparent flex flex-col items-center justify-center p-6 gap-y-2">
                     <div class="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 dark:text-zinc-600 border border-zinc-200/60 dark:border-zinc-800/80 mb-2" aria-hidden="true">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
                     </div>
-                    <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">No files mapped</h3>
+                    <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Nothing to see here!</h3>
                     <p class="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto text-balance">
-                        This directory workspace is currently unpopulated. Securely initialize your pipeline tracking metrics.
+                        No records found matching this query.
                     </p>
                     <a href="{% url 'documents:upload_document' %}" class="inline-flex items-center gap-1 mt-2 text-xs font-semibold px-3 py-1.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 border border-transparent hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors shadow-xs">
-                        Upload your first document
+                        Upload a record
                     </a>
                 </div>
             {% endif %}

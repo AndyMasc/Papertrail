@@ -15,14 +15,15 @@
 </head>
 
 <body class="dark:bg-zinc-950 px-2">
-    {% if request.path != '/' %}
+    {% if user.is_authenticated %}
         <main id="main" class="ml-0 sm:ml-64 px-4 min-h-screen bg-white dark:bg-zinc-950 transition-all duration-200">
+        {% block sidebar %} {% include "core/sidebar.html" %} {% endblock %}
     {% else %}
         <main id="main" class="ml-0 px-4 min-h-screen bg-white dark:bg-zinc-950 transition-all duration-200">
+        
     {% endif %}
-        {% block content %} {% endblock %}
+    {% block content %} {% endblock %}
     </main>
-    {% block sidebar %} {% include "core/sidebar.html" %} {% endblock %}
 </body>
 
 <script>

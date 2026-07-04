@@ -1,16 +1,13 @@
 {% load sidebar_tags %}
 {% load form_tags %}
 
-{# Fixed navigation item curves to 2xl so they don't look like awkward pills inside a 4xl container #}
 {% with base_css="text-zinc-500 dark:text-zinc-400 flex items-center px-3 py-2 text-sm rounded-2xl hover:bg-zinc-200 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200 hover:text-zinc-800 transition-all duration-200" %}
 {% with active_css="text-black dark:text-white bg-zinc-200 dark:bg-zinc-800 flex items-center px-3 py-2 text-sm rounded-2xl" %}
 
 <aside id="default-sidebar" class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform duration-200 -translate-x-full sm:translate-x-0 bg-zinc-100 backdrop-blur-sm dark:bg-zinc-900 rounded-r-2xl" aria-label="Sidenav">
-    
     <button 
         id="sidebar-toggle" 
         title="Toggle sidebar"
-        {# Bumped right rounding to 2xl to match the nesting rule of the 4xl sidebar container #}
         class="absolute top-7 left-full z-50 p-1.5 rounded-r-2xl border-y border-r border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/70 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all active:scale-95"
         aria-label="Toggle Sidebar">
         <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="sm:rotate-180 size-5 transition-all duration-500">
@@ -29,7 +26,7 @@
                 <p class="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">Workspace</p>
                 <ul class="space-y-1">
                     <li>
-                        <a href="{% url 'records:view_all_records' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                        <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
                             <span>Records</span>
                         </a>
                     </li>

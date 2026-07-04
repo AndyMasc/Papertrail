@@ -42,11 +42,11 @@
 
     <div class="flex items-center gap-2 mt-4">
         {% if not record.is_active %}
-            <a onclick="return confirm('Are you sure you want to unarchive this record?')" href="{% url 'records:unarchive_record' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
+            <a onclick="return confirm('Restore this record?')" href="{% url 'records:unarchive_record' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
                 Unarchive
             </a>
         {% endif %}
-        <a href="#" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
+        <a href="{% url 'records:record_detail' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
             View Details
         </a>
 

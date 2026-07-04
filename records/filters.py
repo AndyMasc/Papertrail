@@ -19,7 +19,7 @@ class RecordFilter(django_filters.FilterSet):
         field_name="is_active",
         lookup_expr="exact",
         widget=forms.Select(
-            choices=[("", "All Statuses"), (True, "Active"), (False, "Archived")]
+            choices=[(True, "Active"), (False, "Archived")]
         ),
     )
 

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{ record.title }}</h1>
+<p>{{ record.notes }}</p>
+<p>{{ record.products }}</p>
+
+
+{% for document in record.documents.all %}
+    <p>{{ document.title }}</p>
+    <p>{{ document.filepath }}</p>
+{% endfor %}
+
+<a href="{% url 'documents:add_support_docs' record.pk %}" class="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-4xl transition-all duration-200 shadow-md shadow-zinc-950/10 dark:shadow-none group active:scale-[0.98] shrink-0">
+    Add Support Document
+</a>
+
+{% endblock %}
