@@ -1,43 +1,56 @@
-{% extends "base.html" %} 
+{% extends "base.html" %}
+{% load widget_tweaks %}
 
 {% block content %}
-    <h1 class="text-black dark:text-white">Records Home</h1>
-    <p>This is the centralized view for all your records.</p>
+<div class="max-w-7xl mx-auto px-6 py-12 space-y-10">
     
-    <form method="get" class="mb-4">
-        <div class="form-group">
-            <label for="id_expiring_soon">Filter Options:</label>
-            {{ filter.form.expiring_soon }} 
-            {{ filter.form.record_type }}
-            {{ filter.form.is_active }}
+    <header class="flex items-start justify-between">
+        <div class="space-y-1">
+            <h1 class="text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">Records Home</h1>
+            <p class="text-zinc-400 text-sm">The centralized home for all your records.</p>
         </div>
-        
-        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-        <a href="{% url 'records:view_all_records' %}" class="btn btn-secondary btn-sm">Clear</a>
-    </form>
-    
-    <hr>
+        <a href="{% url 'documents:upload_document' %}" 
+           class="dark:bg-white dark:text-black bg-black text-white inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 rounded-full transition-all shadow-sm active:scale-[0.97]">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Upload Document
+        </a>
+    </header>
 
-    {% if records %}
-        <div class="flex overflow-x-auto snap-x snap-mandatory pb-6 gap-6 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:pb-0">
-            {% for record in records %}
-                {% include 'records/record_card.html' %}
-            {% endfor %}
+    <section>
+        <div class="relative group">
+            <input 
+                class="w-full bg-white dark:bg-zinc-950 border dark:border-zinc-800 border-zinc-200 py-3 px-6 text-sm rounded-4xl dark:text-white text-black outline-hidden transition-all"
+                placeholder="Search records naturally"
+                id="search" type="search" name="search"
+                hx-get="{% url 'records:view_all_records' %}"
+                hx-trigger="input changed delay:300ms, keyup[key=='Enter']"
+                hx-target="#query-results-container"
+                hx-indicator=".htmx-indicator"
+                hx-include="#filter-form">
         </div>
-    {% else %}
-        <div class="text-center py-20 border border-dashed border-zinc-200 dark:border-zinc-800/80 rounded-4xl bg-gradient-to-b from-zinc-50/40 to-transparent dark:from-zinc-900/10 dark:to-transparent flex flex-col items-center justify-center p-6">
-            <div class="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 dark:text-zinc-600 border border-zinc-200/50 dark:border-zinc-800/50 mb-4">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+
+        <form id="filter-form" hx-trigger="change" hx-target="#query-results-container" hx-include="#search" hx-get="{% url 'records:view_all_records' %}" class="flex items-center justify-between pt-4 pb-2">
+            <div class="flex items-center gap-2">
+                {% for field in filter.form %}
+                    <div class="relative">
+                        <label class="sr-only">{{ field.label }}</label>
+                        <div class="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-full px-4 py-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 transition-all">
+                            {% render_field field class="outline-none" %}
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-            <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">No records</h3>
-            <p class="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs mt-1 mx-auto balance">
-                Your workspace is currently unpopulated.
-            </p>
-            <a href="{% url 'documents:upload_document' %}" class="inline-flex items-center gap-1 mt-4 text-xs font-semibold px-3 py-1.5 rounded-full bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-white border border-zinc-200/60 dark:border-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-800/80 transition-colors">
-                Upload your first document
-            </a>
+            <button hx-get="{% url 'records:view_all_records' %}" hx-target="body" class="text-xs font-semibold text-black dark:text-white hover:text-black dark:hover:text-white px-3 transition-colors">
+                Reset Filters
+            </button>
+        </form>
+    </section>
+
+    <main id="query-results-container" class="relative min-h-[400px]">
+        <div class="htmx-indicator absolute inset-0 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-3xl">
+            <div class="animate-pulse text-zinc-400 font-medium tracking-widest text-sm uppercase">Refreshing...</div>
         </div>
-    {% endif %}
-    
+        {% include 'records/partials/record_list_partial.html' %}
+    </main>
+</div>
 {% endblock %}
-                            

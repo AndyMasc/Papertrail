@@ -36,3 +36,7 @@ class AddRecordForm(forms.ModelForm):
         if (expiry_date and transaction_date) and (expiry_date < transaction_date):
             raise ValidationError({'expiry_date': 'Expiry date cannot be before transaction date.'})
         return cleaned_data
+
+class RecordUpdateForm(AddRecordForm):
+    class Meta(AddRecordForm.Meta):
+        pass

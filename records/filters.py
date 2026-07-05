@@ -19,13 +19,21 @@ class RecordFilter(django_filters.FilterSet):
         field_name="is_active",
         lookup_expr="exact",
         widget=forms.Select(
-            choices=[(True, "Active"), (False, "Archived")]
+            choices=[(None, "All"), (True, "Active"), (False, "Archived")]
         ),
     )
 
     record_type = django_filters.ChoiceFilter(
         field_name="record_type",
         widget=forms.Select(),
+    )
+
+    this_month = django_filters.BooleanFilter(
+        method="filter_this_month", label="Records from this month",
+        field_name="This months records",
+        widget=forms.Select(
+            choices=[(False, "All Time"), (True, "This Month")]
+        ),
     )
 
     class Meta:
@@ -59,6 +67,15 @@ class RecordFilter(django_filters.FilterSet):
             return queryset.filter(
                 expiry_date__lte=month_from_now,
                 expiry_date__gte=timezone.now().date(),
+            ).order_by("-date_added")
+
+        return queryset
+
+    def filter_this_month(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                date_added__month=timezone.now().month,
+                date_added__year=timezone.now().year,
             ).order_by("-date_added")
 
         return queryset

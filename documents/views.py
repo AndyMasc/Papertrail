@@ -70,7 +70,7 @@ class AddSupportDocuments(LoginRequiredMixin, View):
             "page_title": "Add supporting documents.",
             "page_subtitle": f"Attach additional records directly to {record.title}.",
             "api_url": reverse("documents:add_support_docs", kwargs={"record_id": record_id}),
-            "redirect_url_template": "/records/record_detail/__ID__",
+            "redirect_url_template": f"/records/record_detail/{record_id}",
         }
         return render(request, "documents/upload_supporting_files.html", context)
 
