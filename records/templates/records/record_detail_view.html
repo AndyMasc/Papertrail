@@ -4,28 +4,31 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
     
-    <form method="POST" id="record-form" class="space-y-6">
+    <form method="POST" 
+        action=""
+        id="record-form" 
+        class="space-y-6"
+        hx-post=""
+        hx-trigger="change, input changed delay:800ms">
         {% csrf_token %}
         
         <nav class="flex sm:items-center justify-between text-xs font-medium flex-col sm:flex-row gap-5">
             <div class="flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
                 <a href="{% url 'records:view_all_records' %}" class="hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">Records</a>
                 <span>/</span>
-                <span class="text-zinc-800 dark:text-zinc-200 truncate">{{ record.title }}</span>
+                <span id="record-title" class="text-zinc-800 dark:text-zinc-200 truncate">{{ record.title }}</span>
             </div>
             
             <div class="flex items-center gap-2.5">
-                <a href="{% url 'records:view_all_records' %}" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border border-zinc-200/40 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
-                    Cancel
+                <p class="dark:text-zinc-400 text-zinc-500">(Changes saved automatically)</p>
+                <a href="{% url 'core:dashboard' %}" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border border-zinc-200/40 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
+                    Back
                 </a>
-                <button type="submit" class="px-4 py-2 text-xs font-semibold rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors cursor-pointer shadow-xs">
-                    Save Changes
-                </button>
             </div>
         </nav>
 
         {% if form.non_field_errors %}
-            <div class="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-2xl text-xs text-red-600 dark:text-red-400">
+            <div class="p-4 bg-red-50 dark:bg-red-950/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl text-xs text-rose-600 dark:text-red-400">
                 {{ form.non_field_errors|striptags }}
             </div>
         {% endif %}
@@ -38,8 +41,6 @@
                         {% render_field form.record_type class="inline-flex items-center outline-none py-2 rounded-full text-xs font-semibold tracking-wide"  %}
                     </span>
                 </div>
-
-                
 
                 <div class="space-y-1 group">
                     <label for="{{ form.title.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block pl-1">Record Title</label>
@@ -124,7 +125,13 @@
                                 </svg>
                             </div>
                             <div class="truncate">
-                                <p class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{{ document.title }}</p>
+                                <p class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{{ document.title }}
+                                    {% if document.is_main %}
+                                        <span class="ml-2 bg-emerald-500/10 text-emerald-500 text-xs border border-emerald-500/50 tracking-tight uppercase px-1 rounded-full shrink-0">
+                                            Main
+                                        </span>
+                                    {% endif %}
+                                </p>
                                 <p class="text-[10px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5">{{ document.filepath }}</p>
                             </div>
                         </div>

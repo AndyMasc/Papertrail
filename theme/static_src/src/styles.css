@@ -10,3 +10,5 @@
   * the scope of this path.
   */
 @source "../../../**/*.{html,py,js}";
+
+[x-cloak] { display: none !important; }

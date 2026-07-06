@@ -1,7 +1,7 @@
 import json
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
@@ -11,6 +11,7 @@ from records.models import Record
 from .models import Document_data
 from .storage_helpers import generate_read_presigned_url
 from .upload_utils import initiate_r2_upload
+
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -43,23 +44,43 @@ class ViewDocument(LoginRequiredMixin, DetailView):
     template_name = "documents/view_document.html"
     context_object_name = "document"
 
+    def get_queryset(self):
+        return Document_data.objects.filter(user=self.request.user)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
         return context
 
+    def post(self, request, *args, **kwargs):
+        document = self.get_object()
+        title = request.POST.get("title")
+        notes = request.POST.get("notes")
+
+        if title:
+            document.title = title
+        document.notes = notes
+        document.save()
+
+        return HttpResponse(status=204)
+
 
 class DeleteDocument(LoginRequiredMixin, View):
-    model = Document_data
-    context_object_name = "document"
-
     def post(self, request, pk):
         document = get_object_or_404(Document_data, user=request.user, pk=pk)
+        
+        associated_record = document.associated_record
+        associated_record_id = associated_record.id if associated_record else None
+        
         try:
             document.delete()
         except Exception as e:
             return JsonResponse({"Error deleting from Cloudflare": str(e)}, status=500)
-        return redirect("core:dashboard")
+
+        if associated_record_id:
+            return redirect("records:record_detail", associated_record_id)
+        else:
+            return redirect("records:view_all_records")
 
 
 class AddSupportDocuments(LoginRequiredMixin, View):
@@ -81,9 +102,8 @@ class AddSupportDocuments(LoginRequiredMixin, View):
             filename = data.get("filename")
             content_type = data.get("content_type")
             notes = data.get("notes")
-            title = data.get("title")
 
-            get_object_or_404(Record, pk=record_id, user=request.user)  # verify user owns the record
+            get_object_or_404(Record, pk=record_id, user=request.user)  # verify user owns the parent record
 
             result = initiate_r2_upload(
                 user=request.user,
@@ -91,7 +111,6 @@ class AddSupportDocuments(LoginRequiredMixin, View):
                 content_type=content_type,
                 record_id=record_id,
                 notes=notes,
-                title=title
             )
             return JsonResponse(result)
 

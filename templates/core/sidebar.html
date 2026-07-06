@@ -4,93 +4,84 @@
 {% with base_css="text-zinc-500 dark:text-zinc-400 flex items-center px-3 py-2 text-sm rounded-2xl hover:bg-zinc-200 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200 hover:text-zinc-800 transition-all duration-200" %}
 {% with active_css="text-black dark:text-white bg-zinc-200 dark:bg-zinc-800 flex items-center px-3 py-2 text-sm rounded-2xl" %}
 
-<aside id="default-sidebar" class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform duration-200 -translate-x-full sm:translate-x-0 bg-zinc-100 backdrop-blur-sm dark:bg-zinc-900 rounded-r-2xl" aria-label="Sidenav">
-    <button 
-        id="sidebar-toggle" 
-        title="Toggle sidebar"
-        class="absolute top-7 left-full z-50 p-1.5 rounded-r-2xl border-y border-r border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900/70 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all active:scale-95"
-        aria-label="Toggle Sidebar">
-        <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="sm:rotate-180 size-5 transition-all duration-500">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5" />
-        </svg>
-    </button>
-    
-    <div class="overflow-y-auto py-8 px-5 h-full">
-        <div class="mb-8 px-2">
-            <h1 class="font-bold text-xl tracking-tight text-zinc-900 dark:text-white">Papertrail</h1>
-            <p class="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 tracking-wide">{{ request.user.username }}</p>
-        </div>
+<div class="relative">
+    <div
+        class="fixed top-0 left-0 z-50 w-64 h-screen transition-transform duration-200"
+        :class="open ? 'translate-x-0' : '-translate-x-full'"> <!-- Not using x-show because it toggles visibility without slide effect -->
 
-        <div class="space-y-6">
-            <div>
-                <p class="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">Workspace</p>
-                <ul class="space-y-1">
-                    <li>
-                        <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                            <span>Records</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'documents:upload_document' %}" class="{% active_link 'documents:upload_document' base_css active_css %}">
-                            <span>Quick record</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'records:add_record_manual' %}" class="{% active_link 'records:add_record_manual' base_css active_css %}">
-                            <span>New record</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% filter_url 'records:view_all_records' is_active='False' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                            <span>Archive</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+        <button
+            id="sidebar-toggle"
+            title="Toggle sidebar"
+            class="absolute top-15 left-full z-50 top-z p-1.5 rounded-r-2xl border-y border-r border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+            aria-label="Toggle Sidebar"
+            x-on:click="open = !open">
 
-            <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-                <ul class="space-y-1">
-                    <li>
-                        <a href="{% url 'core:dashboard' %}" class="{% active_link 'core:dashboard' base_css active_css %}">
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="{% url 'account_email' %}" class="{% active_link 'account_email' base_css active_css %}">
-                            <span>Settings</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
+            <svg id="toggle-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                :class="open ? 'rotate-180' : ''"
+                class="size-5 transition-all">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m5.25 4.5 7.5 7.5-7.5 7.5m6-15 7.5 7.5-7.5 7.5" />
+            </svg>
+        </button>
+
+        <aside id="default-sidebar"
+            class="w-full h-full transition-transform bg-zinc-100 backdrop-blur-sm dark:bg-zinc-900 rounded-r-2xl"
+            aria-label="Sidenav">
+
+            <div class="overflow-y-auto py-8 px-5 h-full">
+                <div class="mb-8 px-2">
+                    <h1 class="font-bold text-xl tracking-tight text-zinc-900 dark:text-white">Papertrail</h1>
+                    <p class="text-xs font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 tracking-wide">{{ request.user.username }}</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <p class="px-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">Workspace</p>
+                        <ul class="space-y-1">
+                            <li>
+                                <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                                    <span>Records</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'documents:upload_document' %}" class="{% active_link 'documents:upload_document' base_css active_css %}">
+                                    <span>Quick record</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'records:add_record_manual' %}" class="{% active_link 'records:add_record_manual' base_css active_css %}">
+                                    <span>New record</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% filter_url 'records:view_all_records' is_active='False' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                                    <span>Archive</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                        <ul class="space-y-1">
+                            <li>
+                                <a href="{% url 'core:dashboard' %}" class="{% active_link 'core:dashboard' base_css active_css %}">
+                                    <span>Dashboard</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'account_email' %}" class="{% active_link 'account_email' base_css active_css %}">
+                                    <span>Settings</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
-</aside>
 {% endwith %}
 {% endwith %}
-
-<div id="sidebar-backdrop" class="fixed inset-0 z-40 bg-zinc-950/20 backdrop-blur-xs hidden sm:hidden transition-opacity duration-200"></div>
-
-<script>
-  const sidebarToggle = document.getElementById('sidebar-toggle');
-  const toggleIcon = document.getElementById('toggle-icon');
-  const sidebar = document.getElementById('default-sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  const main = document.getElementById('main');
-
-  function handleSidebarToggle() {
-    const isDesktop = window.innerWidth >= 640; 
-
-    if (isDesktop) {
-      sidebar.classList.toggle('sm:translate-x-0');
-      main.classList.toggle('sm:ml-64');
-      toggleIcon.classList.toggle('sm:rotate-180');
-    } else {
-      sidebar.classList.toggle('translate-x-0');
-      backdrop.classList.toggle('hidden');
-      toggleIcon.classList.toggle('rotate-180');
-    }
-  }
-
-  sidebarToggle.addEventListener('click', handleSidebarToggle);
-  backdrop.addEventListener('click', handleSidebarToggle);
-</script>

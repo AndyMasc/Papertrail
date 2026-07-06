@@ -10,7 +10,8 @@ from django_filters.views import FilterView
 from documents.models import Document_data
 from documents.scan_doc import extract_document
 from documents.storage_helpers import generate_read_presigned_url
-
+from django.http import HttpResponse
+import json
 from .filters import RecordFilter
 from .forms import AddRecordForm, RecordUpdateForm
 from .models import Record
@@ -170,10 +171,10 @@ class RecordDetailView(LoginRequiredMixin, View):
         form = self.form_class(request.POST, instance=record)
         if form.is_valid():
             form.save()
-            return redirect("records:record_detail", record_id=record.id)
-        return render(
-            request, self.template_name, {"record": form.instance, "form": form}
-        )
+            response = HttpResponse(status=204)
+            
+        # If invalid, re-render form section or return a 422 error
+        return render(request, self.template_name, {"record": record, "form": form}, status=422)
 
 
 class AddRecord(LoginRequiredMixin, View):

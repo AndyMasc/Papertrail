@@ -3,13 +3,14 @@ from pathlib import Path
 from .models import Document_data
 from .storage_helpers import generate_write_presigned_url
 
-def initiate_r2_upload(user, filename, content_type, record_id=None, notes=None, title=None):
+def initiate_r2_upload(user, filename, content_type, record_id=None, notes=None):
     if not content_type:
         content_type = "application/octet-stream"
         
     if not filename:
         raise ValueError("Filename is required")
-    
+
+    title = Path(filename).stem.replace('_', ' ').replace('-', ' ').title()
     extension = Path(filename).suffix
     key = f"users/{user.id}/{uuid.uuid4()}{extension}"
 

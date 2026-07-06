@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
     {% load tailwind_tags %}
@@ -14,15 +16,27 @@
     {% block head %} {% endblock %}
 </head>
 
-<body class="dark:bg-zinc-950 px-2">
-    {% if user.is_authenticated %}
-        <main id="main" class="ml-0 sm:ml-64 px-4 min-h-screen bg-white dark:bg-zinc-950 transition-all duration-200">
-        {% block sidebar %} {% include "core/sidebar.html" %} {% endblock %}
-    {% else %}
-        <main id="main" class="ml-0 px-4 min-h-screen bg-white dark:bg-zinc-950 transition-all duration-200">
-    {% endif %}
+<noscript>
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+        <div>
+            <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 16px;">JavaScript Required</h1>
+            <p style="color: #525252;">Papertrail requires JavaScript to manage your files and records properly.<br>Please enable it in your browser settings to continue.</p>
+        </div>
+    </div>
+</noscript>
 
-    {% block content %} {% endblock %}
+<body 
+    class="dark:bg-zinc-950 px-2"
+    x-data="{ open : $persist(true) }"
+    x-cloak>
+    {% if user.is_authenticated %}
+        {% include 'core/sidebar.html' %}
+    {% endif %}
+    <main
+        class="transition-all duration-200"
+        :class="open ? 'sm:ml-64 blur-sm sm:blur-none' : 'sm:ml-0'">
+            
+        {% block content %} {% endblock %}
     </main>
 </body>
 
