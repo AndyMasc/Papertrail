@@ -15,7 +15,7 @@
     <section class="mt-2">
         {% if emailaddresses %}
             {% url 'account_email' as action_url %}
-            <form action="{{ action_url }}" method="post" class="space-y-3">
+            <form id="emailForm" action="{{ action_url }}" method="post" class="space-y-3 transition-opacity duration-200">
                 {% csrf_token %}
 
                 {% for radio in emailaddress_radios %}
@@ -33,8 +33,21 @@
                 {% endfor %}
 
                 <div class="grid grid-cols-2 gap-2 pt-2">
-                    <button name="action_primary" type="submit" class="rounded-4xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">{% trans "Make primary" %}</button>
-                    <button name="action_remove" type="submit" class="rounded-4xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold  text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-rose-400 hover:text-rose-500 transition">{% trans "Remove" %}</button>
+                    <button name="action_primary" type="submit" class="action-btn rounded-4xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition flex items-center justify-center space-x-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <svg class="spinner hidden animate-spin h-3 w-3 text-zinc-900 dark:text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="btn-text">{% trans "Make primary" %}</span>
+                    </button>
+                    
+                    <button name="action_remove" type="submit" class="action-btn rounded-4xl border border-zinc-300 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-rose-400 hover:text-rose-500 transition flex items-center justify-center space-x-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <svg class="spinner hidden animate-spin h-3 w-3 text-rose-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="btn-text">{% trans "Remove" %}</span>
+                    </button>
                 </div>
             </form>
         {% endif %}
@@ -48,8 +61,12 @@
                 <div x-show="open" x-collapse class="mt-4">
                     {% #form form=form url=action_url button_text="Add email" use_default_button="false" %}
                         {% csrf_token %}
-                        <button type="submit" name="action_add" class="rounded-4xl mb-2 btn mt-3 w-full btn-primary font-semibold bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none">
-                            Add email
+                        <button type="submit" name="action_add" id="addEmailBtn" class="rounded-4xl mb-2 btn mt-3 w-full btn-primary font-semibold bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                            <svg id="addSpinner" class="hidden animate-spin h-4 w-4 text-white dark:text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="addBtnText">Add email</span>
                         </button>
                     {% /form %}
                 </div>
@@ -57,4 +74,39 @@
         {% endif %}
     </section>
 {% /container %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const emailForm = document.getElementById('emailForm');
+    const addEmailBtn = document.getElementById('addEmailBtn');
+
+    if (emailForm) {
+        emailForm.addEventListener('submit', (e) => {
+            const clickedButton = document.activeElement;
+            if (!clickedButton || !clickedButton.classList.contains('action-btn')) return;
+
+            emailForm.classList.add('opacity-60', 'pointer-events-none');
+
+            emailForm.querySelectorAll('.action-btn').forEach(btn => btn.disabled = true);
+
+            const spinner = clickedButton.querySelector('.spinner');
+            const textSpan = clickedButton.querySelector('.btn-text');
+
+            if (spinner) spinner.classList.remove('hidden');
+            if (textSpan) textSpan.textContent = "Processing...";
+        });
+    }
+
+    if (addEmailBtn) {
+        const parentForm = addEmailBtn.closest('form');
+        if (parentForm) {
+            parentForm.addEventListener('submit', () => {
+                addEmailBtn.disabled = true;
+                document.getElementById('addSpinner').classList.remove('hidden');
+                document.getElementById('addBtnText').textContent = "Processing...";
+            });
+        }
+    }
+});
+</script>
 {% endblock content %}

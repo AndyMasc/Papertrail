@@ -5,15 +5,18 @@
 
 {% block onboarding_modal %}{% endblock onboarding_modal %}
 
-<main class="dark:text-white w-full min-h-screen flex flex-col items-center justify-center">
-    <section class="container mx-auto w-11/12 md:w-3/5 max-w-11/12 lg:w-lg flex flex-col items-center">
+<main class="dark:text-white w-full min-h-screen flex flex-col items-center justify-center py-5">
+    <section id="uploadContainer" class="container mx-auto w-11/12 md:w-3/5 max-w-11/12 lg:w-lg flex flex-col items-center">
         <p id="status" class="mb-4 text-sm text-center text-zinc-500 dark:text-zinc-400 min-h-5"></p>
 
-        <h1 class="dark:text-white text-3xl md:text-4xl font-semibold mb-2 text-center">{{ page_title|default:"Upload a file" }}</h1>
-        <p class="text-sm text-zinc-400 text-center">{{ page_subtitle|default:"We’ll extract and organize the details automatically." }}</p>
+        <h1 class="dark:text-white text-3xl md:text-4xl font-semibold mb-2 text-center">
+            {% block page_title %}{{ page_title|default:"Upload a file" }}{% endblock %}
+        </h1>
+        <p class="text-sm text-zinc-400 text-center">
+            {% block page_subtitle %}{{ page_subtitle|default:"We’ll extract and organize the details automatically." }}{% endblock %}
+        </p>
 
         <div class="w-full mt-8 mb-2 flex flex-col space-y-4">
-            
             <div id="dropzone" class="max-h-70 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-800/70 cursor-pointer flex flex-col items-center justify-center p-10 rounded-4xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/40">
                 <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
                     <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
@@ -33,8 +36,14 @@
 
         <input type="file" id="fileInput" required class="hidden" accept=".jpg, .png, .jpeg, .webp, .pdf, .heic"/>
 
-        <button id="uploadButton" onclick="uploadFile();" class="mt-2 bg-black dark:bg-white dark:text-black text-white py-2 px-4 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200">
-            Upload and continue
+        <button id="uploadButton" onclick="uploadFile();" class="mt-2 bg-black dark:bg-white dark:text-black text-white py-2 px-4 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200 flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white">
+            <span id="buttonSpinner" class="hidden">
+                <svg class="animate-spin h-4 w-4 text-white dark:text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </span>
+            <span id="buttonText">Upload and continue</span>
         </button>
 
         {% block upload_footer %}
@@ -42,6 +51,7 @@
             <a href="{% url 'records:add_record_manual' %}" class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-500 dark:hover:text-zinc-300 transition-all ease-in-out duration-200 mt-0">
                 Or enter record details manually.
             </a>
+        {% block custom_footer_js %}{% endblock custom_footer_js %}
         {% endblock upload_footer %}
     </section>
 </main>
@@ -51,9 +61,14 @@ const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
 const status = document.getElementById('status');
 const uploadButton = document.getElementById('uploadButton');
+const buttonSpinner = document.getElementById('buttonSpinner');
+const buttonText = document.getElementById('buttonText');
+const uploadContainer = document.getElementById('uploadContainer');
 
 const API_URL = "{{ api_url }}";
 const REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
+
+let isSupportingFlow = false; 
 
 const fileStatus = document.createElement('div');
 fileStatus.className = "mt-3 text-center text-sm text-zinc-500 dark:text-zinc-400";
@@ -122,8 +137,13 @@ dropzone.addEventListener('drop', e => {
 async function uploadFile() {
     if (!selectedFile) return setStatus("Select a file first.", "error");
 
+    // Toggle Loading Animation & Disabled Utility Variables
     uploadButton.disabled = true;
-    uploadButton.textContent = "Uploading...";
+    buttonSpinner.classList.remove('hidden');
+    buttonText.textContent = "Processing...";
+    
+    uploadButton.classList.add('htmx-request');
+    uploadContainer.classList.add('htmx-request');
 
     try {
         setStatus("Preparing upload...");
@@ -156,15 +176,34 @@ async function uploadFile() {
 
         if (!uploadRes.ok) throw new Error("Cloud storage upload failed.");
 
-        setStatus("Processing document...", "success");
-        window.location.href = REDIRECT_URL_TEMPLATE.replace('__ID__', document_id);
+        if (isSupportingFlow) {
+            setStatus("Document added successfully! You can add another.", "success");
+            selectedFile = null;
+            fileInput.value = "";
+            fileStatus.innerHTML = "";
+            if (notesField) notesField.value = "";
+
+            setTimeout(() => {
+                if (status.textContent.includes("Document added successfully!")) {
+                    setStatus("");
+                }
+            }, 4000);
+        } else {
+            setStatus("Processing document...", "success");
+            window.location.href = REDIRECT_URL_TEMPLATE.replace('__ID__', document_id);
+        }
 
     } catch (err) {
         console.error(err);
         setStatus("Upload failed. (" + err.message + ")", "error");
     } finally {
+        // Restore interactive states seamlessly
         uploadButton.disabled = false;
-        uploadButton.textContent = "Upload and continue";
+        buttonSpinner.classList.add('hidden');
+        buttonText.textContent = "Upload and continue";
+        
+        uploadContainer.classList.remove('htmx-request');
+        uploadButton.classList.remove('htmx-request');
     }
 }
 </script>

@@ -1,8 +1,14 @@
 {% extends 'documents/upload_base.html' %}
 
 {% block upload_footer %}
-    <hr class="w-xs my-7 text-zinc-200 dark:text-zinc-800 mb-5">
-    <a href="{% url 'records:view_all_records' %}" class="mt-4 text-sm text-zinc-500 hover:text-zinc-700 transition-colors">
+    <hr class="w-xs mt-7 text-zinc-200 dark:text-zinc-800">
+    <a href="{% url 'records:record_detail' record.id %}" class="mt-4 text-sm text-zinc-500 hover:text-zinc-700 transition-colors">
         Done adding files
     </a>
+    
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            isSupportingFlow = true;
+        });
+    </script>
 {% endblock upload_footer %}

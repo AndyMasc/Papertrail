@@ -16,6 +16,20 @@
     {% block head %} {% endblock %}
 </head>
 
+<style>
+::-webkit-calendar-picker-indicator {
+  background-color: #f1f1f1;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+/* Style the text area of the input */
+::-webkit-datetime-edit-text {
+  color: #555;
+}
+</style>
+
 <noscript>
     <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
         <div>
@@ -25,19 +39,19 @@
     </div>
 </noscript>
 
-<body 
-    class="dark:bg-zinc-950 px-2"
+<body class="dark:bg-zinc-950 px-2"
     x-data="{ open : $persist(true) }"
     x-cloak>
     {% if user.is_authenticated %}
         {% include 'core/sidebar.html' %}
+        <main
+            class="transition-all duration-200"
+            :class="open ? 'sm:ml-64 blur-sm sm:blur-none' : 'sm:ml-0'">     
+    {% else %}
+        <main>    
     {% endif %}
-    <main
-        class="transition-all duration-200"
-        :class="open ? 'sm:ml-64 blur-sm sm:blur-none' : 'sm:ml-0'">
-            
-        {% block content %} {% endblock %}
-    </main>
+            {% block content %} {% endblock %}
+        </main>
 </body>
 
 <script>

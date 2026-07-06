@@ -40,3 +40,5 @@ class AddRecordForm(forms.ModelForm):
 class RecordUpdateForm(AddRecordForm):
     class Meta(AddRecordForm.Meta):
         pass
+
+    

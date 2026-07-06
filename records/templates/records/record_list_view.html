@@ -22,8 +22,8 @@
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" /></svg>
             </div>
             <input 
-                class="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 py-3.5 pl-12 pr-6 text-sm rounded-4xl dark:text-white text-black placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs"
-                placeholder="Search records naturally..."
+                class="truncate w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 py-3.5 pl-12 pr-6 text-sm rounded-4xl dark:text-white text-black placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs"
+                placeholder="Search records (Date search supports natural language)"
                 id="search" type="search" name="search"
                 hx-get="{% url 'records:view_all_records' %}"
                 hx-trigger="input changed delay:300ms, keyup[key=='Enter']"

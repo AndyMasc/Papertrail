@@ -1,5 +1,5 @@
 import json
-
+import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8,10 +8,12 @@ from django.views import View
 from django.views.generic import DetailView
 from records.models import Record
 
+from .forms import R2UploadForm, DocumentUpdateForm
 from .models import Document_data
 from .storage_helpers import generate_read_presigned_url
 from .upload_utils import initiate_r2_upload
 
+logger = logging.getLogger(__name__)
 
 
 class UploadView(LoginRequiredMixin, View):
@@ -27,16 +29,25 @@ class UploadView(LoginRequiredMixin, View):
     def post(self, request):
         try:
             data = json.loads(request.body or "{}")
-            filename = data.get("filename")
-            content_type = data.get("content_type")
-
-            result = initiate_r2_upload(request.user, filename, content_type)
-            return JsonResponse(result)
-
         except json.JSONDecodeError:
-            return JsonResponse({"error": "invalid JSON"}, status=400)
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        form = R2UploadForm(data)
+        if not form.is_valid():
+            return JsonResponse({"errors": form.errors}, status=400)
+
+        try:
+            result = initiate_r2_upload(
+                request.user, 
+                form.cleaned_data["filename"], 
+                form.cleaned_data["content_type"]
+            )
+            return JsonResponse(result)
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
+        except Exception as e:
+            logger.error(f"R2 initialization failed for user {request.user.id}: {e}", exc_info=True)
+            return JsonResponse({"error": "Internal server error initiating upload."}, status=500)
 
 
 class ViewDocument(LoginRequiredMixin, DetailView):
@@ -54,20 +65,25 @@ class ViewDocument(LoginRequiredMixin, DetailView):
 
     def post(self, request, *args, **kwargs):
         document = self.get_object()
-        title = request.POST.get("title")
-        notes = request.POST.get("notes")
-
-        if title:
-            document.title = title
-        document.notes = notes
-        document.save()
-
-        return HttpResponse(status=204)
+        form = DocumentUpdateForm(request.POST, instance=document)
+        
+        if form.is_valid():
+            if not form.cleaned_data.get("title"):
+                form.cleaned_data["title"] = document.title 
+            
+            form.save()
+            return HttpResponse(status=204)
+        
+        return HttpResponse("Invalid data submitted", status=400)
 
 
 class DeleteDocument(LoginRequiredMixin, View):
     def post(self, request, pk):
-        document = get_object_or_404(Document_data, user=request.user, pk=pk)
+        document = get_object_or_404(
+            Document_data.objects.select_related("associated_record"), 
+            user=request.user, 
+            pk=pk
+        )
         
         associated_record = document.associated_record
         associated_record_id = associated_record.id if associated_record else None
@@ -75,12 +91,12 @@ class DeleteDocument(LoginRequiredMixin, View):
         try:
             document.delete()
         except Exception as e:
-            return JsonResponse({"Error deleting from Cloudflare": str(e)}, status=500)
+            logger.error(f"Failed to delete document {pk} for user {request.user.id}: {e}", exc_info=True)
+            return JsonResponse({"error": "Failed to complete deletion safely."}, status=500)
 
         if associated_record_id:
             return redirect("records:record_detail", associated_record_id)
-        else:
-            return redirect("records:view_all_records")
+        return redirect("records:view_all_records")
 
 
 class AddSupportDocuments(LoginRequiredMixin, View):
@@ -98,23 +114,27 @@ class AddSupportDocuments(LoginRequiredMixin, View):
     def post(self, request, record_id):
         try:
             data = json.loads(request.body or "{}")
-            
-            filename = data.get("filename")
-            content_type = data.get("content_type")
-            notes = data.get("notes")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-            get_object_or_404(Record, pk=record_id, user=request.user)  # verify user owns the parent record
+        form = R2UploadForm(data)
+        if not form.is_valid():
+            return JsonResponse({"errors": form.errors}, status=400)
 
+        if not Record.objects.filter(pk=record_id, user=request.user).exists():
+            return JsonResponse({"error": "Record not found or unauthorized."}, status=404)
+
+        try:
             result = initiate_r2_upload(
                 user=request.user,
-                filename=filename,
-                content_type=content_type,
+                filename=form.cleaned_data["filename"],
+                content_type=form.cleaned_data["content_type"],
                 record_id=record_id,
-                notes=notes,
+                notes=form.cleaned_data["notes"],
             )
             return JsonResponse(result)
-
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "invalid JSON"}, status=400)
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
+        except Exception as e:
+            logger.error(f"Support doc upload initialization failed: {e}", exc_info=True)
+            return JsonResponse({"error": "Internal server error initiating upload."}, status=500)

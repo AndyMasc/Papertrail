@@ -1,6 +1,6 @@
-<div class="flex-none w-[85vw] mr-5 sm:mr-0 sm:w-full snap-start flex flex-col h-[360px] sm:h-[380px] group relative bg-white dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-zinc-800/60 rounded-3xl p-5 sm:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-none hover:border-zinc-300 dark:hover:border-zinc-700 dark:hover:ring-zinc-700">
+<div class="flex-none w-[85vw] mr-5 sm:mr-0 sm:w-full snap-start flex flex-col h-[360px] sm:h-[380px] group relative bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800/60 rounded-3xl p-5 sm:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-none hover:border-zinc-300 dark:hover:border-zinc-700 dark:hover:ring-zinc-700">
     <div class="h-12 mb-2">
-        <h2 class="text-lg sm:text-xl font-semibold text-zinc-900 dark:text-white truncate capitalize tracking-tight" title="{{ record.title }}">
+        <h2 class="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white truncate capitalize tracking-tight" title="{{ record.title }}">
             {{ record.title }}
         </h2>
         <p class="text-[10px] uppercase tracking-widest font-bold mt-1 text-zinc-400 dark:text-zinc-500 truncate">
@@ -42,9 +42,12 @@
 
     <div class="flex items-center gap-2 mt-4">
         {% if not record.is_active %}
-            <a onclick="return confirm('Restore this record?')" href="{% url 'records:unarchive_record' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
+        <form action="{% url 'records:unarchive_record' record.id %}" method="POST">
+            {% csrf_token %}
+            <button onclick="return confirm('Restore this record?')" class="text-white dark:text-black flex-1 text-center py-2 px-4 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
                 Unarchive
-            </a>
+            </button>
+        </form>
         {% endif %}
         <a href="{% url 'records:record_detail' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
             View Details
