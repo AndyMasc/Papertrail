@@ -1,7 +1,7 @@
 {% extends 'documents/upload_base.html' %}
 
 {% block onboarding_modal %}
-<div x-data="{ modalOpen: true }"
+<div x-data="{ modalOpen: $persist(true) }"
      @keydown.escape.window="modalOpen = false"
      :class="{ 'z-40': modalOpen }" class="relative w-auto h-auto">
     <template x-teleport="body">

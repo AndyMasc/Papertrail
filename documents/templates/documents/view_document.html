@@ -105,12 +105,34 @@
         </div>
     </aside>
 
-    <main class="flex-1 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-4xl shadow-2xs overflow-hidden relative min-h-[500px] lg:min-h-0">
-        <iframe 
-            src="{{ view_url }}" 
-            class="w-full h-full border-none absolute inset-0 bg-zinc-50 dark:bg-zinc-950"
-            title="{{ document.title }}">
-        </iframe>
+    <main 
+        x-data="{ zoom: 1 }"
+        class="flex-1 w-full flex flex-col border border-zinc-200 dark:border-zinc-800 rounded-4xl shadow-2xs overflow-hidden relative min-h-[500px]">
+        
+        <!-- Controls -->
+        <div class="dark:text-white absolute top-4 right-4 z-10 flex gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <button @click="zoom = Math.max(0.5, zoom - 0.1)" class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+                </svg>
+            </button>
+            <span class="w-12 text-center text-xs py-2" x-text="Math.round(zoom * 100) + '%'"></span>
+            <button @click="zoom = Math.min(2.0, zoom + 0.1)" class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+            </button>
+        </div>
+    
+        <!-- Scalable Content Wrapper -->
+        <div class="w-full h-full overflow-auto p-4 bg-zinc-100 dark:bg-zinc-950">
+            <iframe 
+                src="{{ view_url }}" 
+                class="w-full h-full border-none transition-transform duration-200 origin-top-left"
+                :style="'transform: scale(' + zoom + '); width: ' + (100 / zoom) + '%'"
+                title="{{ document.title }}">
+            </iframe>
+        </div>
     </main>
 
 </div>
