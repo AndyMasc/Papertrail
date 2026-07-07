@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from records.models import Record
+from time import sleep
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -47,11 +48,19 @@ class GeminiOCRError(Exception):
     """Raised when Gemini OCR fails."""
 
 
-def extract_document(signed_url: str) -> OCRResult:
-    """
-    Downloads a document from Cloudflare R2 and extracts
-    structured information using Gemini.
-    """
+def extract_document(signed_url: str) -> OCRResult: # Download document from R2 and extract structured information using Gemini.
+    if settings.DEBUG:
+        sleep(4) # Simulate gemini OCR delay for testing purposes
+        return OCRResult(
+            title="Mock Record Title",
+            merchant="Mock Merchant",
+            balance=125.50,
+            products=["Mock product 1", "Mock product 2", "Mock product 3"],
+            transaction_date="2025-12-35",
+            expiry_date="2025-12-39",
+            record_type=Record.RecordTypes.EXPENSE_RECEIPT,
+        )
+        
     try:
         response = requests.get(signed_url, timeout=30)
         response.raise_for_status()
