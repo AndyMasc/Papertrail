@@ -32,3 +32,6 @@ class dashboard(LoginRequiredMixin, ListView):
 
 def privacy_policy(request):
     return render(request, 'core/privacy_policy.html')
+
+def profile_page(request):
+    return render(request, 'core/profile_page.html')

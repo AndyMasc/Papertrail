@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Profile Settings" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    
+    <div class="border-b border-zinc-200 dark:border-zinc-800 pb-6 mb-10">
+        <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">Account Settings</h1>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Manage your profile information, credentials, and application connections.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        
+        <div class="lg:col-span-1 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-md p-6 text-center shadow-xs">
+            <div class="relative group mx-auto size-24 mb-4">
+                <div class="bg-white/50 dark:bg-zinc-900/50 w-full h-full rounded-full border border-zinc-300 dark:border-zinc-700/60 flex items-center justify-center text-xl font-medium text-zinc-700 dark:text-zinc-300 shadow-inner select-none">
+                    {{ user.email|slice:":1"|upper }}
+                </div>
+            </div>
+
+            {% if user.username %}
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-white truncate">{{ user.username }}</h2>
+                <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">{{ user.email }}</p>
+            {% else %}
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-white truncate">{{ user.email }}</h2>
+            {% endif %}
+            
+            <div class="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/60 flex justify-center gap-1.5">
+                {% if user.is_active %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Active Account</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            
+            <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
+                <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
+                    <h3 class="text-sm font-medium text-zinc-900 dark:text-white">General Information</h3>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {% if user.username %}
+                            <div>
+                                <span class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Username</span>
+                                <span class="text-sm text-zinc-800 dark:text-zinc-200 font-medium mt-1 block">{{ user.username }}</span>
+                            </div>
+                        {% endif %}
+                        <div>
+                            <span class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Primary Email Address</span>
+                            <span class="text-sm text-zinc-800 dark:text-zinc-200 font-medium mt-1 block">{{ user.email }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <span class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Date Joined</span>
+                            <span class="text-sm text-zinc-600 dark:text-zinc-400 mt-1 block">{{ user.date_joined|date:"F d, Y" }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Last Login</span>
+                            <span class="text-sm text-zinc-600 dark:text-zinc-400 mt-1 block">{{ user.last_login|date:"F d, Y \a\t H:i" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
+                <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
+                    <h3 class="text-sm font-medium text-zinc-900 dark:text-white">Account Management</h3>
+                </div>
+                <div class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                    
+                    {% url 'account_email' as email_url %}
+                    {% if email_url %}
+                    <a href="{{ email_url }}" class="flex items-center justify-between p-4 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition group">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-medium text-zinc-800 dark:text-zinc-200">Manage Email Addresses</span>
+                                <span class="block text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Add, remove, or switch your primary login email communication.</span>
+                            </div>
+                        </div>
+                        <svg class="size-4 text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                    {% endif %}
+
+                    {% if user.has_usable_password %}
+                        {% url 'account_change_password' as pwd_url %}
+                        {% if pwd_url %}
+                        <a href="{{ pwd_url }}" class="flex items-center justify-between p-4 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition group">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <span class="block text-xs font-medium text-zinc-800 dark:text-zinc-200">Update Password</span>
+                                    <span class="block text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Change your password parameters regularly to enforce strict safety.</span>
+                                </div>
+                            </div>
+                            <svg class="size-4 text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        </a>
+                        {% endif %}
+                    {% endif %}
+
+                    <a href="{% url 'socialaccount_connections' %}" class="flex items-center justify-between p-4 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition group">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-medium text-zinc-800 dark:text-zinc-200">Third-Party Connections</span>
+                                <span class="block text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Link or decouple external single-sign-on OAuth authorizations.</span>
+                            </div>
+                        </div>
+                        <svg class="size-4 text-zinc-300 dark:text-zinc-700 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+
+                    {% url 'account_logout' as logout_url %}
+                    {% if logout_url %}
+                    <a 
+                        onclick="return confirm('Are you sure you want to sign out?')"
+                        href="{{ logout_url }}" 
+                        class="flex items-center justify-between p-4 hover:bg-rose-500/5 dark:hover:bg-rose-500/10 transition group">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-xl bg-rose-500/10 text-rose-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                                </svg>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-medium text-rose-600 dark:text-rose-400">Sign Out</span>
+                            </div>
+                        </div>
+                        <svg class="size-4 text-zinc-300 dark:text-zinc-700 group-hover:text-rose-500 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

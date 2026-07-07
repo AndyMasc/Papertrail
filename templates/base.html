@@ -1,73 +1,84 @@
 <!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
-    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
-    {% load tailwind_tags %}
-    {% tailwind_css %}
-    {% load form_tags %}
+        <script>
+            (function() {
+                const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const cookieName = 'user_timezone';
+                const currentCookie = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith(cookieName + '='));
+                const currentTz = currentCookie ? currentCookie.split('=')[1] : null;
+                if (userTz !== currentTz) {
+                    document.cookie = `${cookieName}=${userTz}; path=/; max-age=31536000; SameSite=Lax`;
+                    window.location.reload();
+                }
+            })();
+        </script>
+
+        <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true}'>
     
-    <title>{% block title %} {% endblock %}</title>
-    {% block head %} {% endblock %}
-</head>
+        <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
+        
+        {% load tailwind_tags %}
+        {% tailwind_css %}
+        {% load form_tags %}
+        
+        <title>{% block title %}{% endblock %}</title>
+        {% block head %}{% endblock %}
 
-<style>
-::-webkit-calendar-picker-indicator {
-  background-color: #f1f1f1;
-  padding: 5px;
-  cursor: pointer;
-  border-radius: 5px;
-}
-
-/* Style the text area of the input */
-::-webkit-datetime-edit-text {
-  color: #555;
-}
-</style>
-
-<noscript>
-    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
-        <div>
-            <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 16px;">JavaScript Required</h1>
-            <p style="color: #525252;">Papertrail requires JavaScript to manage your files and records properly.<br>Please enable it in your browser settings to continue.</p>
-        </div>
-    </div>
-</noscript>
-
-<body class="dark:bg-zinc-950 px-2"
-    x-data="{ open : $persist(true) }"
-    x-cloak>
-    {% if user.is_authenticated %}
-        {% include 'core/sidebar.html' %}
-        <main
-            class="transition-all duration-200"
-            :class="open ? 'sm:ml-64 blur-sm sm:blur-none' : 'sm:ml-0'">     
-    {% else %}
-        <main>    
-    {% endif %}
-            {% block content %} {% endblock %}
-        </main>
-</body>
-
-<script>
-    (function() {
-        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const cookieName = 'user_timezone';
-
-        const currentCookie = document.cookie
-            .split('; ')
-            .find(row => row.startsWith(cookieName + '='));
+        <style>
+            [x-cloak] { 
+                display: none !important; 
+            }
             
-        const currentTz = currentCookie ? currentCookie.split('=')[1] : null;
-        if (userTz !== currentTz) {
-            document.cookie = `${cookieName}=${userTz}; path=/; max-age=31536000; SameSite=Lax`;
-            window.location.reload();
-        }
-    })();
-</script>
+            ::-webkit-calendar-picker-indicator {
+                background-color: #f1f1f1;
+                padding: 5px;
+                cursor: pointer;
+                border-radius: 5px;
+            }
+            ::-webkit-datetime-edit-text {
+                color: #555;
+            }
+        </style>
+    </head>
+    
+    <body class="bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50"
+          {% if user.is_authenticated %}
+          x-data="{ open : $persist(true) }"
+          {% endif %}>
+
+        <noscript>
+            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px;">
+                <div>
+                    <h1 style="font-size: 24px; font-weight: bold; color: #09090b; margin-bottom: 16px;">JavaScript Required</h1>
+                    <p style="color: #525252;">Papertrail requires JavaScript to manage your files and records properly.<br>Please enable it in your browser settings to continue.</p>
+                </div>
+            </div>
+        </noscript>
+
+        {% if user.is_authenticated %}
+            {% include 'core/sidebar.html' %}
+        {% endif %}
+
+        <main 
+            {% if user.is_authenticated %}
+                class="transition-all duration-300 ease-in-out"
+                x-cloak
+                :class="open ? 'sm:pl-64' : 'sm:pl-0'"
+            {% endif %}>
+            
+            <div class="px-4 {% if user.is_authenticated %}sm:px-6 lg:px-8{% endif %}">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+    </body>
 </html>

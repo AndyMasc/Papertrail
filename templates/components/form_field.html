@@ -4,7 +4,7 @@
     <span class="label-text">{{ field.label }}</span>
 </label>
 {% if field.errors %}
-    {% render_field field placeholder="" class="w-full input focus:outline-none border border-rose-300 dark:border-rose-300/30 text-primary bg-transparent shadow-none input-error text-black dark:text-white" %}
+    {% render_field field placeholder="" class="rounded-4xl w-full input focus:outline-none border border-rose-300 dark:border-rose-300/30 text-primary bg-transparent shadow-none input-error text-black dark:text-white" %}
 {% else %}
     {% render_field field placeholder=field.label class="rounded-4xl w-full input focus:outline-none focus:border-black dark:focus:border-white text-primary text bg-transparent shadow-none text-black dark:text-white" %}
 {% endif %}

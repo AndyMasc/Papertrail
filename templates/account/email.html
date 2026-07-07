@@ -3,10 +3,13 @@
 {% load allauth_ui %}
 
 {% block head %}
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
 {% endblock head %}
 
 {% block content %}
+{# Move action_url to the top level scope so it's always available #}
+{% url 'account_email' as action_url %}
+
 {# Define the heading and subheading for the container #}
 {% trans "Email Addresses" as heading %}
 {% trans "Manage the emails associated with your account." as subheading %}
@@ -14,8 +17,7 @@
 {% #container heading=heading subheading=subheading %}
     <section class="mt-2">
         {% if emailaddresses %}
-            {% url 'account_email' as action_url %}
-            <form id="emailForm" action="{{ action_url }}" method="post" class="space-y-3 transition-opacity duration-200">
+            <form id="emailForm" action="{{ action_url }}" method="post" class="space-y-3 transition-opacity duration-200" hx-post="{{ action_url }}" hx-target="body">
                 {% csrf_token %}
 
                 {% for radio in emailaddress_radios %}
@@ -53,24 +55,37 @@
         {% endif %}
 
         {% if can_add_email %}
-            <div class="mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-6" x-data="{ open: false }">
-                <button @click="open = !open" class="flex w-full items-center justify-between text-sm text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition">
-                    <span>Add email address</span>
-                    <span x-text="open ? '−' : '+'"></span>
-                </button>
-                <div x-show="open" x-collapse class="mt-4">
-                    {% #form form=form url=action_url button_text="Add email" use_default_button="false" %}
-                        {% csrf_token %}
-                        <button type="submit" name="action_add" id="addEmailBtn" class="rounded-4xl mb-2 btn mt-3 w-full btn-primary font-semibold bg-zinc-950 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed">
-                            <svg id="addSpinner" class="hidden animate-spin h-4 w-4 text-white dark:text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span id="addBtnText">Add email</span>
-                        </button>
-                    {% /form %}
-                </div>
+        <div 
+            class="mt-6 border-t border-zinc-200 dark:border-zinc-800 pt-6" 
+            x-data="{ open : $persist(false) }"
+            x-cloak>
+            
+            <button 
+                @click="open = !open"
+                type="button" 
+                class="flex w-full items-center justify-between text-sm text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white transition">
+                <span>Add email address</span>
+                <span class="transition-transform duration-200 transform text-lg font-mono" :class="open ? 'rotate-45' : 'rotate-0'">+</span>
+            </button>
+            
+            <div 
+                x-show="open"
+                x-collapse>
+                
+                {% #form form=form url=action_url use_default_button="false" render_fields="true" %}
+                    {% csrf_token %}
+                    <button type="submit" name="action_add" id="addEmailBtn" class="rounded-4xl mb-2 btn mt-3 w-full btn-primary font-semibold bg-zinc-950 py-2 dark:bg-white dark:hover:bg-white/80 hover:bg-zinc-950/80 text-white dark:text-black shadow-none border-none flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <svg id="addSpinner" class="hidden animate-spin h-4 w-4 text-white dark:text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span id="addBtnText">Add email</span>
+                    </button>
+                {% /form %}
             </div>
+        </div>
+        {% else %}
+            <div class="divider text-xs text-zinc-500 pt-5">You cannot add anymore email addresses.</div>
         {% endif %}
     </section>
 {% /container %}
@@ -85,8 +100,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const clickedButton = document.activeElement;
             if (!clickedButton || !clickedButton.classList.contains('action-btn')) return;
 
-            emailForm.classList.add('opacity-60', 'pointer-events-none');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = clickedButton.name;
+            hiddenInput.value = 'true';
+            emailForm.appendChild(hiddenInput);
 
+            emailForm.classList.add('opacity-90', 'pointer-events-none');
             emailForm.querySelectorAll('.action-btn').forEach(btn => btn.disabled = true);
 
             const spinner = clickedButton.querySelector('.spinner');
@@ -101,6 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const parentForm = addEmailBtn.closest('form');
         if (parentForm) {
             parentForm.addEventListener('submit', () => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'action_add';
+                hiddenInput.value = 'true';
+                parentForm.appendChild(hiddenInput);
+
                 addEmailBtn.disabled = true;
                 document.getElementById('addSpinner').classList.remove('hidden');
                 document.getElementById('addBtnText').textContent = "Processing...";
