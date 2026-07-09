@@ -30,6 +30,15 @@
         {% load tailwind_tags %}
         {% tailwind_css %}
         {% load form_tags %}
+        {% load static %}
+
+        <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+        <link rel="icon" href="{% static 'favicon-package/favicon.svg' %}" type="image/svg+xml" sizes="any">
+        <link rel="icon" href="{% static 'favicon-package/favicon.ico' %}">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        <link rel="manifest" href="/site.webmanifest">
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+        <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
         
         <title>{% block title %}{% endblock %}</title>
         {% block head %}{% endblock %}
