@@ -36,6 +36,14 @@ class RecordFilter(django_filters.FilterSet):
         ),
     )
 
+    is_current = django_filters.BooleanFilter(
+        method="filter_is_current", label="Current Records",
+        field_name="is_current",
+        widget=forms.Select(
+            choices=[(None, "All"), (True, "Current"), (False, "Past")]
+        ),
+    )
+
     class Meta:
         model = Record
         # Left empty because all filters are explicitly declared above
@@ -60,6 +68,13 @@ class RecordFilter(django_filters.FilterSet):
             self.filters["record_type"].extra["choices"] = [
                 ("", "All Types")
             ] + filtered_choices
+
+    def filter_is_current(self, queryset, name, value):
+        if value:
+            return queryset.filter(
+                expiry_date__gt=timezone.now().date(),
+            ).order_by("-date_added")
+        return queryset
 
     def filter_expiring_soon(self, queryset, name, value):
         if value:

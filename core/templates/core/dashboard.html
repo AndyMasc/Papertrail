@@ -4,131 +4,183 @@
 {% block title %}Dashboard | Papertrail{% endblock %}
 
 {% block content %}
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10 overflow-x-hidden antialiased">
-    
-    <header class="relative overflow-hidden rounded-3xl border border-zinc-200/60 dark:border-zinc-800/80 bg-linear-to-b from-zinc-50 to-white dark:from-zinc-900/30 dark:to-zinc-900/70 p-6 sm:p-8 flex flex-col md:flex-row items-center text-center md:text-left justify-between gap-6 shadow-xs">
-        <div class="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-zinc-500/5 dark:bg-zinc-500/5 blur-3xl pointer-events-none" aria-hidden="true"></div>
-
-        <div class="flex flex-col items-center md:items-start relative z-10">
-            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-medium tracking-wide bg-white text-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-800/80 mb-3.5 shadow-xs">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
-                <span class="sr-only">Logged in user: </span>{{ request.user.email }}
+<main 
+    x-data="{ sidebarOpen: true }" 
+    class="max-w-7xl mx-auto py-10 antialiased text-zinc-600 dark:text-zinc-400 selection:bg-zinc-500/20"
+>
+    <header class="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 mb-10 border-b border-zinc-200/50 dark:border-zinc-900">
+        <div class="space-y-1.5">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                    Dashboard
+                </h1>
+                <button 
+                    @click="sidebarOpen = !sidebarOpen" 
+                    x-show="!sidebarOpen"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 scale-95"
+                    x-transition:enter-end="opacity-100 scale-100"
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 text-[11px] font-medium transition-all shadow-xs cursor-pointer"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                    Show Trail
+                </button>
             </div>
-
-            <h1 class="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white capitalize">
-                Welcome, {{ request.user.username }}
-            </h1>
-
-            <p class="text-sm text-zinc-400 dark:text-zinc-500 mt-0.5 font-medium">
-                Manage your recent activity and view your Papertrail analytics.
-            </p>
+            <a href="{% url 'core:profile_page' %}" class="inline-block">
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-zinc-50 text-zinc-500 dark:bg-zinc-900/60 dark:text-zinc-400 border border-zinc-200/40 dark:border-zinc-800/40 text-[11px] hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500/80 dark:bg-emerald-500/60 shadow-[0_0_8px_rgba(16,185,129,0.4)]" aria-hidden="true"></span>
+                    {{ request.user.email }}
+                </div>
+            </a>
         </div>
 
-        <a href="{% url 'documents:upload_document' %}" class="w-full md:w-auto relative z-10 inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold tracking-wide text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-4xl transition-all duration-200 shadow-md shadow-zinc-950/10 dark:shadow-none group active:scale-[0.98] shrink-0 border border-transparent dark:border-zinc-200/10">
-            <svg class="w-3.5 h-3.5 transition-transform group-hover:rotate-90 duration-200" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true">
+        <a href="{% url 'documents:upload_document' %}" class="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white rounded-full transition-all shadow-sm shadow-zinc-950/5 dark:shadow-none active:scale-[0.99] border border-transparent dark:border-white/10">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Upload a record
+            Upload Record
         </a>
     </header>
 
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" aria-label="Analytics Overview">
+    <div class="flex flex-col lg:flex-row gap-8 justify-between relative w-full items-stretch">
         
-        <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="group block transition-all duration-200">
-            <div class="p-6 rounded-3xl bg-white dark:bg-zinc-900/40 border border-zinc-200/70 dark:border-zinc-800/60 flex flex-col justify-between h-44 transition-colors duration-200 group-hover:border-zinc-300 dark:group-hover:border-zinc-700/80 shadow-xs group-hover:shadow-sm">
-                <div class="flex items-center justify-between gap-4">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Active Records</span>
-                    <div class="p-2.5 rounded-xl bg-zinc-50 text-zinc-400 border border-zinc-200/40 dark:bg-zinc-800/30 dark:text-zinc-500 dark:border-zinc-700/40 shrink-0 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800/60 transition-colors duration-200">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+        <div class="w-full flex-1 space-y-10 min-w-0 transition-all duration-300">
+            
+            <section class="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Metrics">
+                <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="group block p-5 rounded-xl border border-zinc-200/50 bg-white dark:border-zinc-800/50 dark:bg-[#121214]/60 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 hover:shadow-xs">
+                    <div class="text-[11px] font-medium tracking-wider text-zinc-400 uppercase inline-flex items-center justify-between w-full">
+                        Active Records
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 opacity-70">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3" />
                         </svg>
                     </div>
-                </div>
-                <div>
-                    <p class="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">{{ records|length }}</p>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1.5 font-medium">
-                        Active record{% if records|length != 1 %}s{% endif %}
-                    </p>
-                </div>
-            </div>
-        </a>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">{{ records|length }}</span>
+                    </div>
+                </a>
 
-        <a href="{% filter_url 'records:view_all_records' expiring_soon='True' is_active='True' %}" class="group block transition-all duration-200">
-            <div class="p-6 rounded-3xl bg-white dark:bg-zinc-900/40 border border-zinc-200/70 dark:border-zinc-800/60 flex flex-col justify-between h-44 transition-colors duration-200 group-hover:border-zinc-300 dark:group-hover:border-zinc-700/80 shadow-xs group-hover:shadow-sm">
-                <div class="flex items-center justify-between gap-4">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Expiring within the month</span>
-                    <div class="p-2.5 rounded-xl transition-colors duration-200 {% if expiring_soon %}bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20{% else %}bg-zinc-50 text-zinc-400 border border-zinc-200/40 dark:bg-zinc-800/30 dark:text-zinc-500 dark:border-zinc-700/40 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800/60{% endif %} shrink-0">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                <a href="{% filter_url 'records:view_all_records' expiring_soon='True' is_active='True' %}" class="group block p-5 rounded-xl border border-zinc-200/50 bg-white dark:border-zinc-800/50 dark:bg-[#121214]/60 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 hover:shadow-xs">
+                    <div class="text-[11px] font-medium tracking-wider text-zinc-400 uppercase inline-flex items-center justify-between w-full">
+                        Expiring Soon
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 opacity-70">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
                     </div>
-                </div>
-                <div>
-                    <p class="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">{{ expiring_soon|length }}</p>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1.5 font-medium">
-                        {% if expiring_soon|length > 1 %}Active records expiring soon{% elif expiring_soon|length == 1 %}Active record expiring soon{% else %}Nothing expiring soon{% endif %}
-                    </p>
-                </div>
-            </div>
-        </a>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
+                            {{ expiring_soon|length }}
+                        </span>
+                    </div>
+                </a>
 
-        <a href="{% filter_url 'records:view_all_records' this_month='True' is_active=None %}" class="group block transition-all duration-200">
-            <div class="relative overflow-hidden p-6 rounded-3xl bg-white dark:bg-zinc-900/40 border border-zinc-200/70 dark:border-zinc-800/60 flex flex-col justify-between h-44 transition-colors duration-200 group-hover:border-zinc-300 dark:group-hover:border-zinc-700/80 shadow-xs group-hover:shadow-sm">
-                <div class="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-zinc-400/5 dark:bg-zinc-500/5 blur-3xl pointer-events-none" aria-hidden="true"></div>
-                <div class="flex items-center justify-between gap-4 z-10">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Monthly Expenses</span>
-                    <div class="p-2.5 rounded-xl bg-zinc-50 text-zinc-400 border border-zinc-200/40 dark:bg-zinc-800/30 dark:text-zinc-500 dark:border-zinc-700/40 shrink-0 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800/60 transition-colors duration-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-4" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                <a href="{% filter_url 'records:view_all_records' this_month='True' is_active=None %}" class="group block p-5 rounded-xl border border-zinc-200/50 bg-white dark:border-zinc-800/50 dark:bg-[#121214]/60 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 hover:shadow-xs">
+                    <div class="text-[11px] font-medium tracking-wider text-zinc-400 uppercase inline-flex items-center justify-between w-full">
+                        Aggregate monthly expenses
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 opacity-70">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
                         </svg>
                     </div>
-                </div>
-                <div class="z-10">
-                    <p class="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white truncate">
-                        ${{ monthly_expenses|default:0|floatformat:2 }}
-                    </p>
-                    <span class="text-xs text-zinc-400 dark:text-zinc-500 mt-1.5 font-medium block">Aggregate monthly expenses</span>
-                </div>
-            </div>
-        </a>
-    </section>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors truncate">
+                            ${{ monthly_expenses|default:0|floatformat:2 }}
+                        </span>
+                    </div>
+                </a>
+            </section>
 
-    <div class="w-full h-px bg-linear-to-r from-transparent via-zinc-200/60 to-transparent dark:via-zinc-800/80" aria-hidden="true"></div>
+            <section class="space-y-4">
+                <div class="flex items-center justify-between px-1">
+                    <div class="flex items-center gap-2.5">
+                        <h2 class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                            Recent Records
+                        </h2>
+                        <span class="text-[10px] font-medium bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-200/30 dark:border-zinc-800/30">{{ records|length }}</span>
+                    </div>
+                </div>
 
-    <div class="flex flex-col space-y-10">
-        <section class="flex flex-col gap-y-4 min-w-0" aria-labelledby="heading-recent">
-            <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h2 id="heading-recent" class="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                        {% if records %}Recent Records{% else %}It's looking empty here!{% endif %}
-                    </h2>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 font-medium">Continue from where you left off.</p>
+                    {% if records %}
+                        {% for record in records %}
+                            {% include 'records/record_card.html' %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-20 flex flex-col items-center justify-center p-6 border border-dashed border-zinc-200 dark:border-zinc-800/80 rounded-xl bg-white dark:bg-zinc-900/10">
+                            <h3 class="text-xs font-medium text-zinc-900 dark:text-zinc-200">No records found</h3>
+                            <p class="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs mt-1.5">
+                                No records found matching your query.
+                            </p>
+                            <a href="{% url 'documents:upload_document' %}" class="mt-5 inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-white transition-colors">
+                                Upload File
+                            </a>
+                        </div>
+                    {% endif %}
                 </div>
-            </div>
+            </section>
+        </div>    
 
-            {% if records %}
-                <div class="w-full overflow-x-auto snap-x snap-mandatory pb-4 gap-6 scrollbar-none sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:pb-0 flex">
-                    {% for record in records %}
-                        {% include 'records/record_card.html' %}
+        <aside 
+            x-show="sidebarOpen"
+            x-transition:enter="transition ease-[cubic-bezier(0.16,1,0.3,1)] duration-300"
+            x-transition:enter-start="opacity-0 translate-x-6"
+            x-transition:enter-end="opacity-100 translate-x-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-x-0"
+            x-transition:leave-end="opacity-0 translate-x-6"
+            class="w-full lg:w-70 shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-100 dark:border-zinc-900 p-6 lg:h-[calc(100vh-12rem)] lg:sticky lg:top-24 overflow-y-auto"
+        >
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                    <h3 class="text-xs font-bold text-black uppercase tracking-wider dark:text-white">
+                        Activity
+                    </h3>
+                </div>
+                <button 
+                    @click="sidebarOpen = false" 
+                    class="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                    title="Hide Feed"
+                >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+        
+            <div class="relative pl-4 border-l border-zinc-300 dark:border-zinc-800 space-y-6">
+                {% if expiring_soon %}
+                    {% for item in expiring_soon %}
+                    <div class="relative group">
+                        <div class="absolute -left-[20.5px] top-1 w-2 h-2 rounded-full border border-zinc-900 bg-white shadow-xs"></div>
+                        <div class="flex flex-col gap-0.5">
+                            <p class="text-xs text-zinc-400 leading-relaxed">
+                                <span class="text-black font-medium dark:text-white">Expires soon:</span> 
+                                <a href="{% url 'records:record_detail' item.pk %}" class="hover:underline text-zinc-600 dark:text-zinc-300">
+                                    {{ item.title|truncatechars:20 }}
+                                </a>
+                            </p>
+                            <time class="text-[10px] text-zinc-600 dark:text-zinc-500">In {{ item.expiry_date|timeuntil }}</time>
+                        </div>
+                    </div>
                     {% endfor %}
-                </div>
-            {% else %}
-                <div class="text-center py-12 border border-dashed border-zinc-200 dark:border-zinc-800/60 rounded-3xl bg-linear-to-b from-zinc-50/30 to-transparent dark:from-zinc-900/10 dark:to-transparent flex flex-col items-center justify-center p-6 gap-y-2">
-                    <div class="w-12 h-12 rounded-xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-400 dark:text-zinc-500 border border-zinc-200/60 dark:border-zinc-800/80 mb-2" aria-hidden="true">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                        </svg>
+                {% endif %}
+        
+                {% for record in records %}
+                <div class="relative group">
+                    <div class="absolute -left-[20.5px] top-1 w-2 h-2 rounded-full border border-white bg-zinc-900"></div>
+                    <div class="flex flex-col gap-0.5">
+                        <p class="text-xs text-black dark:text-white leading-relaxed">
+                            Modified <a href="{% url 'records:record_detail' record.pk %}" class="text-zinc-500 dark:text-zinc-300 hover:underline font-medium">{{ record.title|truncatechars:22 }}</a>
+                        </p>
+                        <time class="text-[10px] text-zinc-500">{{ record.last_edited|timesince }} ago</time>
                     </div>
-                    <h3 class="text-sm font-semibold text-zinc-900 dark:text-white tracking-tight">Nothing to see here!</h3>
-                    <p class="text-xs text-zinc-400 dark:text-zinc-500 max-w-xs mx-auto text-balance font-medium leading-relaxed">
-                        No records found matching this query.
-                    </p>
-                    <a href="{% url 'documents:upload_document' %}" class="inline-flex items-center gap-1 mt-3 text-xs font-semibold px-3 py-1.5 rounded-4xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 border border-transparent hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors duration-200 shadow-xs">
-                        Upload a record
-                    </a>
                 </div>
-            {% endif %}
-        </section>
+                {% empty %}
+                    {% if not expiring_soon %}
+                    <div class="text-left py-4">
+                        <p class="text-xs text-zinc-600">No recent activity.</p>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </aside>
     </div>
 </main>
 {% endblock %}

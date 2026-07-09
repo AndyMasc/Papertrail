@@ -2,58 +2,63 @@
 {% load widget_tweaks %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-6 py-12 space-y-12">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 antialiased text-zinc-900 dark:text-zinc-100">
     
-    <header class="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6 pb-2 text-center sm:text-left">
-        <div class="space-y-1.5">
-            <h1 class="text-3xl md:text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">Records Home</h1>
-            <p class="text-zinc-400 dark:text-zinc-500 text-sm font-medium">The centralized home for all your records.</p>
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white capitalize">
+                Records Index
+            </h1>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                Centralized view for all your records.
+            </p>
         </div>
+
         <a href="{% url 'documents:upload_document' %}" 
-           class="dark:bg-white dark:text-black bg-black text-white inline-flex items-center gap-2 px-6 py-2.5 rounded-4xl text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all shadow-sm active:scale-[0.98] cursor-pointer">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-medium text-white bg-zinc-950 hover:bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white rounded-4xl transition-all shadow-xs active:scale-[0.98] cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Upload Document
         </a>
     </header>
 
-    <section class="space-y-4">
+    <section class="space-y-3" aria-label="Query Filters Matrix">
         <div class="relative w-full">
-            <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-600">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" /></svg>
+            <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400 dark:text-zinc-600">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" /></svg>
             </div>
             <input 
-                class="truncate w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 py-3.5 pl-12 pr-6 text-sm rounded-4xl dark:text-white text-black placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 transition-all shadow-2xs"
-                placeholder="Search records (Date search supports natural language)"
+                class="w-full bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 py-3 pl-10 pr-4 text-xs rounded-2xl dark:text-white text-black placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-800 transition-all shadow-3xs"
+                placeholder="Search records (supports natural language date syntax)"
                 id="search" type="search" name="search"
                 hx-get="{% url 'records:view_all_records' %}"
-                hx-trigger="input changed delay:300ms, keyup[key=='Enter']"
+                hx-trigger="input changed delay:200ms, keyup[key=='Enter']"
                 hx-target="#query-results-container"
                 hx-indicator=".htmx-indicator"
                 hx-include="#filter-form">
         </div>
 
-        <form id="filter-form" hx-trigger="change" hx-target="#query-results-container" hx-include="#search" hx-get="{% url 'records:view_all_records' %}" class="overflow-x-auto flex items-center justify-between gap-4 py-1 scrollbar-none">
-            <div class="flex items-center gap-2.5">
+        <form id="filter-form" hx-trigger="change" hx-target="#query-results-container" hx-include="#search" hx-get="{% url 'records:view_all_records' %}" class="overflow-x-auto flex items-center justify-between gap-4 py-0.5 scrollbar-none">
+            <div class="flex items-center gap-2">
                 {% for field in filter.form %}
                     <div class="relative">
                         <label class="sr-only">{{ field.label }}</label>
-                        <div class="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-4xl px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors flex items-center">
-                            {% render_field field class="outline-hidden bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-1" %}
+                        <div class="bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 rounded-2xl px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-900 transition-colors flex items-center shadow-3xs">
+                            {% render_field field class="outline-hidden bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-1 text-xs font-medium" %}
                         </div>
                     </div>
                 {% endfor %}
             </div>
             
-            <button hx-get="{% url 'records:view_all_records' %}" hx-target="body" class="text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white px-2 py-1 border-b border-transparent hover:border-zinc-400 dark:hover:border-zinc-600 transition-all whitespace-nowrap cursor-pointer">
-                Reset Filters
+            <button hx-get="{% url 'records:view_all_records' %}" hx-target="body" class="text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white px-2 py-1.5 border border-transparent rounded-lg transition-colors whitespace-nowrap cursor-pointer">
+                Clear Filters
             </button>
         </form>
     </section>
 
-    <main id="query-results-container" class="relative min-h-[400px]">
-        <div class="htmx-indicator absolute inset-0 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-[1.5px] z-10 flex items-center justify-center rounded-4xl transition-all duration-200">
-            <div class="animate-pulse text-zinc-400 dark:text-zinc-500 font-medium tracking-widest text-[11px] uppercase bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 px-4 py-2 rounded-full shadow-sm">
-                Refreshing...
+    <main id="query-results-container" class="relative min-h-0 w-full min-w-0 mt-10">
+        <div class="htmx-indicator absolute inset-0 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl transition-all duration-150">
+            <div class="animate-pulse text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-900 px-3 py-1.5 rounded-lg shadow-xs">
+                Updating...
             </div>
         </div>
         {% include 'records/partials/record_list_partial.html' %}

@@ -1,76 +1,87 @@
-<div class="flex-none w-[85vw] mr-5 sm:mr-0 sm:w-full snap-start flex flex-col h-[360px] sm:h-[380px] group relative bg-white dark:bg-zinc-900/50 border border-zinc-200/80 dark:border-zinc-800/60 rounded-3xl p-5 sm:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-none hover:border-zinc-300 dark:hover:border-zinc-700 dark:hover:ring-zinc-700">
-    <div class="h-12 mb-2">
-        <h2 class="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white truncate capitalize tracking-tight" title="{{ record.title }}">
-            {{ record.title }}
-        </h2>
-        <p class="text-[10px] uppercase tracking-widest font-bold mt-1 text-zinc-400 dark:text-zinc-500 truncate">
-            {% if record.merchant %}{{ record.merchant }} <span class="mx-1 text-zinc-300 dark:text-zinc-700">·</span>{% endif %}
-            {% if record.transaction_date %}{{ record.transaction_date|date:"d M, Y" }}{% else %}{{ record.date_added|date:"d M, Y" }}{% endif %}
-        </p>
+<a 
+    href="{% url 'records:record_detail' record.pk %}" 
+    class="block group relative rounded-xl last:mb-0 mb-2 overflow-hidden border border-zinc-200/50 bg-white/70 backdrop-blur-sm dark:border-zinc-800/60 dark:bg-[#131316]/80 hover:bg-white dark:hover:bg-[#161619] hover:border-zinc-300/80 dark:hover:border-zinc-700/60 transform hover:scale-[1.01] hover:shadow-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+    
+    <div class="absolute left-0 top-0 bottom-0 w-[4px] transition-colors duration-200 
+        {% if not record.is_active %} bg-zinc-300/80 dark:bg-zinc-700/80
+        {% elif record.expiry_date %} bg-black dark:bg-white
+        {% else %} bg-zinc-200 dark:bg-zinc-800 {% endif %}">
     </div>
 
-    <div class="h-10 flex items-center mb-2">
-        {% if record.balance %}
-            <p class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">${{ record.balance }}</p>
-        {% else %}
-            <p class="text-xl font-medium tracking-tight text-zinc-300 dark:text-zinc-700">—</p>
-        {% endif %}
-    </div>
-    
-    <div class="mb-4">
-        <span class="{{ record.badge_classes }} border inline-flex items-center rounded-4xl px-2.5 py-0.5 text-[11px] font-medium tracking-wide backdrop-blur-md">
-            {{ record.get_record_type_display }}
-        </span>
-    </div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pl-5 pr-4 py-3 sm:py-3">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
+            
+            <div class="flex items-center shrink-0">
+                <span class="px-2 py-0.5 rounded-4xl text-[10px] font-semibold {{ record.badge_classes }} border uppercase tracking-wider filter saturate-70">
+                    {{ record.get_record_type_display }}
+                </span>
+            </div>
 
-    <div class="flex-1 min-h-0 mb-4 overflow-hidden">
-        <p class="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 italic">
-            {{ record.products }}
-        </p>
-    </div>
-    
-    <div class="pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
-        <div class="flex justify-between items-center h-8">
-            <div>
-                <p class="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase tracking-widest font-bold">Expires</p>
-                <p class="text-xs text-zinc-700 dark:text-zinc-300 font-medium mt-0.5">
-                    {% if record.expiry_date %}{{ record.expiry_date|timeuntil }}{% else %}<span class="text-zinc-300 dark:text-zinc-700">No Expiry</span>{% endif %}
-                </p>
+            <div class="min-w-0 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <span class="font-medium text-zinc-900 dark:text-zinc-100 text-sm truncate">
+                    {{ record.title }}
+                </span>
+                
+                {% if record.merchant %}
+                <span class="hidden sm:inline text-zinc-300 dark:text-zinc-700 text-xs font-light">│</span>
+                
+                <span class="inline-flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 text-xs truncate max-w-[150px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-3.5 h-3.5 opacity-70 shrink-0">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z" />
+                    </svg>
+                    {{ record.merchant }}
+                </span>
+                {% endif %}
+
+                {% if record.products %}
+                <span class="hidden md:inline text-zinc-300 dark:text-zinc-700 text-xs">·</span>
+                <span class="hidden md:inline text-zinc-400 dark:text-zinc-500 text-xs truncate max-w-[200px]">
+                    {{ record.products }}
+                </span>
+                {% endif %}
             </div>
         </div>
-    </div>
 
-    <div class="flex items-center gap-2 mt-4">
-        {% if not record.is_active %}
-        <form action="{% url 'records:unarchive_record' record.id %}" method="POST">
-            {% csrf_token %}
-            <button onclick="return confirm('Restore this record?')" class="text-white dark:text-black flex-1 text-center py-2 px-4 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
-                Unarchive
-            </button>
-        </form>
-        {% endif %}
-        <a href="{% url 'records:record_detail' record.pk %}" class="text-white dark:text-black flex-1 text-center py-2.5 sm:py-2 text-xs font-semibold tracking-wide bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white rounded-2xl transition-all duration-200">
-            View Details
-        </a>
+        <div class="flex items-center justify-between sm:justify-end gap-5 shrink-0 text-zinc-500 dark:text-zinc-400 font-normal text-xs">
+            
+            <div class="flex items-center gap-3.5 text-[11px]">
+                <div class="flex items-center gap-1.5 shrink-0 px-1.5 py-0.5 rounded {% if record.expiry_date %} bg-zinc-50 dark:bg-zinc-900/40 text-zinc-600 dark:text-zinc-300 {% else %} text-zinc-400 dark:text-zinc-500 {% endif %}">
+                    <svg class="w-3.5 h-3.5 opacity-65 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                    <span>
+                        {% if record.expiry_date %}{{ record.expiry_date|timeuntil }}{% else %}No expiry{% endif %}
+                    </span>
+                </div>
+                
+                <div class="hidden sm:block shrink-0 text-zinc-400 dark:text-zinc-500">
+                    {% if record.transaction_date %}{{ record.transaction_date|date:"b d" }}{% else %}{{ record.date_added|date:"b d" }}{% endif %}
+                </div>
+            </div>
 
-        {% if not record.is_active %}
-            <form action="{% url 'records:delete_record' record.pk %}" method="POST" onsubmit="return confirm('Are you sure you want to delete this record?\nNote: The record and all associated data will be permanently deleted.');" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="p-2.5 sm:p-2 text-zinc-400 hover:text-rose-500 dark:hover:text-rose-400 bg-zinc-50 hover:bg-rose-50 dark:bg-zinc-900/50 dark:hover:bg-rose-950/30 rounded-2xl transition-all duration-200" title="Delete record">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                </button>
-            </form>
-        {% else %}
-            <form action="{% url 'records:archive_record' record.pk %}" method="POST" onsubmit="return confirm('Are you sure you want to archive this record?\nNote: The record can still be restored from the archive.');" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="p-2.5 sm:p-2 text-zinc-400 hover:text-rose-500 dark:hover:text-rose-400 bg-zinc-50 hover:bg-rose-50 dark:bg-zinc-900/50 dark:hover:bg-rose-950/30 rounded-2xl transition-all duration-200" title="Archive record">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m6 4.125 2.25 2.25m0 0 2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-                    </svg>
-                </button>
-            </form>
-        {% endif %}
+            <div class="flex items-center gap-4 shrink-0">
+                <div class="text-right text-zinc-900 dark:text-zinc-50 font-semibold min-w-[60px] text-sm tracking-tight">
+                    {% if record.balance %}${{ record.balance }}{% else %}<span class="text-zinc-300 dark:text-zinc-700">—</span>{% endif %}
+                </div>
+
+                <div class="flex items-center shrink-0 justify-end w-6 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                    {% if not record.is_active %}
+                        <form action="{% url 'records:unarchive_record' record.id %}" method="POST" class="inline">
+                            {% csrf_token %}
+                            <button onclick="return confirm('Restore record?')" class="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-all cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" /></svg>
+                            </button>
+                        </form>
+                    {% else %}
+                        <form action="{% url 'records:archive_record' record.pk %}" method="POST" onsubmit="return confirm('Archive record?');" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-all cursor-pointer" title="Archive">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m6 4.125 2.25 2.25m0 0 2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
     </div>
-</div>
+</a>
