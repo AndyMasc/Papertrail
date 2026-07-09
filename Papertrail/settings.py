@@ -86,13 +86,23 @@ MIDDLEWARE = [
 ]
 
 # Custom Django Allauth configuration (Overwrites default settings)
-ACCOUNT_SIGNUP_FIELDS = ["email*"]  # , 'password1*', 'password2*']
+ACCOUNT_SIGNUP_FIELDS = ["email*"]
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = ["email"]
+ACCOUNT_AUTHENTICATION_METHOD = "email" # Backwards-compatibility fallback
+ACCOUNT_EMAIL_REQUIRED = True           # Backwards-compatibility fallback
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 LOGIN_REDIRECT_URL = "core:dashboard"
 ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_SESSION_REMEMBER = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGOUT_ON_GET = False
+
+ACCOUNT_FORMS = {
+    "signup": "core.forms.PasswordlessSignupForm",  # custom signup form to allow exclusively email only signups
+    "login": "core.forms.PasswordlessLoginForm",    # custom login form to remove password field
+}
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get("EMAIL_HOST")

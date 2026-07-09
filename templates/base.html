@@ -60,7 +60,7 @@
         </style>
     </head>
     
-    <body class="bg-white dark:bg-zinc-950/98.5 rounded-4xl text-zinc-950 dark:text-zinc-50"
+    <body class="bg-white {% if request.path == '/' %}dark:bg-zinc-950{% else %}dark:bg-zinc-950/98.5{% endif %} rounded-4xl text-zinc-950 dark:text-zinc-50"
           {% if user.is_authenticated %}
           x-data="{ open : $persist(true) }"
           {% endif %}>
