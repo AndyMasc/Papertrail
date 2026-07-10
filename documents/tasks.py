@@ -46,17 +46,19 @@ class GeminiOCRError(Exception):
     """Raised when Gemini OCR fails."""
 
 
-def extract_document(signed_url: str) -> dict:  # change return type annotation to dict
+def extract_document(signed_url: str) -> dict:  # Change return type annotation to dict
     if settings.DEBUG:
+        import time
+        time.sleep(4) # Simulate a slow response
         return OCRResult(
             title="Mock Title",
             merchant="Mock Merchant",
-            balance=0.0,
+            balance=125.50,
             products=["Mock product 1", "Mock product 2", "Mock product 3"],
             transaction_date="2026-01-01",
             expiry_date="2026-01-09",
             record_type=Record.RecordTypes.EXPENSE_RECEIPT,
-        ).model_dump()
+        ).model_dump(mode="json")
         
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     try:
@@ -79,9 +81,9 @@ def extract_document(signed_url: str) -> dict:  # change return type annotation 
         )
 
         if result.parsed is not None:
-            return result.parsed.model_dump()
+            return result.parsed.model_dump(mode="json")
 
-        return OCRResult.model_validate_json(result.text).model_dump()
+        return OCRResult.model_validate_json(result.text).model_dump(mode="json")
 
     except requests.RequestException as e:
         raise GeminiOCRError(f"Failed to download document: {e}") from e

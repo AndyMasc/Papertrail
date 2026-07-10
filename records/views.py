@@ -9,7 +9,7 @@ from django_filters.views import FilterView
 from django.http import HttpResponse
 
 from documents.models import Document_data
-from documents.scan_doc import extract_document
+from documents.tasks import extract_document
 from documents.storage_helpers import generate_read_presigned_url
 
 from .filters import RecordFilter
@@ -135,7 +135,7 @@ class AddRecord(LoginRequiredMixin, View):
                 ocr_result = extract_document(
                     generate_read_presigned_url(document.filepath)
                 )
-                data = ocr_result.model_dump()
+                data = ocr_result # Already returned as json
                 initial = {
                     "title": data.get("title"),
                     "products": "\n".join(data.get("products") or []),
