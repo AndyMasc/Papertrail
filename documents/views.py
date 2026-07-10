@@ -42,7 +42,7 @@ class UploadView(LoginRequiredMixin, View):
                 form.cleaned_data["filename"], 
                 form.cleaned_data["content_type"]
             )
-            return JsonResponse(result)
+            return JsonResponse(result, safe=False)
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
         except Exception as e:

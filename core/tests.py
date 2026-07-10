@@ -1,7 +1,8 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
 from records.models import Record
+from django.core.cache import cache
 
 
 # Create your tests here.
@@ -31,3 +32,34 @@ class RecordAccessTest(TestCase):
 
         titles = [record.title for record in records]
         self.assertNotIn("B", titles)
+
+
+class AllauthRateLimitTests(TestCase):
+
+    def setUp(self):
+        # clear the cache before each test to ensure a clean slate
+        cache.clear()
+
+    @override_settings(CACHES={
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        },
+    },
+    ACCOUNT_RATE_LIMITS={"signup": "1/m"}
+)
+    def test_signup_rate_limiting(self):
+        signup_url = reverse("account_signup")
+        payload = {
+            "email": "testuser@example.com",
+        }
+
+        # First request should pass through normally (e.g., Form errors or redirect)
+        response1 = self.client.post(signup_url, payload)
+        self.assertNotEqual(response1.status_code, 429)
+
+        # Second request within the same minute must trigger the rate limit
+        response2 = self.client.post(signup_url, payload)
+        self.assertEqual(response2.status_code, 429)
+        
+        # Verify it renders the expected template
+        self.assertTemplateUsed(response2, "429.html")

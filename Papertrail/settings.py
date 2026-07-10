@@ -88,9 +88,7 @@ MIDDLEWARE = [
 # Custom Django Allauth configuration (Overwrites default settings)
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
-ACCOUNT_LOGIN_METHODS = ["email"]
-ACCOUNT_AUTHENTICATION_METHOD = "email" # Backwards-compatibility fallback
-ACCOUNT_EMAIL_REQUIRED = True           # Backwards-compatibility fallback
+ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 LOGIN_REDIRECT_URL = "core:dashboard"
@@ -98,18 +96,39 @@ ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False
+ACCOUNT_EMAIL_NOTIFICATIONS = True
 
 ACCOUNT_FORMS = {
     "signup": "core.forms.PasswordlessSignupForm",  # custom signup form to allow exclusively email only signups
     "login": "core.forms.PasswordlessLoginForm",    # custom login form to remove password field
 }
+ACCOUNT_RATE_LIMITS = {
+    "login": "3/m/ip",          # 3 attempts per minute
+    "login_failed": "3/5m/ip",  # 3 failures locks the IP out for 5 minutes ('5m')
+}
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"  # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get("EMAIL_HOST")
-EMAIL_PORT = int(os.environ.get("EMAIL_PORT"))
-EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS") == "True"
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+REDIS_URL = os.environ.get("REDIS_URL")
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL or "redis://127.0.0.1:6379/1",  # Fallback prevents initialization crashes
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    },
+}
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"  # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
+ANYMAIL = {
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY"),
+}
+DEFAULT_FROM_EMAIL = "Papertrail <onboarding@resend.dev>" # Must use 'onboarding@resend.dev' for the testing domain
+#EMAIL_HOST = os.environ.get("EMAIL_HOST")
+#EMAIL_PORT = int(os.environ.get("EMAIL_PORT"))
+#EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS") == "True"
+#EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+#EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 
 ACCOUNT_ADAPTER = 'core.adapters.MyLocalAllauthAdapter'
 

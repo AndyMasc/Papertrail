@@ -39,9 +39,12 @@ class UploadViewTests(TestCase):
     
         self.assertEqual(response.status_code, 400)
 
-    @patch("documents.views.generate_write_presigned_url")
+    @patch("documents.views.initiate_r2_upload")
     def test_valid_upload_url(self, mock_generate):
-        mock_generate.return_value = "https://fake-upload-url"
+        mock_generate.return_value = {
+            "upload_url": "https://fake-upload-url",
+            "key": "documents/test.pdf"
+        }
     
         self.client.login(username="testuser", password="testpass123")
     
@@ -60,5 +63,4 @@ class UploadViewTests(TestCase):
     
         self.assertIn("upload_url", data)
         self.assertIn("key", data)
-    
         self.assertEqual(data["upload_url"], "https://fake-upload-url")

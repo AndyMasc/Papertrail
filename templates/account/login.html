@@ -15,6 +15,7 @@
             {% if not SOCIALACCOUNT_ONLY %}
                 {% url 'account_login' as action_url %}
                 {% #form form=form url=action_url button_text="Sign in magically" %}
+                {% csrf_token %}
 
 
             <!-- REMOVED THE DEFAULT FORGOT PASSWORD AND REMEMBER ME OPTIONS FROM THE LOGIN FORMS -->
