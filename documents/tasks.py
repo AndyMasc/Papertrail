@@ -9,7 +9,7 @@ from google.genai import types
 from pydantic import BaseModel
 from records.models import Record
 
-from documents.storage_helpers import s3
+from .storage import s3
 
 
 class OCRResult(BaseModel):
@@ -59,7 +59,6 @@ def extract_document(
 
     if settings.DEBUG:
         import time
-
         time.sleep(4)  # Simulate a slow response
         mock_data = OCRResult(
             title="Mock Title",

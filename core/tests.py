@@ -8,12 +8,12 @@ from django.core.cache import cache
 # Create your tests here.
 class HomeViewTest(TestCase):
     def test_home_status(self):
-        response = self.client.get(reverse("core:home"))
+        response = self.client.get(reverse("core:landing_page"))
         self.assertEqual(response.status_code, 200)
 
     def test_home_template(self):
         response = self.client.get(reverse("core:home"))
-        self.assertTemplateUsed(response, "core/home.html")
+        self.assertTemplateUsed(response, "core/landing_page.html")
 
 class RecordAccessTest(TestCase):
     def test_record_access(self):

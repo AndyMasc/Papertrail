@@ -11,7 +11,7 @@ from django.http import HttpResponse
 
 from documents.models import Document_data
 from documents.tasks import extract_document
-from documents.storage_helpers import generate_read_presigned_url
+from documents.storage import generate_read_presigned_url
 
 from .filters import RecordFilter
 from .forms import AddRecordForm, RecordUpdateForm

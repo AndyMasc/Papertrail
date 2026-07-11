@@ -10,8 +10,8 @@ from records.models import Record
 
 from .forms import R2UploadForm, DocumentUpdateForm
 from .models import Document_data
-from .storage_helpers import generate_read_presigned_url
-from .upload_utils import initiate_r2_upload
+from .storage import generate_read_presigned_url
+from .storage import initiate_r2_upload
 
 logger = logging.getLogger(__name__)
 

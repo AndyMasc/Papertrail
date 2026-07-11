@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 def index(request):
-    return render(request, 'core/home.html')
+    return render(request, 'core/landing_page.html')
 
 class dashboard(LoginRequiredMixin, ListView):
     model = Record
