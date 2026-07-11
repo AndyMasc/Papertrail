@@ -130,13 +130,18 @@ class AddRecord(LoginRequiredMixin, View):
         if document_id:
             document = self.get_document(document_id, request)
             cache_key = f"ocr_data_{document_id}"
-            
-            if not cache.get(cache_key):
+            cached_status = cache.get(cache_key) # grab whatever is currently in the cache
+
+            if not cached_status: # If the cache is empty, set it to "processing" and extract the document
+                cache.set(cache_key, "processing", timeout=300)
+                
                 extract_document.delay(
                     document.id, 
                     generate_read_presigned_url(document.filepath)
                 )
-            is_waiting = True
+
+            if cached_status == "processing" or not cached_status: # If the cache is empty or still processing, show waiting state
+                is_waiting = True
 
         return render(
             request, self.template_name,
@@ -168,6 +173,8 @@ class AddRecord(LoginRequiredMixin, View):
                 document.associated_record = record
                 document.save()
 
+            cache.delete(f"ocr_result_{document_id}") # Clear cache since record saved in DB
+            
             return redirect("documents:add_support_docs", record_id=record.id)
         return render(request, self.template_name, {"form": form, "document": document})
 
@@ -177,7 +184,7 @@ class CheckOCRStatus(LoginRequiredMixin, View):
         cache_key = f"ocr_result_{document_id}"
         data = cache.get(cache_key)
         
-        if data is None:
+        if data is None or data == "processing": # If the cache is empty or still processing, show waiting state
             return render(request, "records/partials/form_card.html", {
                 "is_waiting": True, 
                 "document_id": document_id,
@@ -192,10 +199,8 @@ class CheckOCRStatus(LoginRequiredMixin, View):
             "expiry_date": data.get("expiry_date"),
             "record_type": data.get("record_type"),
         }
-        cache.delete(cache_key)
                 
         form = AddRecordForm(initial=initial)
-        
         return render(request, "records/partials/form_card.html", {
             "form": form,
             "is_waiting": False,

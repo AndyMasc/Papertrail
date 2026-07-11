@@ -53,7 +53,7 @@ class GeminiOCRError(Exception):
 def extract_document(document_id: int, signed_url: str) -> dict:  # Change return type annotation to dict
     cache_key = f"ocr_result_{document_id}"
     
-    if settings.DEBUG:
+    if False:
         import time 
         time.sleep(4) # Simulate a slow response
         mock_data = OCRResult(

@@ -1,11 +1,5 @@
 {% load widget_tweaks %}
 
-{% if form.initial %}
-    <div class="mx-6 bg-emerald-50/60 text-xs font-medium text-emerald-500 text-center p-2">
-        Data filled automatically via intelligent extraction.
-    </div>
-{% endif %}
-
 {% if is_waiting %}
     <div hx-get="{% url 'records:check_ocr_status' document_id %}"
          hx-trigger="every 2s"
