@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Document_data
+from .models import DocumentData
 
 # Register your models here.
-admin.site.register(Document_data)
+admin.site.register(DocumentData)

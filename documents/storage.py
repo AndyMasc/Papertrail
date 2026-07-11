@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from .models import Document_data
+from .models import DocumentData
 import boto3
 from botocore.config import Config
 from django.conf import settings
@@ -8,7 +8,8 @@ from django.conf import settings
 R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = settings.R2_PAPERTRAIL_STORAGE_ACCOUNT_ID
 R2_STORAGE_BUCKET_NAME = settings.R2_STORAGE_BUCKET_NAME
 
-s3 = boto3.client( # s3 client for R2 storage configuration
+# s3 client for R2 storage
+s3 = boto3.client( 
     service_name="s3",
     endpoint_url=settings.R2_S3_ENDPOINT_URL,
     aws_access_key_id=settings.R2_ACCESS_KEY_ID,
@@ -49,7 +50,7 @@ def initiate_r2_upload(user, filename, content_type, record_id=None, notes=None)
     extension = Path(filename).suffix
     key = f"users/{user.id}/{uuid.uuid4()}{extension}"
 
-    document = Document_data.objects.create(
+    document = DocumentData.objects.create(
         user=user, 
         filepath=key,
         associated_record_id=record_id,

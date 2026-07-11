@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
-class Document_data(models.Model):
+class DocumentData(models.Model):
     title = models.CharField(max_length=200, default="Untitled")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     filepath = models.CharField(max_length=500)

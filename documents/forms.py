@@ -1,5 +1,5 @@
 from django import forms
-from .models import Document_data
+from .models import DocumentData
 
 class R2UploadForm(forms.Form):
     filename = forms.CharField(max_length=255, required=True)
@@ -8,7 +8,7 @@ class R2UploadForm(forms.Form):
 
 class DocumentUpdateForm(forms.ModelForm):
     class Meta:
-        model = Document_data
+        model = DocumentData
         fields = ["title", "notes"]
 
     def __init__(self, *args, **kwargs):

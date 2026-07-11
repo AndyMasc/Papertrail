@@ -1,17 +1,17 @@
 import json
 import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import JsonResponse, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views import View
-from django.views.generic import DetailView
-from records.models import Record
+from django.views.generic import DeleteView, UpdateView
 
+from records.models import Record
 from .forms import R2UploadForm, DocumentUpdateForm
-from .models import Document_data
-from .storage import generate_read_presigned_url
-from .storage import initiate_r2_upload
+from .models import DocumentData
+from .storage import generate_read_presigned_url, initiate_r2_upload
 
 logger = logging.getLogger(__name__)
 
@@ -50,53 +50,50 @@ class UploadView(LoginRequiredMixin, View):
             return JsonResponse({"error": "Internal server error initiating upload."}, status=500)
 
 
-class ViewDocument(LoginRequiredMixin, DetailView):
-    model = Document_data
+class ViewDocument(LoginRequiredMixin, UpdateView):
+    model = DocumentData
+    form_class = DocumentUpdateForm
     template_name = "documents/view_document.html"
     context_object_name = "document"
 
     def get_queryset(self):
-        return Document_data.objects.filter(user=self.request.user)
+        return DocumentData.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
         return context
 
-    def post(self, request, *args, **kwargs):
-        document = self.get_object()
-        form = DocumentUpdateForm(request.POST, instance=document)
-        
-        if form.is_valid():
-            if not form.cleaned_data.get("title"):
-                form.cleaned_data["title"] = document.title 
-            
-            form.save()
-            return HttpResponse(status=204)
-        
+    def form_valid(self, form):
+        form.save()
+        return HttpResponse(status=204)
+
+    def form_invalid(self, form):
         return HttpResponse("Invalid data submitted", status=400)
 
 
-class DeleteDocument(LoginRequiredMixin, View):
-    def post(self, request, pk):
-        document = get_object_or_404(
-            Document_data.objects.select_related("associated_record"), 
-            user=request.user, 
-            pk=pk
-        )
-        
-        associated_record = document.associated_record
-        associated_record_id = associated_record.id if associated_record else None
-        
-        try:
-            document.delete()
-        except Exception as e:
-            logger.error(f"Failed to delete document {pk} for user {request.user.id}: {e}", exc_info=True)
-            return JsonResponse({"error": "Failed to complete deletion safely."}, status=500)
+class DeleteDocument(LoginRequiredMixin, DeleteView):
+    model = DocumentData
 
-        if associated_record_id:
-            return redirect("records:record_detail", associated_record_id)
-        return redirect("records:view_all_records")
+    def get_queryset(self):
+        return self.model.objects.filter(user=self.request.user).select_related("associated_record")
+
+    def get_success_url(self):
+        associated_record = self.object.associated_record
+        if associated_record:
+            return reverse("records:record_detail", kwargs={"pk": associated_record.id})
+        return reverse("records:view_all_records")
+
+    def form_valid(self, form):
+        try:
+            with transaction.atomic():
+                return super().form_valid(form)
+        except Exception as e:
+            logger.error(
+                f"Failed to delete document {self.object.pk} for user {self.request.user.id}: {e}", 
+                exc_info=True
+            )
+            return JsonResponse({"error": "Failed to complete deletion safely."}, status=500)
 
 
 class AddSupportDocuments(LoginRequiredMixin, View):
@@ -130,7 +127,7 @@ class AddSupportDocuments(LoginRequiredMixin, View):
                 filename=form.cleaned_data["filename"],
                 content_type=form.cleaned_data["content_type"],
                 record_id=record_id,
-                notes=form.cleaned_data["notes"],
+                notes=form.cleaned_data.get("notes", ""),
             )
             return JsonResponse(result)
         except ValueError as e:

@@ -1,115 +1,17 @@
 {% extends "base.html" %}
-{% load widget_tweaks %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
     
-    <form method="POST" 
-        action=""
-        id="record-form" 
-        class="space-y-6"
-        hx-post="" 
-        hx-trigger="change, input changed delay:800ms"
-        hx-target="body"
-        hx-swap="outerHTML">
-        {% csrf_token %}
-        
-        <nav class="flex sm:items-center justify-between text-xs font-medium flex-col sm:flex-row gap-5">
-            <div class="flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
-                <a href="{% url 'records:view_all_records' %}" class="hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">Records</a>
-                <span>/</span>
-                <span id="record-title" class="text-zinc-800 dark:text-zinc-200 truncate">{{ record.title }}</span>
-            </div>
-            <div class="flex items-center gap-2.5">
-                <a href="{% url 'core:dashboard' %}" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border border-zinc-200/40 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
-                    Return
-                </a>
-            </div>
-        </nav>
+    {% include "records/partials/record_form_partial.html" %}
 
-        {% if form.non_field_errors %}
-            <div class="p-4 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl text-xs text-rose-600 dark:text-rose-400">
-                {{ form.non_field_errors|striptags }}
-            </div>
-        {% endif %}
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-fr">
-            
-            <!-- Title Section -->
-            <div class="md:col-span-2 p-6 bg-white dark:bg-zinc-900/40 border {% if form.title.errors %}border-rose-500{% else %}border-zinc-200/80{% endif %} dark:border-zinc-800/50 rounded-3xl flex flex-col justify-between gap-y-6">
-                <div class="flex items-center justify-between gap-4">
-                    <span class="inline-flex items-center px-2 rounded-4xl font-semibold tracking-wide border {{ record.badge_classes }}">
-                        {% render_field form.record_type class="inline-flex items-center outline-none py-2 rounded-full text-xs font-semibold tracking-wide bg-transparent" %}
-                    </span>
-                </div>
-                <div class="space-y-1">
-                    <label for="{{ form.title.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block pl-1">Record Title</label>
-                    {% render_field form.title placeholder="Record Title" class="w-full -mx-1 px-1 py-1 text-2xl font-bold bg-transparent border-transparent rounded-lg text-zinc-900 dark:text-white focus:outline-hidden focus:ring-0 transition-colors" %}
-                    {% if form.title.errors %}<p class="text-[11px] text-rose-500">{{ form.title.errors|striptags }}</p>{% endif %}
-                </div>
-            </div>
-
-            <!-- Value & Merchant -->
-            <div class="p-6 bg-zinc-50/60 dark:bg-zinc-900/20 border {% if form.balance.errors or form.merchant.errors %}border-rose-500{% else %}border-zinc-200/60{% endif %} dark:border-zinc-800/40 rounded-3xl flex flex-col justify-between gap-y-6">
-                <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Value</label>
-                    <div class="relative flex items-center mt-2">
-                        <span class="absolute left-0 text-xl font-semibold text-zinc-400">$</span>
-                        {% render_field form.balance step="0.01" placeholder="0.00" class="w-full pl-5 pr-2 py-1 text-3xl font-bold bg-transparent border-transparent rounded-lg text-zinc-950 dark:text-white focus:outline-hidden focus:ring-0" %}
-                    </div>
-                    {% if form.balance.errors %}<p class="text-[11px] text-rose-500">{{ form.balance.errors|striptags }}</p>{% endif %}
-                </div>
-                <div>
-                    <label for="{{ form.merchant.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Merchant</label>
-                    {% render_field form.merchant placeholder="None listed" class="w-full -mx-1 px-1 py-0.5 text-sm font-semibold bg-transparent border-transparent rounded-md text-zinc-800 dark:text-zinc-200 focus:outline-hidden focus:ring-0" %}
-                </div>
-            </div>
-
-            <!-- Products -->
-            <div class="md:col-span-2 p-6 bg-white dark:bg-zinc-900/40 border {% if form.products.errors %}border-rose-500{% else %}border-zinc-200/80{% endif %} dark:border-zinc-800/50 rounded-3xl space-y-2">
-                <label for="{{ form.products.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Products</label>
-                {% render_field form.products rows="4" class="resize-none w-full px-3 py-2 text-sm rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-200/40 dark:border-zinc-800/50" %}
-                {% if form.products.errors %}<p class="text-[11px] text-rose-500">{{ form.products.errors|striptags }}</p>{% endif %}
-            </div>
-
-            <!-- Dates -->
-            <div class="p-6 bg-zinc-50/60 dark:bg-zinc-900/20 border {% if form.transaction_date.errors or form.expiry_date.errors %}border-rose-500{% else %}border-zinc-200/60{% endif %} dark:border-zinc-800/40 rounded-3xl flex flex-col justify-between gap-y-3">
-                <div class="flex flex-col gap-0.5">
-                    <label for="{{ form.transaction_date.id_for_label }}" class="text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Transaction Date</label>
-                    {% render_field form.transaction_date type="date" class="w-full text-xs font-semibold bg-transparent border-transparent" %}
-                    {% if form.transaction_date.errors %}<p class="text-[11px] text-rose-500">{{ form.transaction_date.errors|striptags }}</p>{% endif %}
-                </div>
-                <div class="flex flex-col gap-0.5">
-                    <label for="{{ form.expiry_date.id_for_label }}" class="text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Expiry Date</label>
-                    {% render_field form.expiry_date type="date" class="w-full text-xs font-semibold bg-transparent border-transparent" %}
-                    {% if form.expiry_date.errors %}<p class="text-[11px] text-rose-500">{{ form.expiry_date.errors|striptags }}</p>{% endif %}
-                </div>
-                <div class="pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
-                    <p class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Date Added</p>
-                    <p class="text-xs font-semibold text-zinc-400">{{ record.date_added|date:"M d, Y" }}</p>
-                </div>
-            </div>
-
-            <!-- Notes -->
-            <div class="md:col-span-3 p-6 bg-white dark:bg-zinc-900/40 border {% if form.notes.errors %}border-rose-500{% else %}border-zinc-200/80{% endif %} dark:border-zinc-800/50 rounded-3xl space-y-2">
-                <label for="{{ form.notes.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Notes</label>
-                {% render_field form.notes rows="5" class="w-full px-3 py-2 text-sm rounded-xl bg-zinc-50/50 dark:bg-zinc-900/50 border border-zinc-800 resize-none" %}
-            </div>
-        </div>
-    </form>
-
-    <!-- Documents Section -->
     <section class="p-6 bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/50 rounded-3xl space-y-4">
         <div class="flex items-center justify-between gap-4">
             <div>
                 <h2 class="text-sm font-bold tracking-wider text-zinc-900 dark:text-white">Documents</h2>
                 <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Files attached to this record.</p>
             </div>
-
-            <a href="{% url 'documents:add_support_docs' record.pk %}" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-xl transition-colors shadow-xs group active:scale-[0.98]">
-                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
+            <a href="{% url 'documents:add_support_docs' record.pk %}" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100 rounded-xl transition-colors shadow-xs active:scale-[0.98]">
                 Add Document
             </a>
         </div>
@@ -121,16 +23,12 @@
                     <div class="flex items-center justify-between p-3 bg-zinc-50/40 dark:bg-zinc-900/30 border border-zinc-200/50 dark:border-zinc-800/60 rounded-xl group hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
                         <div class="flex items-center gap-3 truncate">
                             <div class="p-1.5 rounded-lg bg-white text-zinc-400 dark:bg-zinc-800/50 dark:text-zinc-500 border border-zinc-200/40 dark:border-zinc-700/40 shrink-0">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                </svg>
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
                             </div>
                             <div class="truncate">
                                 <p class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">{{ document.title }}
                                     {% if document.is_main %}
-                                        <span class="ml-2 bg-emerald-500/10 text-emerald-500 text-xs border border-emerald-500/50 tracking-tight uppercase px-1 rounded-full shrink-0">
-                                            Main
-                                        </span>
+                                        <span class="ml-2 bg-emerald-500/10 text-emerald-500 text-xs border border-emerald-500/50 tracking-tight uppercase px-1 rounded-full shrink-0">Main</span>
                                     {% endif %}
                                 </p>
                                 <p class="text-[10px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5">{{ document.filepath }}</p>
@@ -146,15 +44,13 @@
             </div>
         {% endif %}
     </section>
-
 </div>
 
 <script>
     document.body.addEventListener('htmx:beforeSwap', function(evt) {
-        // Specifically allow 422 errors to swap
         if (evt.detail.xhr.status === 422) {
             evt.detail.shouldSwap = true;
-            evt.detail.isError = false; // Tells HTMX to treat this as a successful swap
+            evt.detail.isError = false;
         }
     });
 </script>
