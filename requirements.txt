@@ -20,7 +20,9 @@ django-allauth==65.18.0
 django-allauth-ui==1.8.1
 django-anymail==15.0
 django-browser-reload==1.21.0
+django-environ==0.14.0
 django-filter==25.2
+django-qstash==0.8.1
 django-redis==7.0.0
 django-storages==1.14.6
 django-stubs-ext==6.0.6
@@ -87,6 +89,7 @@ python-dotenv==1.2.2
 python-slugify==8.0.4
 pytz==2026.2
 PyYAML==6.0.3
+qstash==3.4.0
 redis==8.0.1
 regex==2026.6.28
 requests==2.34.2
