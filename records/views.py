@@ -1,4 +1,5 @@
 import logging
+from django.core.cache import cache
 import dateparser
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -119,48 +120,32 @@ class AddRecord(LoginRequiredMixin, View):
     def get_document(self, document_id, request):
         return get_object_or_404(
             Document_data.objects.select_related("associated_record"), 
-            id=document_id, 
-            user=request.user
+            id=document_id, user=request.user
         )
 
     def get(self, request, document_id=None):
         document = None
-        initial = {}
-
+        is_waiting = False
+        
         if document_id:
             document = self.get_document(document_id, request)
+            cache_key = f"ocr_data_{document_id}"
             
-            # NOTE: Move  this synchronous blocking block to an async background job!
-            try:
-                ocr_result = extract_document(
+            if not cache.get(cache_key):
+                extract_document.delay(
+                    document.id, 
                     generate_read_presigned_url(document.filepath)
                 )
-                data = ocr_result # Already returned as json
-                initial = {
-                    "title": data.get("title"),
-                    "products": "\n".join(data.get("products") or []),
-                    "merchant": data.get("merchant"),
-                    "balance": data.get("balance"),
-                    "transaction_date": data.get("transaction_date"),
-                    "expiry_date": data.get("expiry_date"),
-                    "record_type": data.get("record_type"),
-                }
-            except Exception as e:
-                logger.error(f"OCR Parsing failure on document ID {document_id}: {e}", exc_info=True)
-                return render(
-                    request,
-                    self.template_name,
-                    {
-                        "form": AddRecordForm(initial=initial),
-                        "document": document,
-                        "error": "Failed to parse document text seamlessly.",
-                    },
-                )
+            is_waiting = True
 
         return render(
-            request,
-            self.template_name,
-            {"form": AddRecordForm(initial=initial), "document": document},
+            request, self.template_name,
+            {
+                "document": document, 
+                "form": AddRecordForm(),
+                "is_waiting": is_waiting,
+                "document_id": document_id,
+            },
         )
 
     def post(self, request, document_id=None):
@@ -168,9 +153,8 @@ class AddRecord(LoginRequiredMixin, View):
         
         if document and document.associated_record:
             return render(
-                request,
-                self.template_name,
-                {"error": "This document is already associated with a record."},
+                request, self.template_name, 
+                {"error": "This document is already associated with a record."}, 
                 status=400
             )
 
@@ -186,6 +170,36 @@ class AddRecord(LoginRequiredMixin, View):
 
             return redirect("documents:add_support_docs", record_id=record.id)
         return render(request, self.template_name, {"form": form, "document": document})
+
+
+class CheckOCRStatus(LoginRequiredMixin, View):
+    def get(self, request, document_id):
+        cache_key = f"ocr_result_{document_id}"
+        data = cache.get(cache_key)
+        
+        if data is None:
+            return render(request, "records/partials/form_card.html", {
+                "is_waiting": True, 
+                "document_id": document_id,
+            })
+
+        initial = {
+            "title": data.get("title"),
+            "products": "\n".join(data.get("products") or []) if isinstance(data.get("products"), list) else data.get("products"),
+            "merchant": data.get("merchant"),
+            "balance": data.get("balance"),
+            "transaction_date": data.get("transaction_date"),
+            "expiry_date": data.get("expiry_date"),
+            "record_type": data.get("record_type"),
+        }
+        cache.delete(cache_key)
+                
+        form = AddRecordForm(initial=initial)
+        
+        return render(request, "records/partials/form_card.html", {
+            "form": form,
+            "is_waiting": False,
+        })
 
 
 class ArchiveRecord(LoginRequiredMixin, View):

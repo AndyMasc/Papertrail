@@ -44,8 +44,14 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    # Broswer reload (NOT FOR PRODUCTION)
-    "django_browser_reload",
+    
+    # Qstash add-ons
+    "django_qstash",
+    "django_qstash.results",
+    "django_qstash.schedules",
+    
+    # Allauth add-ons
+    "django_browser_reload",# Broswer reload (NOT FOR PRODUCTION)
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
@@ -224,3 +230,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 STATIC_URL = "static/"
+
+
+DJANGO_QSTASH_DOMAIN = os.environ.get("DJANGO_QSTASH_DOMAIN")
+DJANGO_QSTASH_WEBHOOK_PATH = os.environ.get("DJANGO_QSTASH_WEBHOOK_PATH")
+DJANGO_QSTASH_FORCE_HTTPS = True
+DJANGO_QSTASH_RESULT_TTL = 604800
+
+USE_LOCAL_QSTASH = str(os.environ.get("USE_LOCAL_QSTASH")) == "1"
+QSTASH_TOKEN = os.environ.get("QSTASH_TOKEN")
+QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY")
+QSTASH_NEXT_SIGNING_KEY = os.environ.get("QSTASH_NEXT_SIGNING_KEY")
+USE_LOCAL_QSTASH = True

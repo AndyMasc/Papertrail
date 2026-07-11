@@ -6,6 +6,9 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from records.models import Record
+from django.core.cache import cache
+
+from django_qstash import stashed_task
 
 class OCRResult(BaseModel):
     title: str
@@ -46,11 +49,14 @@ class GeminiOCRError(Exception):
     """Raised when Gemini OCR fails."""
 
 
-def extract_document(signed_url: str) -> dict:  # Change return type annotation to dict
+@stashed_task
+def extract_document(document_id: int, signed_url: str) -> dict:  # Change return type annotation to dict
+    cache_key = f"ocr_result_{document_id}"
+    
     if settings.DEBUG:
-        import time
+        import time 
         time.sleep(4) # Simulate a slow response
-        return OCRResult(
+        mock_data = OCRResult(
             title="Mock Title",
             merchant="Mock Merchant",
             balance=125.50,
@@ -59,6 +65,9 @@ def extract_document(signed_url: str) -> dict:  # Change return type annotation 
             expiry_date="2026-01-09",
             record_type=Record.RecordTypes.EXPENSE_RECEIPT,
         ).model_dump(mode="json")
+        
+        cache.set(cache_key, mock_data, timeout=900) # Cache the mock data for 15 minutes to store prepopulated ocr data, without cluttering DB.
+        return mock_data
         
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
     try:
@@ -81,9 +90,12 @@ def extract_document(signed_url: str) -> dict:  # Change return type annotation 
         )
 
         if result.parsed is not None:
-            return result.parsed.model_dump(mode="json")
+            final_data = result.parsed.model_dump(mode="json")
+        else:
+            final_data = OCRResult.model_validate_json(result.text).model_dump(mode="json")
 
-        return OCRResult.model_validate_json(result.text).model_dump(mode="json")
+        cache.set(cache_key, final_data, timeout=900) # Cache the mock data for 15 minutes to store prepopulated ocr data, without cluttering DB.
+        return final_data
 
     except requests.RequestException as e:
         raise GeminiOCRError(f"Failed to download document: {e}") from e

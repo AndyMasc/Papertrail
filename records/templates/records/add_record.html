@@ -7,7 +7,9 @@
             <header class="mb-8 text-center">
                 {% if document %}
                     <div class="inline-flex items-center gap-2 rounded-4xl border border-zinc-200 bg-white/70 px-3 py-1 text-xs text-zinc-500 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
+{% block subtitle %}
                         Automatic data extraction
+{% endblock %}
                     </div>
     
                     <h1 class="mt-5 text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">
@@ -18,11 +20,11 @@
                         Everything below is editable.
                     </p>
                 {% else %}
-                    <div accesskey=""class="inline-flex rounded-4xl border border-zinc-200 bg-white/70 px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70 ">
+                    <div class="inline-flex rounded-4xl border border-zinc-200 bg-white/70 px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70 ">
                         Manual entry
                     </div>
     
-                    <h1 accesskey=""class="mt-5 text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">
+                    <h1 class="mt-5 text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-950 dark:text-white">
                         Create a new record.
                     </h1>
     
@@ -32,50 +34,8 @@
                 {% endif %}
             </header>
 
-            <!-- Card -->
-            <section class="overflow-hidden rounded-[30px] border border-zinc-200 bg-white backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/70">
-                <form method="post">
-                    {% csrf_token %} {% for field in form %}
-
-                    <div class="group border-b border-zinc-100 px-6 py-4 transition-all duration-200 focus-within:bg-zinc-50 dark:border-zinc-800 dark:focus-within:bg-zinc-800/40">
-                        
-                        <label for="{{ field.id_for_label }}" class="tracking-wider uppercase flex items-center w-full whitespace-nowrap mb-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                            {% if field.label == 'Title' %}
-                                Descriptive title
-                            {% else %}
-                                {{ field.label }}
-                            {% endif %}
-                            
-                            {% if field.field.required %}
-                                <span class="ml-1 text-rose-400 font-bold">*</span>
-                            {% endif %}
-                        </label>
-                    
-                        {% render_field field class="mt-0.5 text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-900 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-100 placeholder:text-zinc-400" %} 
-                        
-                        {% if field.errors %}
-                            <p class="mt-2 text-xs text-rose-400">
-                                {{ field.errors|join:", " }}
-                            </p>
-                        {% endif %}
-                    </div>
-
-                    {% endfor %} {% if form.non_field_errors %}
-                    <div class="p-5 text-red-500">
-                        {{ form.non_field_errors }}
-                    </div>
-                    {% endif %}
-
-                    <div class="flex items-center justify-end gap-3 p-5 text-center">
-                        <a href="{% url 'core:dashboard' %}" class="rounded-4xl px-4 py-2 text-sm text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                            Cancel
-                        </a>
-
-                        <button type="submit" class="cursor-pointer rounded-4xl bg-black px-6 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-px hover:bg-zinc-800 active:translate-y-0 active:scale-[0.98] dark:bg-white dark:text-black dark:hover:bg-zinc-200">
-                            Save Record
-                        </button>
-                    </div>
-                </form>
+            <section id="form-wrapper" class="overflow-hidden rounded-4xl border border-zinc-200 bg-white backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/70">
+                {% include "records/partials/form_card.html" %}
             </section>
 
             <p class="mt-5 text-center text-xs text-zinc-400 dark:text-zinc-600">

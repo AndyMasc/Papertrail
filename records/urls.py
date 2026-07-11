@@ -13,4 +13,6 @@ urlpatterns = [
     path("archive_record/<int:record_id>/", views.ArchiveRecord.as_view(), name="archive_record"),
     path("archive/", views.ArchiveRecord.as_view(), name="archive_view"),
     path("unarchive/<int:record_id>/", views.UnarchiveRecord.as_view(), name="unarchive_record"),
+
+    path("check_ocr_status/<int:document_id>/", views.CheckOCRStatus.as_view(), name="check_ocr_status"),
 ]
