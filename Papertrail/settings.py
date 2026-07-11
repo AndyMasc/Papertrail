@@ -92,12 +92,14 @@ MIDDLEWARE = [
 ]
 
 # Custom Django Allauth configuration (Overwrites default settings)
+ACCOUNT_ADAPTER = 'core.adapters.QStashEmailAdapter'
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_MAX_EMAIL_ADDRESSES = 3
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 LOGIN_REDIRECT_URL = "core:dashboard"
+ACCOUNT_SIGNUP_REDIRECT_URL = "core:dashboard"
 ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
@@ -136,7 +138,6 @@ DEFAULT_FROM_EMAIL = "Papertrail <onboarding@resend.dev>" # Must use 'onboarding
 #EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 #EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 
-ACCOUNT_ADAPTER = 'core.adapters.MyLocalAllauthAdapter'
 
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
@@ -241,4 +242,3 @@ USE_LOCAL_QSTASH = str(os.environ.get("USE_LOCAL_QSTASH")) == "1"
 QSTASH_TOKEN = os.environ.get("QSTASH_TOKEN")
 QSTASH_CURRENT_SIGNING_KEY = os.environ.get("QSTASH_CURRENT_SIGNING_KEY")
 QSTASH_NEXT_SIGNING_KEY = os.environ.get("QSTASH_NEXT_SIGNING_KEY")
-USE_LOCAL_QSTASH = True
