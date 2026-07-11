@@ -125,7 +125,7 @@ CACHES = {
         },
     },
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_ENGINE ="django.contrib.sessions.backends.cached_db"
 
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"  # FOR PRODUCTION: 'django.core.mail.backends.smtp.EmailBackend'
 ANYMAIL = {

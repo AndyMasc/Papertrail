@@ -104,14 +104,14 @@ class RecordDetailView(LoginRequiredMixin, View):
             {"record": record, "form": self.form_class(instance=record)},
         )
 
-    def post(self, request, record_id):
+    def post(self, request, record_id): # If the form is edited in the detail view
         record = get_object_or_404(Record, user=request.user, pk=record_id)
         form = self.form_class(request.POST, instance=record)
         if form.is_valid():
             form.save()
             return HttpResponse(status=204)
-            
-        return render(request, self.template_name, {"record": record, "form": form}, status=422)
+        else:
+            return render(request, self.template_name, {"record": record, "form": form}, status=422)
 
 
 class AddRecord(LoginRequiredMixin, View):

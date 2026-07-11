@@ -29,6 +29,12 @@ class AddRecordForm(forms.ModelForm):
             raise ValidationError('Transaction date cannot be in the future.')
         return transaction_date
 
+    def clean_balance(self):
+        balance = self.cleaned_data.get('balance')
+        if balance is not None and balance < 0:
+            raise ValidationError('Balance cannot be negative.')
+        return balance
+
     def clean(self): # clean is a method name. Only works with clean_<field_name>, where field_name is from model
         cleaned_data = super().clean()
         expiry_date = cleaned_data.get('expiry_date')
