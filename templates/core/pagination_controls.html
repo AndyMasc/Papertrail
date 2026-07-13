@@ -1,0 +1,29 @@
+{% if is_paginated %}
+<nav class="flex items-center justify-center gap-3 mt-6" aria-label="Pagination">
+    {% if page_obj.has_previous %}
+        <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors cursor-pointer"
+            hx-get="{% querystring page=page_obj.previous_page_number %}"
+            hx-target="#query-results-container"
+            hx-include="#filter-form, #search"
+            hx-indicator=".htmx-indicator">
+            Previous
+        </button>
+    {% endif %}
+    <span class="text-xs text-zinc-500 dark:text-zinc-400">
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+    {% if page_obj.has_next %}
+        <button
+            type="button"
+            class="px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 rounded-xl hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors cursor-pointer"
+            hx-get="{% querystring page=page_obj.next_page_number %}"
+            hx-target="#query-results-container"
+            hx-include="#filter-form, #search"
+            hx-indicator=".htmx-indicator">
+            Next
+        </button>
+    {% endif %}
+</nav>
+{% endif %}

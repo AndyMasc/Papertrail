@@ -46,8 +46,9 @@ def initiate_r2_upload(user, filename, content_type, record_id=None, notes=None)
     if not filename:
         raise ValueError("Filename is required")
 
-    title = Path(filename).stem.replace('_', ' ').replace('-', ' ').title()
-    extension = Path(filename).suffix
+    safe_filename = Path(filename).name
+    title = Path(safe_filename).stem.replace('_', ' ').replace('-', ' ').title()
+    extension = Path(safe_filename).suffix.lower()
     key = f"users/{user.id}/{uuid.uuid4()}{extension}"
 
     document = DocumentData.objects.create(

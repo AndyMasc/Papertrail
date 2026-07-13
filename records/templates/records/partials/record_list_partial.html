@@ -1,9 +1,15 @@
-<div>
+<div @click="if ($event.target.closest('[data-record-id]')) selectedRecord = $event.target.closest('[data-record-id]').dataset.recordId">
     {% for record in records %}
-        {% include 'records/record_card.html' %}
+        <div data-record-id="{{ record.pk }}" 
+             :class="selectedRecord === '{{ record.pk }}' ? 'ring-2 ring-black dark:ring-white rounded-2xl' : ''" 
+             class="transition-all duration-150 mb-2">
+            {% include 'records/record_card.html' %}
+        </div>
     {% empty %}
         <div class="text-center py-12 px-4 text-xs font-medium text-zinc-400 dark:text-zinc-500">
             No matching records found for this query.
         </div>
     {% endfor %}
+
+    {% include "core/pagination_controls.html" %}
 </div>

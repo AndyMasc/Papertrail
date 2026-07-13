@@ -1,20 +1,26 @@
+import logging
 import mimetypes
+from datetime import timedelta
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models.signals import post_delete
+from django.utils import timezone
 from django_qstash import stashed_task
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from records.models import Record
 
+from .models import DocumentData
+from .signals import post_delete_document
 from .storage import s3
 
+logger = logging.getLogger(__name__)
 
 class OCRResult(BaseModel):
     title: str
-    # Notes: Notes these should be written by the user personally, only if necessary - Not OCR-generated.
     merchant: str | None = None
     balance: float | None = None
     products: list[str] | None = None
@@ -27,7 +33,6 @@ CONFIG = types.GenerateContentConfig(
     response_mime_type="application/json",
     response_schema=OCRResult,
 )
-
 
 PROMPT = """
 You are an expert document extraction system.
@@ -52,14 +57,12 @@ class GeminiOCRError(Exception):
 
 
 @stashed_task
-def extract_document(
-    document_id: int, signed_url: str
-) -> dict:  # Change return type annotation to dict
-    cache_key = f"ocr_result_{document_id}"
+def extract_document(document_id: int, signed_url: str) -> dict:
+    cache_key = f"ocr_status_{document_id}"
 
     if settings.DEBUG:
         import time
-        time.sleep(4)  # Simulate a slow response
+        time.sleep(4)  # Simulate slow network response
         mock_data = OCRResult(
             title="Mock Title",
             merchant="Mock Merchant",
@@ -70,12 +73,11 @@ def extract_document(
             record_type=Record.RecordTypes.EXPENSE_RECEIPT,
         ).model_dump(mode="json")
 
-        cache.set(
-            cache_key, mock_data, timeout=900
-        )  # Cache the mock data for 15 minutes to store prepopulated ocr data, without cluttering DB.
+        cache.set(cache_key, mock_data, timeout=900)
         return mock_data
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    
     try:
         response = requests.get(signed_url, timeout=30)
         response.raise_for_status()
@@ -98,18 +100,19 @@ def extract_document(
         if result.parsed is not None:
             final_data = result.parsed.model_dump(mode="json")
         else:
-            final_data = OCRResult.model_validate_json(result.text).model_dump(
-                mode="json"
-            )
+            final_data = OCRResult.model_validate_json(result.text).model_dump(mode="json")
 
-        cache.set(
-            cache_key, final_data, timeout=900
-        )  # Cache the mock data for 15 minutes to store prepopulated ocr data, without cluttering DB.
+        cache.set(cache_key, final_data, timeout=900)
         return final_data
 
-    except requests.RequestException as e:
-        raise GeminiOCRError(f"Failed to download document: {e}") from e
     except Exception as exc:
+        # Catch ANY failure during the pipeline and gracefully update the cache
+        error_payload = {"error": "Failed to automatically extract document details."}
+        cache.set(cache_key, error_payload, timeout=900)
+        
+        # Re-raise the custom exception so QStash/logs still record the crash details
+        if isinstance(exc, requests.RequestException):
+            raise GeminiOCRError(f"Failed to download document: {exc}") from exc
         raise GeminiOCRError(f"Gemini OCR failed: {exc}") from exc
 
 
@@ -117,3 +120,41 @@ def extract_document(
 def delete_document(filepath: str) -> None:
     if filepath:
         s3.delete_object(Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=filepath)
+
+
+@stashed_task  # Scheduled task
+def delete_orphaned_documents() -> None:
+    grace_period = timezone.now() - timedelta(days=1)
+    orphaned_files = DocumentData.objects.filter(
+        associated_record=None, date_added__lt=grace_period
+    )
+
+    if not orphaned_files.exists():
+        return
+
+    file_data = list(orphaned_files.values_list("id", "filepath"))
+
+    CHUNK_SIZE = 1000  # Cloudflare supports up to 1000 objects per deletion request
+    for i in range(0, len(file_data), CHUNK_SIZE):
+        chunk = file_data[i : i + CHUNK_SIZE]
+
+        chunk_ids = [item[0] for item in chunk]
+        chunk_paths = [item[1] for item in chunk if item[1]]
+
+        if not chunk_paths:
+            continue
+
+        deletion_payload = {
+            "Objects": [{"Key": filepath.lstrip("/")} for filepath in chunk_paths]
+        }
+        try:
+            s3.delete_objects(
+                Bucket=settings.R2_STORAGE_BUCKET_NAME, Delete=deletion_payload
+            )
+            post_delete.disconnect(post_delete_document, sender=DocumentData)
+            DocumentData.objects.filter(id__in=chunk_ids).delete()
+        except Exception as e:
+            logger.error("Failed to delete bulk chunk of orphaned documents: %s", e, exc_info=True)
+            continue
+        finally:
+            post_delete.connect(post_delete_document, sender=DocumentData)

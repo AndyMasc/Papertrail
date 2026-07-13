@@ -11,59 +11,53 @@ class RecordQuerySet(models.QuerySet):
         if not search_query:
             return self
 
-        conditions = [
-            Q(title__icontains=search_query),
-            Q(merchant__icontains=search_query),
-            Q(products__icontains=search_query),
-            Q(notes__icontains=search_query),
-            Q(record_type__icontains=search_query),
-        ]
+        # 1. Standard text fields using OR is fine for basic data
+        conditions = Q(title__icontains=search_query) | \
+                     Q(merchant__icontains=search_query) | \
+                     Q(products__icontains=search_query) | \
+                     Q(notes__icontains=search_query) | \
+                     Q(record_type__icontains=search_query)
 
+        # 2. Optimized Balance Search (Prevents crashing on malformed strings)
         clean_numeric = ''.join(c for c in search_query if c.isdigit() or c == '.')
         if clean_numeric and clean_numeric.replace('.', '', 1).isdigit():
-            conditions.append(
-                Q(balance__gte=float(clean_numeric)) & 
-                Q(balance__lte=float(clean_numeric) + 0.99)
+            try:
+                val = float(clean_numeric)
+                conditions |= Q(balance__range=(val, val + 0.99))
+            except ValueError:
+                pass
+
+        lower_query = search_query.lower()
+        contains_alpha_month = any(m in lower_query for m in self.MONTH_SHORTCUTS)
+        has_digits = any(c.isdigit() for c in search_query)
+        is_relative = any(w in lower_query for w in ["today", "yesterday", "tomorrow"])
+
+        if contains_alpha_month or has_digits or is_relative:
+            parsed_date = dateparser.parse(
+                search_query,
+                settings={"PREFER_DATES_FROM": "past", "STRICT_PARSING": False},
             )
 
-        parsed_date = dateparser.parse(
-            search_query,
-            settings={"PREFER_DATES_FROM": "past", "STRICT_PARSING": False},
-        )
+            if parsed_date:
+                if search_query.isdigit() and len(search_query) == 4:
+                    conditions |= Q(transaction_date__year=parsed_date.year) | \
+                                  Q(expiry_date__year=parsed_date.year) | \
+                                  Q(date_added__year=parsed_date.year)
+                elif search_query.isalpha() and contains_alpha_month:
+                    conditions |= Q(transaction_date__month=parsed_date.month) | \
+                                  Q(expiry_date__month=parsed_date.month) | \
+                                  Q(date_added__month=parsed_date.month)
+                else:
+                    conditions |= Q(transaction_date=parsed_date.date()) | \
+                                  Q(expiry_date=parsed_date.date()) | \
+                                  Q(date_added=parsed_date.date())
+                    
+                    if not is_relative:
+                        conditions |= Q(transaction_date__year=parsed_date.year, transaction_date__month=parsed_date.month) | \
+                                      Q(expiry_date__year=parsed_date.year, expiry_date__month=parsed_date.month) | \
+                                      Q(date_added__year=parsed_date.year, date_added__month=parsed_date.month)
 
-        if parsed_date:
-            lower_query = search_query.lower()
-
-            if search_query.isdigit() and len(search_query) == 4:
-                conditions.extend([
-                    Q(transaction_date__year=parsed_date.year),
-                    Q(expiry_date__year=parsed_date.year),
-                    Q(date_added__year=parsed_date.year),
-                ])
-            elif search_query.isalpha() and any(m in lower_query for m in self.MONTH_SHORTCUTS):
-                conditions.extend([
-                    Q(transaction_date__month=parsed_date.month),
-                    Q(expiry_date__month=parsed_date.month),
-                    Q(date_added__month=parsed_date.month),
-                ])
-            else:
-                conditions.extend([
-                    Q(transaction_date=parsed_date.date()),
-                    Q(expiry_date=parsed_date.date()),
-                    Q(date_added=parsed_date.date()),
-                ])
-                if not any(w in lower_query for w in ["today", "yesterday", "tomorrow"]):
-                    conditions.extend([
-                        Q(transaction_date__year=parsed_date.year, transaction_date__month=parsed_date.month),
-                        Q(expiry_date__year=parsed_date.year, expiry_date__month=parsed_date.month),
-                        Q(date_added__year=parsed_date.year, date_added__month=parsed_date.month),
-                    ])
-
-        final_filter = Q()
-        for condition in conditions:
-            final_filter |= condition
-
-        return self.filter(final_filter).distinct()
+        return self.filter(conditions).distinct()
 
 
 class Record(models.Model):
@@ -118,6 +112,15 @@ class Record(models.Model):
 
     objects = RecordQuerySet.as_manager()
 
+    class Meta:
+            indexes = [
+                models.Index(fields=["user", "is_active"]),
+                models.Index(fields=["user", "-last_edited"]),
+                models.Index(fields=["user", "record_type"]),
+                models.Index(fields=["expiry_date"]),
+                models.Index(fields=["transaction_date"]),
+            ]
+            
     def __str__(self):
         return self.title
 

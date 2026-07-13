@@ -134,6 +134,20 @@ dropzone.addEventListener('drop', e => {
     if (file) setFile(file);
 });
 
+function getMimeType(file) {
+    if (file.type) return file.type;
+    const ext = file.name.split('.').pop().toLowerCase();
+    const map = {
+        'pdf': 'application/pdf',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'heic': 'image/heic'
+    };
+    return map[ext] || 'application/octet-stream';
+}
+
 async function uploadFile() {
     if (!selectedFile) return setStatus("Select a file first.", "error");
 
@@ -145,6 +159,7 @@ async function uploadFile() {
     uploadButton.classList.add('htmx-request');
     uploadContainer.classList.add('htmx-request');
 
+    const resolvedMimeType = getMimeType(selectedFile);
     try {
         setStatus("Preparing upload...");
 
@@ -159,9 +174,9 @@ async function uploadFile() {
             },
             body: JSON.stringify({
                 filename: selectedFile.name,
-                content_type: selectedFile.type || "application/octet-stream",
+                content_type: resolvedMimeType,
                 notes: notesValue
-            }),
+            })
         });
 
         if (!res.ok) throw new Error("Backend validation failed.");
@@ -170,7 +185,7 @@ async function uploadFile() {
         setStatus("Uploading file...");
         const uploadRes = await fetch(upload_url, {
             method: "PUT",
-            headers: { "Content-Type": selectedFile.type || "application/octet-stream" },
+            headers: { "Content-Type": resolvedMimeType || "application/octet-stream" },
             body: selectedFile,
         });
 
@@ -197,7 +212,7 @@ async function uploadFile() {
         console.error(err);
         setStatus("Upload failed. (" + err.message + ")", "error");
     } finally {
-        // Restore interactive states seamlessly
+        // Restore interactive states
         uploadButton.disabled = false;
         buttonSpinner.classList.add('hidden');
         buttonText.textContent = "Upload and continue";

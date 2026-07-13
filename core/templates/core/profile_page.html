@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load widget_tweaks %}
+
 
 {% block title %}{% trans "Profile Settings" %}{% endblock %}
 
@@ -67,11 +69,69 @@
                 </div>
             </div>
 
-            <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
-                <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
-                    <h3 class="text-sm font-medium text-zinc-900 dark:text-white">Account Management</h3>
+            <div 
+                x-data="{ settingsSectionOpen: $persist(false) }"
+                class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
+            
+                <div class="px-6 py-4 border-b border-transparent transition-colors duration-200" :class="settingsSectionOpen ? 'border-zinc-100 dark:border-zinc-800/60' : ''">
+                    <button
+                        type="button"
+                        @click="settingsSectionOpen = !settingsSectionOpen"
+                        class="text-sm font-medium w-full inline-flex items-center justify-between transition-colors duration-200"
+                        :class="settingsSectionOpen ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400'">
+                        <span>User Settings</span>
+                        <svg 
+                            class="size-3.5 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]" 
+                            :class="settingsSectionOpen ? 'rotate-90 text-zinc-900 dark:text-white' : 'text-zinc-400'" 
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
+                    </button>
                 </div>
-                <div class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+            
+                <div 
+                    x-show="settingsSectionOpen" 
+                    x-collapse 
+                    x-cloak>
+                    
+                    <form 
+                        hx-post="{% url 'core:profile_page' %}"
+                        hx-target="#UserSettingsForm"
+                        hx-trigger="change"
+                        method="POST"
+                        class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                        {% csrf_token %}
+
+                        <div id="UserSettingsForm">
+                            {% include 'core/partials/user_settings_partial.html' %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div 
+                x-data="{accountSectionOpen: $persist(false)}"
+                x-cloak
+                class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
+
+                <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
+                    <button
+                        @click="accountSectionOpen = !accountSectionOpen"
+                        class="text-sm font-medium transform transition-colors duration-200 flex w-full items-center justify-between"
+                        :class="accountSectionOpen ? 'dark:text-white text-black' : 'text-zinc-500 dark:text-zinc-400' ">
+                        Account Management
+                        <svg 
+                            class="size-3.5 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] inline-flex" 
+                            :class="accountSectionOpen ? 'rotate-90' : ''" 
+                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
+                    </button>
+                </div>
+                <div 
+                    x-show="accountSectionOpen"
+                    x-collapse
+                    class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                     
                     {% url 'account_email' as email_url %}
                     {% if email_url %}
@@ -147,7 +207,6 @@
                     {% endif %}
                 </div>
             </div>
-
         </div>
     </div>
 </div>

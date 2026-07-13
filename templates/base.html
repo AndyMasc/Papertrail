@@ -2,20 +2,27 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
 
         <script>
             (function() {
-                const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const cookieName = 'user_timezone';
-                const currentCookie = document.cookie
-                    .split('; ')
-                    .find(row => row.startsWith(cookieName + '='));
-                const currentTz = currentCookie ? currentCookie.split('=')[1] : null;
-                if (userTz !== currentTz) {
-                    document.cookie = `${cookieName}=${userTz}; path=/; max-age=31536000; SameSite=Lax`;
-                    window.location.reload();
+                try {
+                    const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    const cookieName = 'user_timezone';
+                    const currentCookie = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith(cookieName + '='));
+                    const currentTz = currentCookie ? currentCookie.split('=')[1] : null;
+                    
+                    if (userTz && userTz !== currentTz) {
+                        document.cookie = `${cookieName}=${encodeURIComponent(userTz)}; path=/; max-age=31536000; SameSite=Lax`;
+                        if (document.cookie.indexOf(cookieName) !== -1) {
+                            window.location.reload();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Timezone tracking blocked by client security parameters:", e);
                 }
             })();
         </script>
@@ -40,7 +47,7 @@
         <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
         <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
         
-        <title>{% block title %}{% endblock %}</title>
+        <title>{% block title %}Papertrail{% endblock %}</title>
         {% block head %}{% endblock %}
 
         <style>
@@ -60,9 +67,9 @@
         </style>
     </head>
     
-    <body class="bg-white {% if request.path == '/' %}dark:bg-zinc-950{% else %}dark:bg-zinc-950/98.5{% endif %} rounded-4xl text-zinc-950 dark:text-zinc-50"
+    <body class="bg-white {% if request.path == '/' %}dark:bg-zinc-950{% else %}dark:bg-zinc-950/98.5{% endif %} text-zinc-950 dark:text-zinc-50 min-h-screen antialiased"
           {% if user.is_authenticated %}
-          x-data="{ open : $persist(true) }"
+          x-data="{ open: $persist(true) }"
           {% endif %}>
 
         <noscript>
@@ -85,7 +92,7 @@
                 :class="open ? 'sm:pl-64' : 'sm:pl-0'"
             {% endif %}>
             
-            <div class="px-4 {% if user.is_authenticated %}sm:px-6 lg:px-8{% endif %}">
+            <div class="px-4 {% if user.is_authenticated %}sm:px-6 lg:px-8{% endif %} py-4">
                 {% block content %}{% endblock %}
             </div>
         </main>

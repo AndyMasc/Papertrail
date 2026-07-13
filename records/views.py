@@ -2,32 +2,47 @@ import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
-from django.http import HttpResponseBadRequest
+from django.db import transaction
+from django.http import HttpResponseBadRequest, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.functional import cached_property
 from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django_filters.views import FilterView
-from documents.models import DocumentData
-from documents.storage import generate_read_presigned_url
-from documents.tasks import extract_document
 
+from documents.models import DocumentData
+from documents.tasks import extract_document
 from .filters import RecordFilter
 from .forms import AddRecordForm, RecordUpdateForm
 from .models import Record
+from documents.storage import generate_read_presigned_url
+from documents.ocr_helpers import ocr_data_to_form_initial
+from django.conf import settings
+
+paginate_by = settings.PAGINATE_BY
 
 logger = logging.getLogger(__name__)
+
 
 class RecordListView(LoginRequiredMixin, FilterView):
     model = Record
     template_name = "records/record_list_view.html"
     context_object_name = "records"
     filterset_class = RecordFilter
+    paginate_by = settings.PAGINATE_BY
 
     def get_queryset(self):
-        queryset = super().get_queryset().filter(user=self.request.user)
-        search_query = self.request.GET.get("search", "")
-        return queryset.smart_search(search_query)
+        queryset = (
+            super()
+            .get_queryset()
+            .filter(user=self.request.user)
+            .order_by("-last_edited")
+        )
+        search_query = self.request.GET.get("search", "").strip()
+        if search_query:
+            return queryset.smart_search(search_query)
+        return queryset
 
     def get_template_names(self):
         if self.request.headers.get("HX-Target") == "query-results-container":
@@ -50,9 +65,10 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return Record.objects.filter(user=self.request.user)
 
+    @transaction.atomic
     def form_valid(self, form):
+        self.object = form.save()
         if self.request.headers.get("HX-Request") == "true":
-            self.object = form.save()
             return render(
                 self.request, 
                 "records/partials/record_form_partial.html", 
@@ -74,9 +90,8 @@ class AddRecordView(LoginRequiredMixin, CreateView):
     model = Record
     form_class = AddRecordForm
 
-    def get_document(
-        self,
-    ):  # Helper to fetch the document if document_id is in the URL.
+    @cached_property
+    def document(self):
         document_id = self.kwargs.get("document_id")
         if not document_id:
             return None
@@ -87,51 +102,52 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         )
 
     def get(self, request, *args, **kwargs):
-        document = self.get_document()
+        document = self.document
         if document:
             if document.associated_record:
-                return HttpResponseBadRequest(
-                    "This document is already associated with a record."
-                )
+                return HttpResponseBadRequest("This document is already associated with a record.")
 
-            cache_key = f"ocr_data_{document.id}"
-            cached_status = cache.get(cache_key)
-
-            if not cached_status:
-                cache.set(cache_key, "processing", timeout=300)
+            cache_key = f"ocr_status_{document.id}"
+            if cache.add(cache_key, "processing", timeout=600):
                 extract_document.delay(
-                    document.id, generate_read_presigned_url(document.filepath)
+                    document.id, 
+                    generate_read_presigned_url(document.filepath)
                 )
 
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        document = self.get_document()
+        document = self.document
 
         is_waiting = False
+        form = context.get("form") or self.get_form()
+
         if document:
-            cache_key = f"ocr_data_{document.id}"
+            cache_key = f"ocr_status_{document.id}"
             cached_status = cache.get(cache_key)
-            if cached_status == "processing" or not cached_status:
+
+            if cached_status == "processing" or cached_status is None:
                 is_waiting = True
 
-        context.update(
-            {
-                "document": document,
-                "document_id": self.kwargs.get("document_id"),
-                "is_waiting": is_waiting,
-            }
-        )
+            elif isinstance(cached_status, dict):
+                is_waiting = False
+                form = self.form_class(initial=ocr_data_to_form_initial(cached_status))
+
+        context.update({
+            "form": form,
+            "document": document,
+            "document_id": self.kwargs.get("document_id"),
+            "is_waiting": is_waiting,
+        })
         return context
 
+    @transaction.atomic
     def form_valid(self, form):
-        document = self.get_document()
+        document = self.document
 
         if document and document.associated_record:
-            return HttpResponseBadRequest(
-                "This document is already associated with a record."
-            )
+            return HttpResponseBadRequest("This document is already associated with a record.")
 
         self.object = form.save(commit=False)
         self.object.user = self.request.user
@@ -140,19 +156,21 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         if document:
             document.associated_record = self.object
             document.save()
-            cache.delete(f"ocr_data_{document.id}")  # Clear cache
+            
+            transaction.on_commit(lambda: cache.delete(f"ocr_status_{document.id}"))
 
         return redirect("documents:add_support_docs", record_id=self.object.id)
 
 
 class CheckOCRStatus(LoginRequiredMixin, View):
     def get(self, request, document_id):
-        cache_key = f"ocr_result_{document_id}"
+        if not DocumentData.objects.filter(id=document_id, user=request.user).exists():
+            raise Http404("Document not found.")
+
+        cache_key = f"ocr_status_{document_id}"
         data = cache.get(cache_key)
 
-        if (
-            data is None or data == "processing"
-        ):  # If the cache is empty or still processing, show waiting state
+        if not isinstance(data, dict):
             return render(
                 request,
                 "records/partials/form_card.html",
@@ -162,19 +180,7 @@ class CheckOCRStatus(LoginRequiredMixin, View):
                 },
             )
 
-        initial = {
-            "title": data.get("title"),
-            "products": "\n".join(data.get("products") or [])
-            if isinstance(data.get("products"), list)
-            else data.get("products"),
-            "merchant": data.get("merchant"),
-            "balance": data.get("balance"),
-            "transaction_date": data.get("transaction_date"),
-            "expiry_date": data.get("expiry_date"),
-            "record_type": data.get("record_type"),
-        }
-
-        form = AddRecordForm(initial=initial)
+        form = AddRecordForm(initial=ocr_data_to_form_initial(data))
         return render(
             request,
             "records/partials/form_card.html",
@@ -187,19 +193,17 @@ class CheckOCRStatus(LoginRequiredMixin, View):
 
 class ArchiveRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):
-        record = get_object_or_404(Record, id=record_id, user=request.user)
+        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=True)
         record.is_active = False
-        record.save()
+        record.save(update_fields=["is_active"])
         return redirect("records:view_all_records")
 
 
 class UnarchiveRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):
-        record = get_object_or_404(
-            Record, id=record_id, user=request.user, is_active=False
-        )
+        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=False)
         record.is_active = True
-        record.save()
+        record.save(update_fields=["is_active"])
         return redirect("records:view_all_records")
 
 

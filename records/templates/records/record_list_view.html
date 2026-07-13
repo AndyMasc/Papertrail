@@ -4,7 +4,7 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 antialiased text-zinc-900 dark:text-zinc-100">
     
-    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6">
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-5">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white capitalize">
                 Records Index
@@ -31,32 +31,41 @@
                 placeholder="Search records (supports natural language date syntax)"
                 id="search" type="search" name="search"
                 hx-get="{% url 'records:view_all_records' %}"
-                hx-trigger="input changed delay:200ms, keyup[key=='Enter']"
+                hx-trigger="input changed delay:300ms, keyup[key=='Enter']"
                 hx-target="#query-results-container"
                 hx-indicator=".htmx-indicator"
                 hx-include="#filter-form">
         </div>
 
-        <form id="filter-form" hx-trigger="change" hx-target="#query-results-container" hx-include="#search" hx-get="{% url 'records:view_all_records' %}" class="overflow-x-auto flex items-center justify-between gap-4 py-0.5 scrollbar-none">
+        <form id="filter-form" 
+              hx-get="{% url 'records:view_all_records' %}" 
+              hx-trigger="change" 
+              hx-target="#query-results-container" 
+              hx-include="#search" 
+              class="overflow-x-auto flex items-center justify-between gap-4 py-0.5 scrollbar-none">
+            
             <div class="flex items-center gap-2">
                 {% for field in filter.form %}
                     <div class="relative">
-                        <label class="sr-only">{{ field.label }}</label>
-                        <div class="bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 rounded-2xl px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-900 transition-colors flex items-center shadow-3xs">
-                            {% render_field field class="outline-hidden bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-1 text-xs font-medium" %}
+                        <label for="{{ field.id_for_label }}" class="sr-only">{{ field.label }}</label>
+                        <div class="bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 rounded-2xl px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-800 transition-colors flex items-center shadow-3xs">
+                            {% render_field field class="appearance-none outline-hidden bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-4 text-xs font-medium border-none p-0 focus:ring-0" %}
                         </div>
                     </div>
                 {% endfor %}
             </div>
             
-            <button hx-get="{% url 'records:view_all_records' %}" hx-target="body" class="text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white px-2 py-1.5 border border-transparent rounded-lg transition-colors whitespace-nowrap cursor-pointer">
+            <button type="button" 
+                    hx-get="{% url 'records:view_all_records' %}" 
+                    hx-target="body" 
+                    class="text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white px-2 py-1.5 border border-transparent rounded-lg transition-colors whitespace-nowrap cursor-pointer">
                 Clear Filters
             </button>
         </form>
     </section>
 
     <main id="query-results-container" class="relative min-h-0 w-full min-w-0 mt-10">
-        <div class="htmx-indicator absolute inset-0 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl transition-all duration-150">
+        <div class="htmx-indicator absolute inset-0 bg-white/40 dark:bg-zinc-950/40 backdrop-blur-[1px] z-10 hidden items-center justify-center rounded-xl transition-all duration-150">
             <div class="animate-pulse text-xs font-medium text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-900 px-3 py-1.5 rounded-lg shadow-xs">
                 Updating...
             </div>

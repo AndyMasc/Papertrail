@@ -55,7 +55,7 @@
                         </svg>
                     </div>
                     <div class="mt-2 flex items-baseline justify-between">
-                        <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">{{ records|length }}</span>
+                        <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">{{ active_records_count }}</span>
                     </div>
                 </a>
 
@@ -68,7 +68,7 @@
                     </div>
                     <div class="mt-2 flex items-baseline justify-between">
                         <span class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-950 dark:group-hover:text-white transition-colors">
-                            {{ expiring_soon|length }}
+                            {{ expiring_soon_count }}
                         </span>
                     </div>
                 </a>
@@ -87,6 +87,10 @@
                     </div>
                 </a>
             </section>
+
+            {% if orphaned_document_count > 0 %}
+                {% include 'core/partials/orpaned_docs.html' %}
+            {% endif %}
 
             <section class="space-y-4">
                 <div class="flex items-center justify-between px-1">

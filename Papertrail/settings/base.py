@@ -1,5 +1,5 @@
-import environ
 from pathlib import Path
+import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
@@ -8,7 +8,7 @@ env.read_env(str(BASE_DIR / ".env"))
 # Core
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "*"])
 SITE_ID = 1
 ROOT_URLCONF = "Papertrail.urls"
 WSGI_APPLICATION = "Papertrail.wsgi.application"
@@ -23,15 +23,38 @@ DATABASES = {
 
 # Apps
 INSTALLED_APPS = [
-    "allauth_ui", "django.contrib.admin", "django.contrib.auth",
-    "django.contrib.contenttypes", "django.contrib.sessions",
-    "django.contrib.messages", "django.contrib.staticfiles",
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     "django.contrib.sites",
-    "django_qstash", "django_qstash.results", "django_qstash.schedules",
-    "allauth", "allauth.account", "allauth.socialaccount",
-    "allauth.socialaccount.providers.google", "allauth.socialaccount.providers.github",
-    "tailwind", "theme", "widget_tweaks", "slippers", "django_filters",
-    "core", "documents", "records",
+    
+    # Django QStash
+    "django_qstash",
+    "django_qstash.results",
+    "django_qstash.schedules",
+    
+    # Allauth apps
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth_ui",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.github",
+    
+    # Customization apps
+    "tailwind",
+    "theme",
+    "widget_tweaks",
+    "slippers",
+    "django_filters",
+    
+    # Local apps
+    "core.apps.CoreConfig",
+    "documents.apps.DocumentsConfig",
+    "records.apps.RecordsConfig",
 ]
 
 MIDDLEWARE = [
@@ -47,7 +70,7 @@ MIDDLEWARE = [
 ]
 
 # Auth & Allauth
-ACCOUNT_ADAPTER = 'core.adapters.QStashEmailAdapter'
+ACCOUNT_ADAPTER = "core.adapters.QStashEmailAdapter"
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = {"email"}
@@ -62,10 +85,10 @@ ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_FORMS = {
     "signup": "core.forms.PasswordlessSignupForm",  # custom signup form to allow exclusively email only signups
-    "login": "core.forms.PasswordlessLoginForm",    # custom login form to remove password field
+    "login": "core.forms.PasswordlessLoginForm",  # custom login form to remove password field
 }
 ACCOUNT_RATE_LIMITS = {
-    "login": "3/m/ip",          # 3 attempts per minute
+    "login": "3/m/ip",  # 3 attempts per minute
     "login_failed": "3/5m/ip",  # 3 failures locks the IP out for 5 minutes ('5m')
 }
 SOCIALACCOUNT_PROVIDERS = {
@@ -137,22 +160,40 @@ SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 # Email
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 ANYMAIL = {"RESEND_API_KEY": env("RESEND_API_KEY")}
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>")
-#EMAIL_HOST = env("EMAIL_HOST")
-#EMAIL_PORT = int(env("EMAIL_PORT"))
-#EMAIL_USE_TLS = env("EMAIL_USE_TLS") == "True"
-#EMAIL_HOST_USER = env("EMAIL_HOST_USER")
-#EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = env(
+    "DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>"
+)
+# EMAIL_HOST = env("EMAIL_HOST")
+# EMAIL_PORT = int(env("EMAIL_PORT"))
+# EMAIL_USE_TLS = env("EMAIL_USE_TLS") == "True"
+# EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 
-# Storage (S3/R2)
-DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+# Storage (S3/R2)- Uploads use signed urls in Cloudflare R2
 R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY")
 R2_STORAGE_BUCKET_NAME = env("R2_STORAGE_BUCKET_NAME")
 R2_S3_ENDPOINT_URL = env("R2_S3_ENDPOINT_URL")
 R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = env("R2_PAPERTRAIL_STORAGE_ACCOUNT_ID")
 
+AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
+AWS_STORAGE_BUCKET_NAME = R2_STORAGE_BUCKET_NAME
+AWS_S3_ENDPOINT_URL = R2_S3_ENDPOINT_URL
+AWS_S3_REGION_NAME = "auto"
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
+
+# AI / OCR
+GEMINI_API_KEY = env("GEMINI_API_KEY")
 
 # QStash
 QSTASH_TOKEN = env("QSTASH_TOKEN")
@@ -168,3 +209,10 @@ USE_I18N = True
 USE_TZ = True
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
+
+TAILWIND_APP_NAME = "theme"
+TAILWIND_USE_STANDALONE_BINARY = True
+SITE_ID = 1  # Ensure this matches the ID of your site in the admin
+
+# List view pagination
+PAGINATE_BY = 25

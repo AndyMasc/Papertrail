@@ -3,7 +3,9 @@ from django import forms
 from django.utils import timezone
 import django_filters
 from .models import Record
+from django.core.cache import cache
 
+FILTER_CHOICES_CACHE_TTL = 300
 
 class RecordFilter(django_filters.FilterSet):
     expiring_soon = django_filters.BooleanFilter(
@@ -53,11 +55,15 @@ class RecordFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
-            user_record_types = (
-                Record.objects.filter(user=self.request.user)
-                .values_list("record_type", flat=True)
-                .distinct()
-            )
+            cache_key = f"record_types_{self.request.user.id}"
+            user_record_types = cache.get(cache_key)
+            if user_record_types is None:
+                user_record_types = list(
+                    Record.objects.filter(user=self.request.user)
+                    .values_list("record_type", flat=True)
+                    .distinct()
+                )
+                cache.set(cache_key, user_record_types, FILTER_CHOICES_CACHE_TTL)
             
             filtered_choices = [
                 (choice_value, choice_label)
