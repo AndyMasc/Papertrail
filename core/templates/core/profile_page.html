@@ -189,7 +189,6 @@
                     {% url 'account_logout' as logout_url %}
                     {% if logout_url %}
                     <a 
-                        onclick="return confirm('Are you sure you want to sign out?')"
                         href="{{ logout_url }}" 
                         class="flex items-center justify-between p-4 hover:bg-rose-500/5 dark:hover:bg-rose-500/10 transition group">
                         <div class="flex items-center gap-3">

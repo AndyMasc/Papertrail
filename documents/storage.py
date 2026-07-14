@@ -4,6 +4,7 @@ from .models import DocumentData
 import boto3
 from botocore.config import Config
 from django.conf import settings
+import hashlib
 
 R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = settings.R2_PAPERTRAIL_STORAGE_ACCOUNT_ID
 R2_STORAGE_BUCKET_NAME = settings.R2_STORAGE_BUCKET_NAME
@@ -39,30 +40,41 @@ def generate_read_presigned_url(key): # generates a presigned URL for reading fr
         ExpiresIn=900,
     )
 
-def initiate_r2_upload(user, filename, content_type, record_id=None, notes=None): # initiates an R2 upload by generating a file-specific presigned URL for writing
-    if not content_type:
-        content_type = "application/octet-stream"
-        
-    if not filename:
-        raise ValueError("Filename is required")
+def initiate_r2_upload(user, file_obj, content_type, file_hash, record_id=None, notes=None, force_upload=False):
+    
+    if not force_upload:
+        existing_doc = DocumentData.objects.filter(user=user, file_hash=file_hash).first()
+        if existing_doc:
+            return {
+                "status": "duplicate",
+                "document_id": existing_doc.id,
+                "record_id": existing_doc.associated_record_id 
+            }
+    else:
+        salt = f"-forced-{uuid.uuid4().hex}"
+        mutated_string = file_hash + salt
+        file_hash = hashlib.sha256(mutated_string.encode('utf-8')).hexdigest()
 
-    safe_filename = Path(filename).name
+    safe_filename = Path(file_obj.name).name
     title = Path(safe_filename).stem.replace('_', ' ').replace('-', ' ').title()
     extension = Path(safe_filename).suffix.lower()
     key = f"users/{user.id}/{uuid.uuid4()}{extension}"
 
-    document = DocumentData.objects.create(
+    document = DocumentData(
         user=user, 
         filepath=key,
         associated_record_id=record_id,
         is_main=(record_id is None),
         title=title,
-        notes=notes
+        notes=notes,
+        file_hash=file_hash,
     )
+    document.save()
     
     upload_url = generate_write_presigned_url(key, content_type)
     
     return {
+        "status": "upload_url",
         "upload_url": upload_url,
         "key": key,
         "document_id": document.id

@@ -16,7 +16,6 @@ from documents.tasks import extract_document
 from .filters import RecordFilter
 from .forms import AddRecordForm, RecordUpdateForm
 from .models import Record
-from documents.storage import generate_read_presigned_url
 from documents.ocr_helpers import ocr_data_to_form_initial
 from django.conf import settings
 
@@ -108,11 +107,10 @@ class AddRecordView(LoginRequiredMixin, CreateView):
                 return HttpResponseBadRequest("This document is already associated with a record.")
 
             cache_key = f"ocr_status_{document.id}"
-            if cache.add(cache_key, "processing", timeout=600):
-                extract_document.delay(
-                    document.id, 
-                    generate_read_presigned_url(document.filepath)
-                )
+            current_status = cache.get(cache_key)
+            if current_status is None:
+                cache.set(cache_key, "processing", timeout=600)
+                extract_document.delay(document.id)
 
         return super().get(request, *args, **kwargs)
 
@@ -170,25 +168,27 @@ class CheckOCRStatus(LoginRequiredMixin, View):
         cache_key = f"ocr_status_{document_id}"
         data = cache.get(cache_key)
 
+        # 1. Still processing
         if not isinstance(data, dict):
-            return render(
-                request,
-                "records/partials/form_card.html",
-                {
-                    "is_waiting": True,
-                    "document_id": document_id,
-                },
-            )
+            return render(request, "records/partials/form_card.html", {
+                "is_waiting": True,
+                "document_id": document_id,
+            })
 
-        form = AddRecordForm(initial=ocr_data_to_form_initial(data))
-        return render(
-            request,
-            "records/partials/form_card.html",
-            {
-                "form": form,
+        # 2. Processed but failed
+        if "error" in data:
+            return render(request, "records/partials/form_card.html", {
                 "is_waiting": False,
-            },
-        )
+                "error_message": data["error"],
+                "form": AddRecordForm()  # fallback to an empty form so they can manually type
+            })
+
+        # 3. Processed successfully
+        form = AddRecordForm(initial=ocr_data_to_form_initial(data))
+        return render(request, "records/partials/form_card.html", {
+            "form": form,
+            "is_waiting": False,
+        })
 
 
 class ArchiveRecord(LoginRequiredMixin, View):

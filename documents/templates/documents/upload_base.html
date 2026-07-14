@@ -57,168 +57,149 @@
 </main>
 
 <script>
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('fileInput');
-const status = document.getElementById('status');
-const uploadButton = document.getElementById('uploadButton');
-const buttonSpinner = document.getElementById('buttonSpinner');
-const buttonText = document.getElementById('buttonText');
-const uploadContainer = document.getElementById('uploadContainer');
+const dropzone = document.getElementById('dropzone'), fileInput = document.getElementById('fileInput'), status = document.getElementById('status'), uploadButton = document.getElementById('uploadButton'), buttonSpinner = document.getElementById('buttonSpinner'), buttonText = document.getElementById('buttonText'), uploadContainer = document.getElementById('uploadContainer');
+const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
+let isSupportingFlow = false, selectedFile = null;
 
-const API_URL = "{{ api_url }}";
-const REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
-
-let isSupportingFlow = false; 
+uploadButton.dataset.forceUpload = "false";
 
 const fileStatus = document.createElement('div');
 fileStatus.className = "mt-3 text-center text-sm text-zinc-500 dark:text-zinc-400";
 dropzone.appendChild(fileStatus);
 
-let selectedFile = null;
-
 function setStatus(msg, type = "idle") {
-    status.textContent = msg;
-    status.className = "mb-4 text-sm text-center min-h-5 transition-all duration-200 " +
-        (type === "error" ? "text-rose-500" : type === "success" ? "text-emerald-500" : "text-zinc-500 dark:text-zinc-400");
-}
-
-function setFileSuccess(file) {
-    fileStatus.innerHTML = "";
-    const name = document.createElement("div");
-    name.className = "text-emerald-500 font-medium text-sm";
-    name.textContent = "✓ " + file.name;
-
-    const meta = document.createElement("div");
-    meta.className = "text-xs text-zinc-400 mt-1";
-    meta.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB · ready`;
-
-    fileStatus.appendChild(name);
-    fileStatus.appendChild(meta);
-}
-
-function setDropzoneActive(active) {
-    dropzone.classList.toggle('scale-[1.01]', active);
-    dropzone.classList.toggle('!border-black', active);
-    dropzone.classList.toggle('dark:!border-white', active);
-}
-
-function validate(file) {
-    const MAX = 5 * 1024 * 1024;
-    const allowed = ['jpg','png','jpeg','webp','pdf','heic'];
-    const ext = file.name.split('.').pop().toLowerCase();
-
-    if (file.size > MAX) { return setStatus("File exceeds 5MB limit.", "error"), false; }
-    if (!allowed.includes(ext)) { return setStatus("Unsupported file type.", "error"), false; }
-    return true;
+    status.innerHTML = msg; 
+    status.className = "mb-4 text-sm text-center min-h-5 transition-all duration-200 " + (type === "error" ? "text-rose-500" : type === "success" ? "text-emerald-500" : "text-zinc-500 dark:text-zinc-400");
 }
 
 function setFile(file) {
-    if (!validate(file)) return;
+    if (file.size > 5 * 1024 * 1024) return setStatus("File exceeds 5MB limit.", "error");
     selectedFile = file;
-    setFileSuccess(file);
+    uploadButton.dataset.forceUpload = "false";
+    fileStatus.innerHTML = `<div class="text-emerald-500 font-medium text-sm">✓ ${file.name}</div><div class="text-xs text-zinc-400 mt-1">${(file.size / 1024 / 1024).toFixed(2)} MB · ready</div>`;
     setStatus("");
 }
 
 dropzone.onclick = () => fileInput.click();
 fileInput.onchange = e => { if (e.target.files[0]) setFile(e.target.files[0]); };
+dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('scale-[1.01]'); };
+dropzone.ondragleave = () => dropzone.classList.remove('scale-[1.01]');
+dropzone.ondrop = e => { e.preventDefault(); dropzone.classList.remove('scale-[1.01]'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
 
-['dragenter','dragover'].forEach(evt => {
-    dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); setDropzoneActive(true); });
-});
-['dragleave'].forEach(evt => {
-    dropzone.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); setDropzoneActive(false); });
-});
-dropzone.addEventListener('drop', e => {
-    e.preventDefault(); e.stopPropagation(); setDropzoneActive(false);
-    const file = e.dataTransfer.files[0];
-    if (file) setFile(file);
-});
-
-function getMimeType(file) {
-    if (file.type) return file.type;
-    const ext = file.name.split('.').pop().toLowerCase();
-    const map = {
-        'pdf': 'application/pdf',
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'heic': 'image/heic'
-    };
-    return map[ext] || 'application/octet-stream';
+async function getOcrBlob(file) {
+    if (!file.type.startsWith('image/')) return null;
+    try {
+        return await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1200, useWebWorker: true });
+    } catch (e) { return file; }
 }
+
+window.triggerForceUpload = function() {
+    uploadButton.dataset.forceUpload = "true";
+    uploadFile();
+};
 
 async function uploadFile() {
     if (!selectedFile) return setStatus("Select a file first.", "error");
 
-    // Toggle Loading Animation & Disabled Utility Variables
+    const notesValue = document.getElementById('docNotes')?.value;
+    const resolvedMimeType = selectedFile.type || 'application/octet-stream';
+    const ocrBlobPromise = getOcrBlob(selectedFile);
+
     uploadButton.disabled = true;
     buttonSpinner.classList.remove('hidden');
     buttonText.textContent = "Processing...";
     
-    uploadButton.classList.add('htmx-request');
-    uploadContainer.classList.add('htmx-request');
+    setStatus("Initializing upload profile...", "idle");
 
-    const resolvedMimeType = getMimeType(selectedFile);
+    const formData = new FormData();
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('image', selectedFile);
+    formData.append('notes', notesValue || "");
+    
+    formData.append('force_upload', uploadButton.dataset.forceUpload); 
+
     try {
-        setStatus("Preparing upload...");
-
-        const notesField = document.getElementById('docNotes');
-        const notesValue = notesField ? notesField.value : null;
-
         const res = await fetch(API_URL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value,
+            headers: { 
+                "X-CSRFToken": csrfToken,
+                "Cache-Control": "no-cache" // Explicitly prevent browser from returning a cached copy
             },
-            body: JSON.stringify({
-                filename: selectedFile.name,
-                content_type: resolvedMimeType,
-                notes: notesValue
-            })
+            body: formData
         });
-
-        if (!res.ok) throw new Error("Backend validation failed.");
-        const { upload_url, document_id } = await res.json();
-
-        setStatus("Uploading file...");
-        const uploadRes = await fetch(upload_url, {
-            method: "PUT",
-            headers: { "Content-Type": resolvedMimeType || "application/octet-stream" },
-            body: selectedFile,
-        });
-
-        if (!uploadRes.ok) throw new Error("Cloud storage upload failed.");
-
-        if (isSupportingFlow) {
-            setStatus("Document added successfully! You can add another.", "success");
-            selectedFile = null;
-            fileInput.value = "";
-            fileStatus.innerHTML = "";
-            if (notesField) notesField.value = "";
-
-            setTimeout(() => {
-                if (status.textContent.includes("Document added successfully!")) {
-                    setStatus("");
-                }
-            }, 4000);
-        } else {
-            setStatus("Processing document...", "success");
-            window.location.href = REDIRECT_URL_TEMPLATE.replace('__ID__', document_id);
+        
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || "Backend validation failed.");
         }
 
+        const data = await res.json();
+        
+        if (data.status === 'duplicate_confirmed') {
+            uploadButton.disabled = false;
+            buttonSpinner.classList.add('hidden');
+            buttonText.textContent = "Upload and continue";
+            
+            let message = "";
+            if (data.record_id) {
+                message = `
+                    <div class="text-center text-amber-600 dark:text-amber-400 font-medium">
+                        This file is already attached to 
+                        <a href="${data.record_url}" class="underline font-bold hover:text-amber-700 dark:hover:text-amber-300 transition-colors">${data.record_label}</a>. 
+                        <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">
+                            Upload anyway?
+                        </button>
+                    </div>
+                `;
+            } else {
+                message = `
+                    <div class="text-center text-amber-600 dark:text-amber-400 font-medium">
+                        This document has already been uploaded in your library. 
+                        <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">
+                            Upload anyway?
+                        </button>
+                    </div>
+                `;
+            }
+            
+            setStatus(message, "idle");
+            return;
+        }
+        const { upload_url, document_id } = data;
+        
+        if (!upload_url) {
+            throw new Error("Target upload endpoint config is invalid.");
+        }
+
+        ocrBlobPromise.then(ocrBlob => {
+            if (ocrBlob) {
+                const fd = new FormData(); 
+                fd.append('csrfmiddlewaretoken', csrfToken);
+                fd.append('image', ocrBlob);
+                fetch(`/records/ocr-direct/${document_id}/`, { 
+                    method: 'POST', 
+                    headers: { "X-CSRFToken": csrfToken }, 
+                    body: fd 
+                }).catch(console.error);
+            }
+        });
+
+        setStatus("Starting document upload...", "success");
+        
+        const uploadRes = await fetch(upload_url, { method: "PUT", headers: { "Content-Type": resolvedMimeType }, body: selectedFile });
+        if (!uploadRes.ok) throw new Error("Storage upload failed.");
+
+        setStatus("Upload completed successfully!", "success");
+        
+        uploadButton.dataset.forceUpload = "false";
+
+        window.location.href = REDIRECT_URL_TEMPLATE.replace('__ID__', document_id);
     } catch (err) {
-        console.error(err);
-        setStatus("Upload failed. (" + err.message + ")", "error");
-    } finally {
-        // Restore interactive states
+        setStatus(err.message, "error");
         uploadButton.disabled = false;
         buttonSpinner.classList.add('hidden');
         buttonText.textContent = "Upload and continue";
-        
-        uploadContainer.classList.remove('htmx-request');
-        uploadButton.classList.remove('htmx-request');
     }
 }
 </script>

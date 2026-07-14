@@ -4,7 +4,7 @@
 {% block content %}
 {% autoescape off %}
 <p>
-    {% blocktranslate %}You are receiving this email because you, or someone else, tried to access an account with email{% endblocktranslate %} <strong>{{ email }}</strong>. {% blocktranslate %}However, we do not have any record of such an account in our database.{% endblocktranslate %}
+    {% blocktranslate with email_address=email %}You are receiving this email because you, or someone else, tried to access an account with email <strong>{{ email_address }}</strong>{% endblocktranslate %}. {% blocktranslate %}However, we do not have any record of such an account in our database.{% endblocktranslate %}
 </p>
 
 <p>

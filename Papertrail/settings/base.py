@@ -2,13 +2,19 @@ from pathlib import Path
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
 env = environ.Env()
-env.read_env(str(BASE_DIR / ".env"))
+env_file = BASE_DIR / ".env"
+
+if env_file.exists():
+    env.read_env(str(env_file))
+else:
+    print(f"Warning: .env file not found at {env_file}")
 
 # Core
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "*"])
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 SITE_ID = 1
 ROOT_URLCONF = "Papertrail.urls"
 WSGI_APPLICATION = "Papertrail.wsgi.application"
@@ -155,7 +161,7 @@ CACHES = {
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'#"django.contrib.sessions.backends.cached_db"
 
 # Email
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
@@ -190,7 +196,8 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 # AI / OCR
 GEMINI_API_KEY = env("GEMINI_API_KEY")

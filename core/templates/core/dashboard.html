@@ -136,7 +136,7 @@
                 <div class="flex items-center gap-2">
                     <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
                     <h3 class="text-xs font-bold text-black uppercase tracking-wider dark:text-white">
-                        Activity
+                        Events
                     </h3>
                 </div>
                 <button 
@@ -171,7 +171,7 @@
                     <div class="absolute -left-[20.5px] top-1 w-2 h-2 rounded-full border border-white bg-zinc-900"></div>
                     <div class="flex flex-col gap-0.5">
                         <p class="text-xs text-black dark:text-white leading-relaxed">
-                            Modified <a href="{% url 'records:record_detail' record.pk %}" class="text-zinc-500 dark:text-zinc-300 hover:underline font-medium">{{ record.title|truncatechars:22 }}</a>
+                            Edited <a href="{% url 'records:record_detail' record.pk %}" class="text-zinc-500 dark:text-zinc-300 hover:underline font-medium">{{ record.title|truncatechars:22 }}</a>
                         </p>
                         <time class="text-[10px] text-zinc-500">{{ record.last_edited|timesince }} ago</time>
                     </div>

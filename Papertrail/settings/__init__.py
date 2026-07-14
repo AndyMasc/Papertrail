@@ -1,9 +1,15 @@
-from .base import *
-
-# By default, use local settings. Override in production by setting an environment variable 'DJANGO_ENV'
 import os
+from . import base
+
+globals().update({k: v for k, v in vars(base).items() if not k.startswith('_')})
 
 if os.environ.get("DJANGO_ENV") == "production":
-    from .production import *
+    from . import production
+    for key, value in vars(production).items():
+        if not key.startswith('_'):
+            globals()[key] = value
 else:
-    from .local import *
+    from . import local
+    for key, value in vars(local).items():
+        if not key.startswith('_'):
+            globals()[key] = value
