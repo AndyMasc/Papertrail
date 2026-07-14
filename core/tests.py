@@ -35,7 +35,6 @@ class RecordAccessTest(TestCase):
 
 
 class AllauthRateLimitTests(TestCase):
-
     def setUp(self):
         # clear the cache before each test to ensure a clean slate
         cache.clear()

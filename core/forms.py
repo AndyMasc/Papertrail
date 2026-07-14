@@ -1,7 +1,6 @@
 from allauth.account.forms import SignupForm
 from allauth.account.forms import LoginForm
 from django import forms
-from django.db.models.base import F
 from .models import UserSettings
 
 

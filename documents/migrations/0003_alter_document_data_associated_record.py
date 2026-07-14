@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("documents", "0002_document_data_associated_record_and_more"),
         ("records", "0003_alter_record_title"),

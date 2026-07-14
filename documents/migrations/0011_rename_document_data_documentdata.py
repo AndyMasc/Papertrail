@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("documents", "0010_document_data_title"),
         ("records", "0013_alter_record_record_type"),

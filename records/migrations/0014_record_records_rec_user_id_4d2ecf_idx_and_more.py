@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("records", "0013_alter_record_record_type"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

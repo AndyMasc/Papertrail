@@ -157,7 +157,7 @@ CACHES = {
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.db"  # "django.contrib.sessions.backends.cached_db"
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 
 # Email
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
