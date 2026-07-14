@@ -7,14 +7,14 @@ from django.core.cache import cache
 
 FILTER_CHOICES_CACHE_TTL = 300
 
+
 class RecordFilter(django_filters.FilterSet):
     expiring_soon = django_filters.BooleanFilter(
-        method="filter_expiring_soon", label="Expiring within 30 days",
+        method="filter_expiring_soon",
+        label="Expiring within 30 days",
         field_name="is_expiring_soon",
         lookup_expr="exact",
-        widget=forms.Select(
-            choices=[(False, "Current"), (True, "Expiring Soon")]
-        ),
+        widget=forms.Select(choices=[(False, "Current"), (True, "Expiring Soon")]),
     )
 
     is_active = django_filters.BooleanFilter(
@@ -31,15 +31,15 @@ class RecordFilter(django_filters.FilterSet):
     )
 
     this_month = django_filters.BooleanFilter(
-        method="filter_this_month", label="Records from this month",
+        method="filter_this_month",
+        label="Records from this month",
         field_name="This months records",
-        widget=forms.Select(
-            choices=[(False, "All Time"), (True, "This Month")]
-        ),
+        widget=forms.Select(choices=[(False, "All Time"), (True, "This Month")]),
     )
 
     is_current = django_filters.BooleanFilter(
-        method="filter_is_current", label="Current Records",
+        method="filter_is_current",
+        label="Current Records",
         field_name="is_current",
         widget=forms.Select(
             choices=[(None, "All"), (True, "Current"), (False, "Past")]
@@ -64,7 +64,7 @@ class RecordFilter(django_filters.FilterSet):
                     .distinct()
                 )
                 cache.set(cache_key, user_record_types, FILTER_CHOICES_CACHE_TTL)
-            
+
             filtered_choices = [
                 (choice_value, choice_label)
                 for choice_value, choice_label in Record.RecordTypes.choices

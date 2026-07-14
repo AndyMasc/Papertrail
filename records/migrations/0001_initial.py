@@ -15,19 +15,54 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='record',
+            name="record",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date_added', models.DateField(auto_now_add=True)),
-                ('title', models.CharField(default='Untitled', max_length=255)),
-                ('merchant', models.CharField(blank=True, max_length=255, null=True)),
-                ('balance', models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True)),
-                ('product', models.TextField()),
-                ('transaction_date', models.DateField(blank=True, null=True)),
-                ('expiry_date', models.DateField(blank=True, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('record_type', models.CharField(choices=[('expense_receipt', 'Expense Receipt'), ('vendor_invoice', 'Vendor Invoice'), ('purchase_order', 'Purchase Order'), ('service_contract', 'Service Contract / Warranty'), ('corporate_credit', 'Corporate Credit / Voucher'), ('tax_document', 'Tax Document'), ('gift_voucher', 'Gift Voucher'), ('other', 'Other')], default='expense_receipt', max_length=20)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date_added", models.DateField(auto_now_add=True)),
+                ("title", models.CharField(default="Untitled", max_length=255)),
+                ("merchant", models.CharField(blank=True, max_length=255, null=True)),
+                (
+                    "balance",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=10, null=True
+                    ),
+                ),
+                ("product", models.TextField()),
+                ("transaction_date", models.DateField(blank=True, null=True)),
+                ("expiry_date", models.DateField(blank=True, null=True)),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "record_type",
+                    models.CharField(
+                        choices=[
+                            ("expense_receipt", "Expense Receipt"),
+                            ("vendor_invoice", "Vendor Invoice"),
+                            ("purchase_order", "Purchase Order"),
+                            ("service_contract", "Service Contract / Warranty"),
+                            ("corporate_credit", "Corporate Credit / Voucher"),
+                            ("tax_document", "Tax Document"),
+                            ("gift_voucher", "Gift Voucher"),
+                            ("other", "Other"),
+                        ],
+                        default="expense_receipt",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

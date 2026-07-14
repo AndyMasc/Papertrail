@@ -3,180 +3,180 @@
 
 {% with base_css="group flex items-center gap-3 px-3 py-2.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 rounded-xl hover:bg-zinc-100/80 dark:hover:bg-zinc-900/60 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-200 ease-out" active_css="flex items-center gap-3 px-3 py-2.5 text-xs font-semibold text-zinc-950 dark:text-white bg-zinc-100 dark:bg-zinc-900 rounded-xl shadow-[sm_inset_0_1px_0_0_rgba(255,255,255,0.1)]" %}
 
-<div class="relative bg-black">
-    
-    <div 
-        class="fixed top-0 left-0 z-50 w-64 h-screen transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-        :class="open ? 'translate-x-0 shadow-2xl shadow-zinc-950/10' : '-translate-x-full'"
-        x-cloak
-        :aria-hidden="!open">
+    <div class="relative bg-black">
 
-        <button
-            id="sidebar-toggle"
-            type="button"
-            class="absolute top-7 right-0 translate-x-full z-50 flex size-8 items-center justify-center rounded-r-xl border border-l-0 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[4px_2px_12px_-2px_rgba(0,0,0,0.08)] dark:shadow-[4px_2px_12px_-2px_rgba(0,0,0,0.4)] cursor-pointer focus:outline-none"
-            @click="open = !open"
-            :aria-expanded="open"
-            x-transition:enter="ease-out duration-300"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="ease-in duration-300"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"
-            aria-label="Toggle Navigation Sidebar">
-            
-            <svg 
-                class="size-3.5 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]" 
-                :class="open ? '' : 'rotate-180'" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke-width="2.5"
-                stroke="currentColor" 
-                aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-        </button>
+        <div
+            class="fixed top-0 left-0 z-50 w-64 h-screen transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            :class="open ? 'translate-x-0 shadow-2xl shadow-zinc-950/10' : '-translate-x-full'"
+            x-cloak
+            :aria-hidden="!open">
 
-        <aside class="rounded-r-2xl w-full h-full bg-white dark:bg-zinc-950 border-r border-zinc-200/80 dark:border-zinc-900/80 shadow-[1px_0_0_0_rgba(255,255,255,0.02)_inset]">
-            <nav class="flex flex-col h-full py-8 px-4 justify-between" aria-label="Main Application Sidebar">
-                
-                <div class="flex flex-col space-y-7">
-                    <div class="px-3 flex items-center gap-2.5">
-                        <div class="uppercase flex size-7 items-center justify-center rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-black text-sm tracking-tighter shadow-sm">
-                            {{ request.user.email|slice:":1" }}
-                        </div>
-                        <div class="flex flex-col truncate">
-                            <h1 class="font-bold text-sm tracking-tight text-zinc-950 dark:text-white">Papertrail</h1>
-                            <p class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">
-                                {{ request.user.email }}
-                            </p>
-                        </div>
-                    </div>
+            <button
+                id="sidebar-toggle"
+                type="button"
+                class="absolute top-7 right-0 translate-x-full z-50 flex size-8 items-center justify-center rounded-r-xl border border-l-0 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white hover:scale-105 active:scale-95 transition-all shadow-[4px_2px_12px_-2px_rgba(0,0,0,0.08)] dark:shadow-[4px_2px_12px_-2px_rgba(0,0,0,0.4)] cursor-pointer focus:outline-none"
+                @click="open = !open"
+                :aria-expanded="open"
+                x-transition:enter="ease-out duration-300"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
+                x-transition:leave="ease-in duration-300"
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                aria-label="Toggle Navigation Sidebar">
 
-                    <div class="flex flex-col space-y-6">
-                        
-                        <div 
-                            x-data="{ workspaceListOpen: $persist(true) }"
-                            class="flex flex-col gap-y-1">
-                                
-                            <button
-                                @click="workspaceListOpen = !workspaceListOpen"
-                                id="workspaceToggle"
-                                type="button"
-                                aria-controls="workspaceList"
-                                class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200 cursor-pointer">
-                                <span>Workspace</span>
-                                <svg 
-                                    class="size-2.5 transition-transform duration-300 ease-out opacity-60" 
-                                    :class="workspaceListOpen ? 'rotate-90' : 'rotate-180'"
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke-width="2.5" 
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                                </svg>
-                            </button>
+                <svg
+                    class="size-3.5 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    :class="open ? '' : 'rotate-180'"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="2.5"
+                    stroke="currentColor"
+                    aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+            </button>
 
-                            <div id="workspaceList">
-                                <ul 
-                                    x-show="workspaceListOpen"
-                                    x-collapse
-                                    class="space-y-0.5 pt-1">
-                                    <li>
-                                        <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                                            </svg>
-                                            <span>Records</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{% url 'documents:upload_document' %}" class="{% active_link 'documents:upload_document' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-                                            </svg>
-                                            <span>Quick record</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{% url 'records:add_record_manual' %}" class="{% active_link 'records:add_record_manual' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                            </svg>
-                                            <span>New record</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{% filter_url 'records:view_all_records' is_active='False' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-                                            </svg>
-                                            <span>Archive</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{% url 'documents:document_list_view' %}" class="{% active_link 'documents:document_list_view' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform">
-                                              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                            </svg>
-                                            <span>Documents</span>
-                                        </a>
-                                    </li>
-                                </ul>
+            <aside class="rounded-r-2xl w-full h-full bg-white dark:bg-zinc-950 border-r border-zinc-200/80 dark:border-zinc-900/80 shadow-[1px_0_0_0_rgba(255,255,255,0.02)_inset]">
+                <nav class="flex flex-col h-full py-8 px-4 justify-between" aria-label="Main Application Sidebar">
+
+                    <div class="flex flex-col space-y-7">
+                        <div class="px-3 flex items-center gap-2.5">
+                            <div class="uppercase flex size-7 items-center justify-center rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-black text-sm tracking-tighter shadow-sm">
+                                {{ request.user.email|slice:":1" }}
+                            </div>
+                            <div class="flex flex-col truncate">
+                                <h1 class="font-bold text-sm tracking-tight text-zinc-950 dark:text-white">Papertrail</h1>
+                                <p class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">
+                                    {{ request.user.email }}
+                                </p>
                             </div>
                         </div>
 
-                        <div 
-                            x-data="{ accountListOpen: true }"
-                            class="flex flex-col gap-y-1">
-                                
-                            <button
-                                @click="accountListOpen = !accountListOpen"
-                                id="accountToggle"
-                                type="button"
-                                aria-controls="accountList"
-                                class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200 cursor-pointer">
-                                <span>Account</span>
-                                <svg 
-                                    class="size-2.5 transition-transform duration-300 ease-out opacity-60" 
-                                    :class="accountListOpen ? 'rotate-90' : 'rotate-180'"
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke-width="2.5" 
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                                </svg>
-                            </button>
-                            
-                            <div id="accountList">
-                                <ul 
-                                    x-show="accountListOpen"
-                                    x-collapse
-                                    class="space-y-0.5 pt-1">
-                                    <li>
-                                        <a href="{% url 'core:dashboard' %}" class="{% active_link 'core:dashboard' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                                            </svg>
-                                            <span>Dashboard</span>
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="{% url 'core:profile_page' %}" class="{% active_link 'core:profile_page' base_css active_css %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform">
-                                              <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                            </svg>
-                                            <span>Profile</span>
-                                        </a>
-                                    </li>
-                                </ul>
+                        <div class="flex flex-col space-y-6">
+
+                            <div
+                                x-data="{ workspaceListOpen: $persist(true) }"
+                                class="flex flex-col gap-y-1">
+
+                                <button
+                                    @click="workspaceListOpen = !workspaceListOpen"
+                                    id="workspaceToggle"
+                                    type="button"
+                                    aria-controls="workspaceList"
+                                    class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200 cursor-pointer">
+                                    <span>Workspace</span>
+                                    <svg
+                                        class="size-2.5 transition-transform duration-300 ease-out opacity-60"
+                                        :class="workspaceListOpen ? 'rotate-90' : 'rotate-180'"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke-width="2.5"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                </button>
+
+                                <div id="workspaceList">
+                                    <ul
+                                        x-show="workspaceListOpen"
+                                        x-collapse
+                                        class="space-y-0.5 pt-1">
+                                        <li>
+                                            <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                                                </svg>
+                                                <span>Records</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'documents:upload_document' %}" class="{% active_link 'documents:upload_document' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                                                </svg>
+                                                <span>Quick record</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'records:add_record_manual' %}" class="{% active_link 'records:add_record_manual' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                                </svg>
+                                                <span>New record</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% filter_url 'records:view_all_records' is_active='False' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                                                </svg>
+                                                <span>Archive</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'documents:document_list_view' %}" class="{% active_link 'documents:document_list_view' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                                </svg>
+                                                <span>Documents</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                             </div>
+
+                            <div
+                                x-data="{ accountListOpen: true }"
+                                class="flex flex-col gap-y-1">
+
+                                <button
+                                    @click="accountListOpen = !accountListOpen"
+                                    id="accountToggle"
+                                    type="button"
+                                    aria-controls="accountList"
+                                    class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-200 cursor-pointer">
+                                    <span>Account</span>
+                                    <svg
+                                        class="size-2.5 transition-transform duration-300 ease-out opacity-60"
+                                        :class="accountListOpen ? 'rotate-90' : 'rotate-180'"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke-width="2.5"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                </button>
+
+                                <div id="accountList">
+                                    <ul
+                                        x-show="accountListOpen"
+                                        x-collapse
+                                        class="space-y-0.5 pt-1">
+                                        <li>
+                                            <a href="{% url 'core:dashboard' %}" class="{% active_link 'core:dashboard' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                                                </svg>
+                                                <span>Dashboard</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a href="{% url 'core:profile_page' %}" class="{% active_link 'core:profile_page' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 group-hover:scale-102 transition-transform">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                </svg>
+                                                <span>Profile</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
                         </div>
-                        
                     </div>
-                </div>
-            </nav>
-        </aside>
+                </nav>
+            </aside>
+        </div>
     </div>
-</div>
 {% endwith %}

@@ -14,18 +14,19 @@ class HomeViewTest(TestCase):
         response = self.client.get(reverse("core:landing_page"))
         self.assertTemplateUsed(response, "core/landing_page.html")
 
+
 class RecordAccessTest(TestCase):
     def test_record_access(self):
         user1 = User.objects.create_user(username="user1", password="pass")
         user2 = User.objects.create_user(username="user2", password="pass")
-        
+
         Record.objects.create(user=user1, title="A")
         Record.objects.create(user=user2, title="B")
         self.client.force_login(user1)
-        
+
         response = self.client.get(reverse("core:dashboard"))
         records = response.context["records"]
-        
+
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].title, "A")
 
@@ -39,13 +40,14 @@ class AllauthRateLimitTests(TestCase):
         # clear the cache before each test to ensure a clean slate
         cache.clear()
 
-    @override_settings(CACHES={
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    @override_settings(
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            },
         },
-    },
-    ACCOUNT_RATE_LIMITS={"signup": "1/m"}
-)
+        ACCOUNT_RATE_LIMITS={"signup": "1/m"},
+    )
     def test_signup_rate_limiting(self):
         signup_url = reverse("account_signup")
         payload = {
@@ -59,6 +61,6 @@ class AllauthRateLimitTests(TestCase):
         # Second request within the same minute must trigger the rate limit
         response2 = self.client.post(signup_url, payload)
         self.assertEqual(response2.status_code, 429)
-        
+
         # Verify it renders the expected template
         self.assertTemplateUsed(response2, "429.html")

@@ -69,18 +69,18 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         self.object = form.save()
         if self.request.headers.get("HX-Request") == "true":
             return render(
-                self.request, 
-                "records/partials/record_form_partial.html", 
-                self.get_context_data(form=form)
+                self.request,
+                "records/partials/record_form_partial.html",
+                self.get_context_data(form=form),
             )
         return super().form_valid(form)
 
     def form_invalid(self, form):
         return render(
-            self.request, 
-            self.get_template_names()[0], 
-            self.get_context_data(form=form), 
-            status=422
+            self.request,
+            self.get_template_names()[0],
+            self.get_context_data(form=form),
+            status=422,
         )
 
 
@@ -104,7 +104,9 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         document = self.document
         if document:
             if document.associated_record:
-                return HttpResponseBadRequest("This document is already associated with a record.")
+                return HttpResponseBadRequest(
+                    "This document is already associated with a record."
+                )
 
             cache_key = f"ocr_status_{document.id}"
             current_status = cache.get(cache_key)
@@ -132,12 +134,14 @@ class AddRecordView(LoginRequiredMixin, CreateView):
                 is_waiting = False
                 form = self.form_class(initial=ocr_data_to_form_initial(cached_status))
 
-        context.update({
-            "form": form,
-            "document": document,
-            "document_id": self.kwargs.get("document_id"),
-            "is_waiting": is_waiting,
-        })
+        context.update(
+            {
+                "form": form,
+                "document": document,
+                "document_id": self.kwargs.get("document_id"),
+                "is_waiting": is_waiting,
+            }
+        )
         return context
 
     @transaction.atomic
@@ -145,7 +149,9 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         document = self.document
 
         if document and document.associated_record:
-            return HttpResponseBadRequest("This document is already associated with a record.")
+            return HttpResponseBadRequest(
+                "This document is already associated with a record."
+            )
 
         self.object = form.save(commit=False)
         self.object.user = self.request.user
@@ -154,7 +160,7 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         if document:
             document.associated_record = self.object
             document.save()
-            
+
             transaction.on_commit(lambda: cache.delete(f"ocr_status_{document.id}"))
 
         return redirect("documents:add_support_docs", record_id=self.object.id)
@@ -170,30 +176,44 @@ class CheckOCRStatus(LoginRequiredMixin, View):
 
         # 1. Still processing
         if not isinstance(data, dict):
-            return render(request, "records/partials/form_card.html", {
-                "is_waiting": True,
-                "document_id": document_id,
-            })
+            return render(
+                request,
+                "records/partials/form_card.html",
+                {
+                    "is_waiting": True,
+                    "document_id": document_id,
+                },
+            )
 
         # 2. Processed but failed
         if "error" in data:
-            return render(request, "records/partials/form_card.html", {
-                "is_waiting": False,
-                "error_message": data["error"],
-                "form": AddRecordForm()  # fallback to an empty form so they can manually type
-            })
+            return render(
+                request,
+                "records/partials/form_card.html",
+                {
+                    "is_waiting": False,
+                    "error_message": data["error"],
+                    "form": AddRecordForm(),  # fallback to an empty form so they can manually type
+                },
+            )
 
         # 3. Processed successfully
         form = AddRecordForm(initial=ocr_data_to_form_initial(data))
-        return render(request, "records/partials/form_card.html", {
-            "form": form,
-            "is_waiting": False,
-        })
+        return render(
+            request,
+            "records/partials/form_card.html",
+            {
+                "form": form,
+                "is_waiting": False,
+            },
+        )
 
 
 class ArchiveRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):
-        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=True)
+        record = get_object_or_404(
+            Record, id=record_id, user=request.user, is_active=True
+        )
         record.is_active = False
         record.save(update_fields=["is_active"])
         return redirect("records:view_all_records")
@@ -201,7 +221,9 @@ class ArchiveRecord(LoginRequiredMixin, View):
 
 class UnarchiveRecord(LoginRequiredMixin, View):
     def post(self, request, record_id):
-        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=False)
+        record = get_object_or_404(
+            Record, id=record_id, user=request.user, is_active=False
+        )
         record.is_active = True
         record.save(update_fields=["is_active"])
         return redirect("records:view_all_records")

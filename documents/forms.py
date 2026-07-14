@@ -13,6 +13,7 @@ ALLOWED_CONTENT_TYPES = {
     "image/heif",
 }
 
+
 class R2UploadForm(forms.Form):
     filename = forms.CharField(max_length=255, required=True)
     content_type = forms.CharField(max_length=100, required=True)
@@ -34,7 +35,6 @@ class R2UploadForm(forms.Form):
         if content_type not in ALLOWED_CONTENT_TYPES:
             raise ValidationError("Unsupported content type.")
         return content_type
-
 
 
 class DocumentUpdateForm(forms.ModelForm):

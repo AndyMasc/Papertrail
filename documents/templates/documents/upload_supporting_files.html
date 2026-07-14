@@ -1,9 +1,9 @@
 {% extends 'documents/upload_base.html' %}
 
 {% block custom_footer_js %}
-<script>
-    isSupportingFlow = true;
-</script>
+    <script>
+        isSupportingFlow = true;
+    </script>
 {% endblock custom_footer_js %}
 
 {% block upload_footer %}
@@ -11,7 +11,7 @@
     <a href="{% url 'records:record_detail' record.id %}" class="mt-4 text-sm text-zinc-500 hover:text-zinc-700 transition-colors">
         Done adding files
     </a>
-    
+
     <script>
         window.addEventListener('DOMContentLoaded', () => {
             isSupportingFlow = true;

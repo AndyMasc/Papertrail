@@ -7,14 +7,14 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0010_document_data_title'),
-        ('records', '0013_alter_record_record_type'),
+        ("documents", "0010_document_data_title"),
+        ("records", "0013_alter_record_record_type"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RenameModel(
-            old_name='Document_data',
-            new_name='DocumentData',
+            old_name="Document_data",
+            new_name="DocumentData",
         ),
     ]

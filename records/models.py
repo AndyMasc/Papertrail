@@ -3,8 +3,22 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 
+
 class RecordQuerySet(models.QuerySet):
-    MONTH_SHORTCUTS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    MONTH_SHORTCUTS = [
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "may",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "oct",
+        "nov",
+        "dec",
+    ]
 
     def smart_search(self, search_query):
         search_query = search_query.strip()
@@ -12,15 +26,17 @@ class RecordQuerySet(models.QuerySet):
             return self
 
         # 1. Standard text fields using OR is fine for basic data
-        conditions = Q(title__icontains=search_query) | \
-                     Q(merchant__icontains=search_query) | \
-                     Q(products__icontains=search_query) | \
-                     Q(notes__icontains=search_query) | \
-                     Q(record_type__icontains=search_query)
+        conditions = (
+            Q(title__icontains=search_query)
+            | Q(merchant__icontains=search_query)
+            | Q(products__icontains=search_query)
+            | Q(notes__icontains=search_query)
+            | Q(record_type__icontains=search_query)
+        )
 
         # 2. Optimized Balance Search (Prevents crashing on malformed strings)
-        clean_numeric = ''.join(c for c in search_query if c.isdigit() or c == '.')
-        if clean_numeric and clean_numeric.replace('.', '', 1).isdigit():
+        clean_numeric = "".join(c for c in search_query if c.isdigit() or c == ".")
+        if clean_numeric and clean_numeric.replace(".", "", 1).isdigit():
             try:
                 val = float(clean_numeric)
                 conditions |= Q(balance__range=(val, val + 0.99))
@@ -40,22 +56,39 @@ class RecordQuerySet(models.QuerySet):
 
             if parsed_date:
                 if search_query.isdigit() and len(search_query) == 4:
-                    conditions |= Q(transaction_date__year=parsed_date.year) | \
-                                  Q(expiry_date__year=parsed_date.year) | \
-                                  Q(date_added__year=parsed_date.year)
+                    conditions |= (
+                        Q(transaction_date__year=parsed_date.year)
+                        | Q(expiry_date__year=parsed_date.year)
+                        | Q(date_added__year=parsed_date.year)
+                    )
                 elif search_query.isalpha() and contains_alpha_month:
-                    conditions |= Q(transaction_date__month=parsed_date.month) | \
-                                  Q(expiry_date__month=parsed_date.month) | \
-                                  Q(date_added__month=parsed_date.month)
+                    conditions |= (
+                        Q(transaction_date__month=parsed_date.month)
+                        | Q(expiry_date__month=parsed_date.month)
+                        | Q(date_added__month=parsed_date.month)
+                    )
                 else:
-                    conditions |= Q(transaction_date=parsed_date.date()) | \
-                                  Q(expiry_date=parsed_date.date()) | \
-                                  Q(date_added=parsed_date.date())
-                    
+                    conditions |= (
+                        Q(transaction_date=parsed_date.date())
+                        | Q(expiry_date=parsed_date.date())
+                        | Q(date_added=parsed_date.date())
+                    )
+
                     if not is_relative:
-                        conditions |= Q(transaction_date__year=parsed_date.year, transaction_date__month=parsed_date.month) | \
-                                      Q(expiry_date__year=parsed_date.year, expiry_date__month=parsed_date.month) | \
-                                      Q(date_added__year=parsed_date.year, date_added__month=parsed_date.month)
+                        conditions |= (
+                            Q(
+                                transaction_date__year=parsed_date.year,
+                                transaction_date__month=parsed_date.month,
+                            )
+                            | Q(
+                                expiry_date__year=parsed_date.year,
+                                expiry_date__month=parsed_date.month,
+                            )
+                            | Q(
+                                date_added__year=parsed_date.year,
+                                date_added__month=parsed_date.month,
+                            )
+                        )
 
         return self.filter(conditions).distinct()
 
@@ -95,7 +128,7 @@ class Record(models.Model):
         RecordTypes.INSURANCE_POLICY.value: "bg-rose-500/10 text-rose-700 border border-rose-500/20 backdrop-blur-md dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30",
         RecordTypes.OTHER.value: "bg-slate-500/10 text-slate-700 border border-slate-500/20 backdrop-blur-md dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/30",
     }
-     
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     date_added = models.DateField(auto_now_add=True)
     last_edited = models.DateTimeField(auto_now=True)
@@ -103,27 +136,33 @@ class Record(models.Model):
 
     title = models.CharField(max_length=255)
     merchant = models.CharField(max_length=255, blank=True, null=True)
-    balance = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    balance = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True
+    )
     products = models.TextField()
     transaction_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
-    record_type = models.CharField(max_length=30, choices=RecordTypes.choices, default=RecordTypes.EXPENSE_RECEIPT)
+    record_type = models.CharField(
+        max_length=30, choices=RecordTypes.choices, default=RecordTypes.EXPENSE_RECEIPT
+    )
 
     objects = RecordQuerySet.as_manager()
 
     class Meta:
-            indexes = [
-                models.Index(fields=["user", "is_active"]),
-                models.Index(fields=["user", "-last_edited"]),
-                models.Index(fields=["user", "record_type"]),
-                models.Index(fields=["expiry_date"]),
-                models.Index(fields=["transaction_date"]),
-            ]
-            
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["user", "-last_edited"]),
+            models.Index(fields=["user", "record_type"]),
+            models.Index(fields=["expiry_date"]),
+            models.Index(fields=["transaction_date"]),
+        ]
+
     def __str__(self):
         return self.title
 
     @property
     def badge_classes(self):
-        return self.COLOR_MAP.get(self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value])
+        return self.COLOR_MAP.get(
+            self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value]
+        )

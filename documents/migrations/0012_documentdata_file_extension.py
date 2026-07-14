@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0011_rename_document_data_documentdata'),
+        ("documents", "0011_rename_document_data_documentdata"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='documentdata',
-            name='file_extension',
+            model_name="documentdata",
+            name="file_extension",
             field=models.CharField(blank=True, max_length=10, null=True),
         ),
     ]

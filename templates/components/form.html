@@ -6,12 +6,12 @@
 {% var render_fields=render_fields|default:"true" %}
 {% var use_default_button=use_default_button|default:"true" %}
 
-<form 
-    class="pt-3 space-y-4" 
-    method="post" 
+<form
+    class="pt-3 space-y-4"
+    method="post"
     action="{{ url }}"
     onsubmit="const btn = document.getElementById('submit-btn'); if(btn) { btn.disabled = true; btn.classList.add('loading-active'); }">
-    
+
     {% for error in form.non_field_errors %}
         <span class="flex items-center w-full text-xs font-medium tracking-wide bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 text-rose-600 dark:text-rose-400">
             <svg class="w-4 h-4 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,9 +36,9 @@
 
     {% if use_default_button == "true" %}
         <button type="submit"
-            id="submit-btn"
-            class="cursor-pointer mt-2 w-full h-10 flex items-center justify-center rounded-4xl font-medium tracking-wide text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-zinc-50 dark:text-zinc-900 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none">
-            
+                id="submit-btn"
+                class="cursor-pointer mt-2 w-full h-10 flex items-center justify-center rounded-4xl font-medium tracking-wide text-sm bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 text-zinc-50 dark:text-zinc-900 transition-all duration-200 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none">
+
             <span class="auth-btn-text inline-flex items-center">
                 {{ button_text }}
             </span>

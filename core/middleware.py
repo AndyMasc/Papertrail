@@ -1,6 +1,7 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from django.utils import timezone
 
+
 class TimezoneMiddleware:
     COOKIE_NAME = "user_timezone"
 

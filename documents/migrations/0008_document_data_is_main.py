@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0007_remove_document_data_status'),
+        ("documents", "0007_remove_document_data_status"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='document_data',
-            name='is_main',
+            model_name="document_data",
+            name="is_main",
             field=models.BooleanField(default=False),
         ),
     ]

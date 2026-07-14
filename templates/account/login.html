@@ -11,10 +11,10 @@
     {# 2. Use ONE container, passing the heading and the new subheading variable #}
     {% #container heading="Sign in to Papertrail." subheading=subheading %}
 
-        
-            {% if not SOCIALACCOUNT_ONLY %}
-                {% url 'account_login' as action_url %}
-                {% #form form=form url=action_url button_text="Sign in magically" %}
+
+        {% if not SOCIALACCOUNT_ONLY %}
+            {% url 'account_login' as action_url %}
+            {% #form form=form url=action_url button_text="Sign in magically" %}
                 {% csrf_token %}
 
 
@@ -39,10 +39,10 @@
                     </div>
                 </span>
             -->
-                
-                {% /form %}
-            {% endif %}
-        
+
+            {% /form %}
+        {% endif %}
+
         {% if LOGIN_BY_CODE_ENABLED %}
             <div class="divider divider mt-0 mb-2"></div>
             <a href="{{ request_login_code_url }}" class="mb-2 border-none btn btn-neutral text-black dark:text-white font-semibold bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-800/70 shadow-none">{% trans "Mail me a sign-in code" %}</a>

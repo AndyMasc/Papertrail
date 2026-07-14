@@ -15,11 +15,12 @@ class PasswordlessSignupForm(SignupForm):
 
     def save(self, request):
         user = super().save(request)
-        
+
         # Mark the password as unusable in the database so traditional login fails
         user.set_unusable_password()
         user.save()
         return user
+
 
 class PasswordlessLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
@@ -31,7 +32,8 @@ class PasswordlessLoginForm(LoginForm):
 class UpdateUserSettingsForm(forms.ModelForm):
     auto_archive_expired_records = forms.BooleanField(required=False)
     auto_delete_archived_records = forms.BooleanField(required=False)
+
     class Meta:
         model = UserSettings
-        fields = '__all__'
-        exclude = ('user',)
+        fields = "__all__"
+        exclude = ("user",)

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('records', '0007_rename_description_record_notes'),
+        ("records", "0007_rename_description_record_notes"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='record',
-            name='last_edited',
+            model_name="record",
+            name="last_edited",
             field=models.DateField(auto_now=True),
         ),
     ]

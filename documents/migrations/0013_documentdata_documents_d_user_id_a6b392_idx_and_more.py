@@ -7,22 +7,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0012_documentdata_file_extension'),
-        ('records', '0014_record_records_rec_user_id_4d2ecf_idx_and_more'),
+        ("documents", "0012_documentdata_file_extension"),
+        ("records", "0014_record_records_rec_user_id_4d2ecf_idx_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='documentdata',
-            index=models.Index(fields=['user', 'associated_record'], name='documents_d_user_id_a6b392_idx'),
+            model_name="documentdata",
+            index=models.Index(
+                fields=["user", "associated_record"],
+                name="documents_d_user_id_a6b392_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='documentdata',
-            index=models.Index(fields=['user', 'file_extension'], name='documents_d_user_id_1a7656_idx'),
+            model_name="documentdata",
+            index=models.Index(
+                fields=["user", "file_extension"], name="documents_d_user_id_1a7656_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='documentdata',
-            index=models.Index(fields=['date_added'], name='documents_d_date_ad_26a650_idx'),
+            model_name="documentdata",
+            index=models.Index(
+                fields=["date_added"], name="documents_d_date_ad_26a650_idx"
+            ),
         ),
     ]

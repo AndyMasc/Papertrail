@@ -7,19 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0001_initial'),
-        ('records', '0001_initial'),
+        ("documents", "0001_initial"),
+        ("records", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='Document_data',
-            name='associated_record',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='records.record'),
+            model_name="Document_data",
+            name="associated_record",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="records.record",
+            ),
         ),
         migrations.AlterField(
-            model_name='Document_data',
-            name='filepath',
+            model_name="Document_data",
+            name="filepath",
             field=models.CharField(max_length=500),
         ),
     ]

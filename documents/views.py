@@ -56,12 +56,15 @@ class BaseR2UploadView(LoginRequiredMixin, View):
 
         force_upload = request.POST.get("force_upload") == "true"
         calculated_hash = DocumentData.calculate_hash(file_obj)
-        
+
         if not force_upload:
-            existing_doc = DocumentData.objects.filter(
-                user=request.user, 
-                file_hash=calculated_hash
-            ).select_related('associated_record').first()
+            existing_doc = (
+                DocumentData.objects.filter(
+                    user=request.user, file_hash=calculated_hash
+                )
+                .select_related("associated_record")
+                .first()
+            )
 
             if existing_doc:
                 record_id = None
@@ -70,27 +73,35 @@ class BaseR2UploadView(LoginRequiredMixin, View):
 
                 if existing_doc.associated_record:
                     record_id = existing_doc.associated_record.id
-                    record_label = getattr(existing_doc.associated_record, 'title', f"Record #{record_id}")
+                    record_label = getattr(
+                        existing_doc.associated_record, "title", f"Record #{record_id}"
+                    )
                     record_url = f"/records/record_detail/{record_id}"
 
-                return JsonResponse({
-                    "status": "duplicate_confirmed",
-                    "document_id": existing_doc.id,
-                    "record_id": record_id,
-                    "record_label": record_label,
-                    "record_url": record_url
-                })
+                return JsonResponse(
+                    {
+                        "status": "duplicate_confirmed",
+                        "document_id": existing_doc.id,
+                        "record_id": record_id,
+                        "record_label": record_label,
+                        "record_url": record_url,
+                    }
+                )
 
         form_data = {
             "filename": file_obj.name,
             "content_type": file_obj.content_type,
-            "notes": request.POST.get("notes", "").strip()
+            "notes": request.POST.get("notes", "").strip(),
         }
         form = R2UploadForm(form_data)
 
         if not form.is_valid():
-            logger.warning(f"R2UploadForm validation failed for user {request.user.id}: {form.errors.as_json()}")
-            return JsonResponse({"error": "Invalid file extension or structure."}, status=400)
+            logger.warning(
+                f"R2UploadForm validation failed for user {request.user.id}: {form.errors.as_json()}"
+            )
+            return JsonResponse(
+                {"error": "Invalid file extension or structure."}, status=400
+            )
 
         try:
             upload_kwargs = {
@@ -108,8 +119,13 @@ class BaseR2UploadView(LoginRequiredMixin, View):
             return JsonResponse(result)
 
         except Exception as e:
-            logger.error(f"R2 initialization failure for user {request.user.id}: {e}", exc_info=True)
-            return JsonResponse({"error": "Internal server error initiating upload."}, status=500)
+            logger.error(
+                f"R2 initialization failure for user {request.user.id}: {e}",
+                exc_info=True,
+            )
+            return JsonResponse(
+                {"error": "Internal server error initiating upload."}, status=500
+            )
 
 
 class UploadView(BaseR2UploadView):

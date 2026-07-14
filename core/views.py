@@ -15,15 +15,15 @@ from documents.models import DocumentData
 
 
 def index(request):
-    return render(request, 'core/landing_page.html')
-    
+    return render(request, "core/landing_page.html")
+
 
 def privacy_policy(request):
-    return render(request, 'core/privacy_policy.html')
+    return render(request, "core/privacy_policy.html")
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = 'core/dashboard.html'
+    template_name = "core/dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -57,28 +57,28 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         context["active_records_count"] = stats["active_count"]
         context["records"] = list(active_records_qs.order_by("-last_edited")[:5])
-        
-        context['expiring_soon'] = expiring_soon
-        context['expiring_soon_count'] = len(expiring_soon)
-        
+
+        context["expiring_soon"] = expiring_soon
+        context["expiring_soon_count"] = len(expiring_soon)
+
         context["expiring_soon"] = expiring_soon
         context["expiring_soon_count"] = len(expiring_soon)
         context["monthly_expenses"] = stats["monthly_expenses"] or 0
-        
+
         context["orphaned_document_count"] = DocumentData.objects.filter(
             user=user,
             associated_record__isnull=True,
         ).count()
-        
+
         return context
 
 
 class ProfilePageView(LoginRequiredMixin, UpdateView):
     model = UserSettings
-    template_name = 'core/profile_page.html'
-    context_object_name = 'user_settings'
+    template_name = "core/profile_page.html"
+    context_object_name = "user_settings"
     form_class = UpdateUserSettingsForm
-    success_url = reverse_lazy('core:profile_page')
+    success_url = reverse_lazy("core:profile_page")
 
     def get_object(self, queryset=None):
         user_settings, _ = UserSettings.objects.get_or_create(user=self.request.user)
@@ -89,19 +89,17 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
         user_settings.user = self.request.user
         user_settings.save()
 
-        if self.request.headers.get('HX-Request'):
+        if self.request.headers.get("HX-Request"):
             return render(
-                self.request, 
-                'core/partials/user_settings_partial.html', 
-                {'form': form, 'success': True}
+                self.request,
+                "core/partials/user_settings_partial.html",
+                {"form": form, "success": True},
             )
         return super().form_valid(form)
 
     def form_invalid(self, form):
-        if self.request.headers.get('HX-Request'):
+        if self.request.headers.get("HX-Request"):
             return render(
-                self.request, 
-                'core/partials/user_settings_partial.html', 
-                {'form': form}
+                self.request, "core/partials/user_settings_partial.html", {"form": form}
             )
         return super().form_invalid(form)

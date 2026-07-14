@@ -5,14 +5,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0004_alter_document_data_associated_record'),
-        ('records', '0003_alter_record_title'),
+        ("documents", "0004_alter_document_data_associated_record"),
+        ("records", "0003_alter_record_title"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='document_data',
-            name='associated_record',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='documents', to='records.record'),
+            model_name="document_data",
+            name="associated_record",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="documents",
+                to="records.record",
+            ),
         ),
     ]

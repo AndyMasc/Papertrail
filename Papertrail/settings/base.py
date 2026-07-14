@@ -36,12 +36,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    
     # Django QStash
     "django_qstash",
     "django_qstash.results",
     "django_qstash.schedules",
-    
     # Allauth apps
     "allauth",
     "allauth.account",
@@ -49,14 +47,12 @@ INSTALLED_APPS = [
     "allauth_ui",
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.github",
-    
     # Customization apps
     "tailwind",
     "theme",
     "widget_tweaks",
     "slippers",
     "django_filters",
-    
     # Local apps
     "core.apps.CoreConfig",
     "documents.apps.DocumentsConfig",
@@ -161,7 +157,7 @@ CACHES = {
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
 }
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'#"django.contrib.sessions.backends.cached_db"
+SESSION_ENGINE = "django.contrib.sessions.backends.db"  # "django.contrib.sessions.backends.cached_db"
 
 # Email
 EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"

@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0009_document_data_notes'),
+        ("documents", "0009_document_data_notes"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='document_data',
-            name='title',
-            field=models.CharField(default='Untitled', max_length=200),
+            model_name="document_data",
+            name="title",
+            field=models.CharField(default="Untitled", max_length=200),
         ),
     ]

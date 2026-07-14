@@ -6,18 +6,18 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0001_initial'),
+        ("core", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='usersettings',
-            old_name='auto_archive_expired',
-            new_name='auto_archive_expired_records',
+            model_name="usersettings",
+            old_name="auto_archive_expired",
+            new_name="auto_archive_expired_records",
         ),
         migrations.RenameField(
-            model_name='usersettings',
-            old_name='auto_delete_archived',
-            new_name='auto_delete_archived_records',
+            model_name="usersettings",
+            old_name="auto_delete_archived",
+            new_name="auto_delete_archived_records",
         ),
     ]

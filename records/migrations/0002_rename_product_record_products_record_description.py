@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('records', '0001_initial'),
+        ("records", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='record',
-            old_name='product',
-            new_name='products',
+            model_name="record",
+            old_name="product",
+            new_name="products",
         ),
         migrations.AddField(
-            model_name='record',
-            name='description',
+            model_name="record",
+            name="description",
             field=models.TextField(blank=True, null=True),
         ),
     ]

@@ -17,12 +17,14 @@ class QStashEmailAdapter(DefaultAccountAdapter):
             email=email,
         )
 
-    def send_mail(self, template_prefix, email, context):  # Intercepts allauth's email creation logic and defers sending via django-qstash instead of sending it synchronously.
+    def send_mail(
+        self, template_prefix, email, context
+    ):  # Intercepts allauth's email creation logic and defers sending via django-qstash instead of sending it synchronously.
         msg = self.render_mail(template_prefix, email, context)
-        
+
         # Extract plain text content
         message = msg.body
-        
+
         # Check for HTML content alternatives if present
         html_message = None
         if hasattr(msg, "alternatives") and msg.alternatives:
@@ -37,5 +39,5 @@ class QStashEmailAdapter(DefaultAccountAdapter):
             message=message,
             from_email=msg.from_email,
             recipient_list=msg.to,
-            html_message=html_message
+            html_message=html_message,
         )

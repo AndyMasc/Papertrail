@@ -5,22 +5,23 @@ from django.core.cache import cache
 
 FILTER_CHOICES_CACHE_TTL = 300
 
+
 class DocumentFilter(django_filters.FilterSet):
     file_type = django_filters.ChoiceFilter(
-        field_name='file_extension',
-        choices=(), 
+        field_name="file_extension",
+        choices=(),
         widget=forms.Select(),
-        label="File Type"
+        label="File Type",
     )
-    
+
     status = django_filters.ChoiceFilter(
         choices=(
-            ('orphaned', 'Orphaned (Unlinked)'),
-            ('linked', 'Associated Records'),
+            ("orphaned", "Orphaned (Unlinked)"),
+            ("linked", "Associated Records"),
         ),
-        method='filter_by_status',
+        method="filter_by_status",
         widget=forms.Select(),
-        label="Status"
+        label="Status",
     )
 
     class Meta:
@@ -52,14 +53,15 @@ class DocumentFilter(django_filters.FilterSet):
                 .order_by("file_extension")
             )
 
-        self.filters['file_type'].extra['choices'] = [('', 'All File Types')] + [
-            (ext.lower(), ext.upper()) for ext in existing_extensions 
+        self.filters["file_type"].extra["choices"] = [("", "All File Types")] + [
+            (ext.lower(), ext.upper())
+            for ext in existing_extensions
             if ext and ext.isalnum() and len(ext) <= 10
         ]
 
     def filter_by_status(self, queryset, name, value):
-        if value == 'orphaned':
+        if value == "orphaned":
             return queryset.filter(associated_record__isnull=True)
-        elif value == 'linked':
+        elif value == "linked":
             return queryset.filter(associated_record__isnull=False)
         return queryset

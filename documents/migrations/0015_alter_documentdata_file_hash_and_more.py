@@ -7,19 +7,24 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('documents', '0014_remove_documentdata_documents_d_date_ad_26a650_idx_and_more'),
-        ('records', '0014_record_records_rec_user_id_4d2ecf_idx_and_more'),
+        (
+            "documents",
+            "0014_remove_documentdata_documents_d_date_ad_26a650_idx_and_more",
+        ),
+        ("records", "0014_record_records_rec_user_id_4d2ecf_idx_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='documentdata',
-            name='file_hash',
+            model_name="documentdata",
+            name="file_hash",
             field=models.CharField(max_length=64),
         ),
         migrations.AddConstraint(
-            model_name='documentdata',
-            constraint=models.UniqueConstraint(fields=('user', 'file_hash'), name='unique_user_file_hash'),
+            model_name="documentdata",
+            constraint=models.UniqueConstraint(
+                fields=("user", "file_hash"), name="unique_user_file_hash"
+            ),
         ),
     ]

@@ -6,13 +6,33 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('records', '0005_alter_record_record_type'),
+        ("records", "0005_alter_record_record_type"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='record',
-            name='record_type',
-            field=models.CharField(choices=[('expense_receipt', 'Expense Receipt'), ('voucher', 'Voucher'), ('warranty_certificate', 'Warranty Certificate'), ('vendor_invoice', 'Vendor Invoice'), ('customer_invoice', 'Customer Invoice'), ('loan_document', 'Loan Document'), ('credit_card_statement', 'Credit Card Statement'), ('bank_statement', 'Bank Statement'), ('purchase_order', 'Purchase Order'), ('payslip', 'Payslip / Salary'), ('tax_document', 'Tax Document'), ('service_contract', 'Service Contract'), ('lease_agreement', 'Lease / Rental Agreement'), ('insurance_policy', 'Insurance Policy'), ('other', 'Other')], default='expense_receipt', max_length=30),
+            model_name="record",
+            name="record_type",
+            field=models.CharField(
+                choices=[
+                    ("expense_receipt", "Expense Receipt"),
+                    ("voucher", "Voucher"),
+                    ("warranty_certificate", "Warranty Certificate"),
+                    ("vendor_invoice", "Vendor Invoice"),
+                    ("customer_invoice", "Customer Invoice"),
+                    ("loan_document", "Loan Document"),
+                    ("credit_card_statement", "Credit Card Statement"),
+                    ("bank_statement", "Bank Statement"),
+                    ("purchase_order", "Purchase Order"),
+                    ("payslip", "Payslip / Salary"),
+                    ("tax_document", "Tax Document"),
+                    ("service_contract", "Service Contract"),
+                    ("lease_agreement", "Lease / Rental Agreement"),
+                    ("insurance_policy", "Insurance Policy"),
+                    ("other", "Other"),
+                ],
+                default="expense_receipt",
+                max_length=30,
+            ),
         ),
     ]
