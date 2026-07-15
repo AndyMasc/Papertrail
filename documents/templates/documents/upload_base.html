@@ -64,10 +64,10 @@
               uploadButton = document.getElementById('uploadButton'),
               buttonSpinner = document.getElementById('buttonSpinner'),
               buttonText = document.getElementById('buttonText');
-const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
-const CONFIRM_URL = "{% url 'documents:confirm_upload' %}";
-const isSupportingFlow = {{ is_supporting_flow|yesno:"true,false" }};
-let selectedFile = null;
+        const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
+        const CONFIRM_URL = "{% url 'documents:confirm_upload' %}";
+        const isSupportingFlow = {{ is_supporting_flow|yesno:"true,false" }};
+        let selectedFile = null;
 
         uploadButton.dataset.forceUpload = "false";
 

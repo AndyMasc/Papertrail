@@ -6,11 +6,9 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from PIL import Image, ImageFile
 
 from .validators import (
-    ALLOWED_MIME_TYPES,
     MAX_FILE_SIZE,
     MAX_IMAGE_PIXELS,
     validate_file_bytes,
@@ -89,7 +87,10 @@ def gatekeeper_validate_r2_object(key: str) -> dict:
 
     if content_length > MAX_FILE_SIZE:
         s3.delete_object(Bucket=BUCKET, Key=key)
-        return {"valid": False, "error": f"File exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit."}
+        return {
+            "valid": False,
+            "error": f"File exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit.",
+        }
 
     if content_length == 0:
         s3.delete_object(Bucket=BUCKET, Key=key)
@@ -105,7 +106,12 @@ def gatekeeper_validate_r2_object(key: str) -> dict:
 
         validate_file_bytes(header_bytes, content_length)
 
-        if header_bytes[:4] in (b"\xff\xd8\xff", b"\x89\x50\x4e\x47", b"\x52\x49\x46\x46", b"\x42\x4d") or header_bytes.startswith(b"%PDF"):
+        if header_bytes[:4] in (
+            b"\xff\xd8\xff",
+            b"\x89\x50\x4e\x47",
+            b"\x52\x49\x46\x46",
+            b"\x42\x4d",
+        ) or header_bytes.startswith(b"%PDF"):
             try:
                 img = Image.open(BytesIO(header_bytes))
                 img.verify()

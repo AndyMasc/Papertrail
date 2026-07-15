@@ -68,7 +68,7 @@ class RecordFilter(django_filters.FilterSet):
 
             all_choices = Record.RecordTypes.choices
             if user_record_types:
-                filtered = [(v, l) for v, l in all_choices if v in user_record_types]
+                filtered = [(value, label) for value, label in all_choices if value in user_record_types]
             else:
                 filtered = list(all_choices)
 
