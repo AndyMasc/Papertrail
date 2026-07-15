@@ -5,9 +5,12 @@ from decimal import Decimal, InvalidOperation
 from functools import reduce
 from operator import or_
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
+
+User = get_user_model()
 
 _MONTH_MAP = {
     "jan": 1,
@@ -49,12 +52,33 @@ def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
 
 
 class RecordQuerySet(models.QuerySet):
-    def smart_search(self, search_query: str):
+    def for_user(self, user: User) -> "RecordQuerySet":
+        return self.filter(user=user)
+
+    def active(self) -> "RecordQuerySet":
+        return self.filter(is_active=True)
+
+    def archived(self) -> "RecordQuerySet":
+        return self.filter(is_active=False)
+
+    def with_documents(self) -> "RecordQuerySet":
+        return self.prefetch_related("documents")
+
+    def expiring_soon(self, days: int = 30) -> "RecordQuerySet":
+        today = timezone.now().date()
+        return self.active().filter(
+            expiry_date__gte=today,
+            expiry_date__lte=today + datetime.timedelta(days=days),
+        )
+
+    def expired(self) -> "RecordQuerySet":
+        return self.active().filter(expiry_date__lt=timezone.now().date())
+
+    def smart_search(self, search_query: str) -> "RecordQuerySet":
         if not (search_query := search_query.strip()):
             return self
 
         lower = search_query.lower()
-
         conditions = reduce(
             or_,
             (
@@ -62,8 +86,6 @@ class RecordQuerySet(models.QuerySet):
                 for field in _TEXT_SEARCH_FIELDS
             ),
         )
-
-        from .models import Record
 
         matching_choices = [
             k
@@ -86,14 +108,14 @@ class RecordQuerySet(models.QuerySet):
 
         if lower in _RELATIVE_DAYS:
             delta = {"today": 0, "yesterday": -1, "tomorrow": 1}[lower]
-            start = end = datetime.date.today() + datetime.timedelta(days=delta)
+            start = end = timezone.now().date() + datetime.timedelta(days=delta)
 
         elif _YEAR_RE.match(search_query):
             year = int(search_query)
             start, end = datetime.date(year, 1, 1), datetime.date(year, 12, 31)
 
         elif lower in _MONTH_MAP:
-            start, end = _month_range(datetime.date.today().year, _MONTH_MAP[lower])
+            start, end = _month_range(timezone.now().date().year, _MONTH_MAP[lower])
 
         elif _ISO_DATE_RE.match(search_query):
             try:
@@ -101,7 +123,6 @@ class RecordQuerySet(models.QuerySet):
             except ValueError:
                 pass
 
-        # Apply date filters explicitly across indexed range properties
         if start is not None and end is not None:
             conditions |= reduce(
                 or_,
@@ -110,50 +131,9 @@ class RecordQuerySet(models.QuerySet):
 
         return self.filter(conditions)
 
-    def _build_text_conditions(self, query: str) -> Q:
-        return reduce(
-            or_,
-            (Q(**{f"{field}__icontains": query}) for field in _TEXT_SEARCH_FIELDS),
-        )
 
-    def _append_numeric_condition(self, conditions: Q, query: str) -> None:
-        clean = "".join(c for c in query if c.isdigit() or c == ".")
-        if not clean or not clean.replace(".", "", 1).isdigit():
-            return
-        try:
-            val = Decimal(clean)
-            conditions |= Q(balance__gte=val, balance__lt=val + 1)
-        except (ValueError, OverflowError, InvalidOperation):
-            pass
-
-    def _append_date_range_conditions(self, conditions: Q, query: str) -> None:
-        lower = query.lower()
-        today = datetime.date.today()
-        start: datetime.date | None = None
-        end: datetime.date | None = None
-
-        if lower in _RELATIVE_DAYS:
-            delta = {"today": 0, "yesterday": -1, "tomorrow": 1}[lower]
-            start = end = today + datetime.timedelta(days=delta)
-
-        elif _YEAR_RE.match(query):
-            year = int(query)
-            start, end = datetime.date(year, 1, 1), datetime.date(year, 12, 31)
-
-        elif lower in _MONTH_MAP:
-            start, end = _month_range(today.year, _MONTH_MAP[lower])
-
-        elif _ISO_DATE_RE.match(query):
-            try:
-                start = end = datetime.date.fromisoformat(query)
-            except ValueError:
-                return
-
-        if start is not None and end is not None:
-            conditions |= reduce(
-                or_,
-                (Q(**{f"{f}__range": (start, end)}) for f in _DATE_FIELDS),
-            )
+class RecordManager(models.Manager.from_queryset(RecordQuerySet)):
+    pass
 
 
 class Record(models.Model):
@@ -192,33 +172,42 @@ class Record(models.Model):
         RecordTypes.OTHER.value: "bg-slate-500/10 text-slate-700 border border-slate-500/20 backdrop-blur-md dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/30",
     }
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    date_added = models.DateField(auto_now_add=True)
-    last_edited = models.DateTimeField(auto_now=True)
-    is_active = models.BooleanField(default=True)
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="records",
+    )
+    date_added = models.DateField(auto_now_add=True, db_index=True)
+    last_edited = models.DateTimeField(auto_now=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     title = models.CharField(max_length=255)
-    merchant = models.CharField(max_length=255, blank=True, null=True)
+    merchant = models.CharField(max_length=255, blank=True, default="")
     balance = models.DecimalField(
-        max_digits=10, decimal_places=2, blank=True, null=True
+        max_digits=12, decimal_places=2, blank=True, null=True, db_index=True
     )
-    products = models.TextField()
-    transaction_date = models.DateField(null=True, blank=True)
-    expiry_date = models.DateField(null=True, blank=True)
-    notes = models.TextField(blank=True, null=True)
+    products = models.TextField(blank=True, default="")
+    transaction_date = models.DateField(null=True, blank=True, db_index=True)
+    expiry_date = models.DateField(null=True, blank=True, db_index=True)
+    notes = models.TextField(blank=True, default="")
     record_type = models.CharField(
-        max_length=30, choices=RecordTypes.choices, default=RecordTypes.EXPENSE_RECEIPT
+        max_length=30,
+        choices=RecordTypes.choices,
+        default=RecordTypes.EXPENSE_RECEIPT,
+        db_index=True,
     )
 
-    objects = RecordQuerySet.as_manager()
+    objects = RecordManager()
 
     class Meta:
+        ordering = ["-last_edited"]
         indexes = [
-            models.Index(fields=["user", "is_active"]),
-            models.Index(fields=["user", "-last_edited"]),
-            models.Index(fields=["user", "record_type"]),
-            models.Index(fields=["expiry_date"]),
-            models.Index(fields=["transaction_date"]),
+            models.Index(fields=["user", "is_active"], name="idx_record_user_active"),
+            models.Index(
+                fields=["user", "-last_edited"], name="idx_record_user_edited"
+            ),
+            models.Index(fields=["user", "record_type"], name="idx_record_user_type"),
             models.Index(
                 fields=["user", "is_active", "-last_edited"],
                 name="idx_record_list_cover",
@@ -227,13 +216,40 @@ class Record(models.Model):
                 fields=["user", "is_active", "record_type"],
                 name="idx_record_type_filter",
             ),
+            models.Index(
+                fields=["expiry_date", "is_active"], name="idx_record_expiry_active"
+            ),
+            models.Index(
+                fields=["expiry_date", "is_active", "user"],
+                name="idx_record_expiry_active_user",
+            ),
+            models.Index(
+                fields=["expiry_date", "is_active", "user", "date_added"],
+                name="idx_record_archive_filter",
+            ),
+            models.Index(fields=["transaction_date"], name="idx_record_trans_date"),
+            models.Index(fields=["user", "balance"], name="idx_record_user_balance"),
         ]
 
     def __str__(self):
         return self.title
 
     @property
-    def badge_classes(self):
+    def badge_classes(self) -> str:
         return self.COLOR_MAP.get(
             self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value]
         )
+
+    @property
+    def is_expired(self) -> bool:
+        if self.expiry_date:
+            return self.expiry_date < timezone.now().date()
+        return False
+
+    @property
+    def is_expiring_soon(self, days: int = 30) -> bool:
+        if self.expiry_date:
+            return self.expiry_date <= (
+                timezone.now().date() + datetime.timedelta(days=days)
+            )
+        return False

@@ -1,5 +1,6 @@
 import logging
 import uuid
+from functools import lru_cache
 from io import BytesIO
 
 import boto3
@@ -18,21 +19,33 @@ logger = logging.getLogger(__name__)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-BUCKET = settings.R2_STORAGE_BUCKET_NAME
 TIMEOUT_SECONDS = 30
+BUCKET = settings.R2_STORAGE_BUCKET_NAME
 
-s3 = boto3.client(
-    service_name="s3",
-    endpoint_url=settings.R2_S3_ENDPOINT_URL,
-    aws_access_key_id=settings.R2_ACCESS_KEY_ID,
-    aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-    region_name="auto",
-    config=Config(
-        signature_version="s3v4",
-        connect_timeout=TIMEOUT_SECONDS,
-        read_timeout=TIMEOUT_SECONDS,
-    ),
-)
+
+@lru_cache(maxsize=1)
+def _get_s3_client():
+    return boto3.client(
+        service_name="s3",
+        endpoint_url=settings.R2_S3_ENDPOINT_URL,
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+        config=Config(
+            signature_version="s3v4",
+            connect_timeout=TIMEOUT_SECONDS,
+            read_timeout=TIMEOUT_SECONDS,
+            max_pool_connections=50,
+            retries={"max_attempts": 3, "mode": "standard"},
+        ),
+    )
+
+
+def get_s3_client():
+    return _get_s3_client()
+
+
+s3 = get_s3_client()
 
 
 def generate_upload_key(user_id: int, extension: str) -> str:
@@ -108,7 +121,7 @@ def gatekeeper_validate_r2_object(key: str) -> dict:
 
         if header_bytes[:4] in (
             b"\xff\xd8\xff",
-            b"\x89\x50\x4e\x47",
+            b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a",
             b"\x52\x49\x46\x46",
             b"\x42\x4d",
         ) or header_bytes.startswith(b"%PDF"):

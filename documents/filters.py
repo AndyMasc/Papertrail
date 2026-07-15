@@ -32,6 +32,14 @@ class DocumentFilter(django_filters.FilterSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        extensions = self._get_cached_extensions()
+        self.filters["file_type"].extra["choices"] = [("", "All File Types")] + [
+            (ext.lower(), ext.upper())
+            for ext in extensions
+            if ext and ext.isalnum() and len(ext) <= 10
+        ]
+
+    def _get_cached_extensions(self):
         if self.request and self.request.user.is_authenticated:
             cache_key = f"de_{self.request.user.id}"
             extensions = cache.get(cache_key)
@@ -44,21 +52,8 @@ class DocumentFilter(django_filters.FilterSet):
                     .distinct()
                 )
                 cache.set(cache_key, extensions, FILTER_CHOICES_CACHE_TTL)
-        else:
-            extensions = (
-                DocumentData.objects.filter(
-                    file_extension__isnull=False,
-                )
-                .exclude(file_extension="")
-                .values_list("file_extension", flat=True)
-                .distinct()
-            )
-
-        self.filters["file_type"].extra["choices"] = [("", "All File Types")] + [
-            (ext.lower(), ext.upper())
-            for ext in extensions
-            if ext and ext.isalnum() and len(ext) <= 10
-        ]
+            return extensions
+        return []
 
     def filter_by_status(self, queryset, name, value):
         if value == "orphaned":

@@ -16,4 +16,7 @@ urlpatterns = [
     path(
         "document_lists/", views.DocumentListView.as_view(), name="document_list_view"
     ),
+    path(
+        "stream/<int:pk>/", views.StreamDocumentView.as_view(), name="stream_document"
+    ),
 ]

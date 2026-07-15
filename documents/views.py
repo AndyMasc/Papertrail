@@ -3,11 +3,12 @@ import logging
 import os
 import uuid
 
+from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
@@ -20,14 +21,27 @@ from .filters import DocumentFilter
 from .forms import DocumentUpdateForm, R2UploadForm
 from .models import DocumentData, DocumentStatus
 from .storage import (
+    BUCKET,
     gatekeeper_validate_r2_object,
     generate_presigned_post,
     generate_read_presigned_url,
     generate_upload_key,
+    get_s3_client,
     verify_r2_object_exists,
 )
 
 logger = logging.getLogger(__name__)
+
+LIST_FIELDS = (
+    "pk",
+    "title",
+    "did_ocr",
+    "notes",
+    "date_added",
+    "filepath",
+    "file_extension",
+    "associated_record_id",
+)
 
 
 class DocumentListView(LoginRequiredMixin, FilterView):
@@ -37,22 +51,11 @@ class DocumentListView(LoginRequiredMixin, FilterView):
     filterset_class = DocumentFilter
     paginate_by = settings.PAGINATE_BY
 
-    _LIST_FIELDS = (
-        "pk",
-        "title",
-        "did_ocr",
-        "notes",
-        "date_added",
-        "filepath",
-        "file_extension",
-        "associated_record_id",
-    )
-
     def get_queryset(self):
         qs = (
-            DocumentData.objects.filter(user=self.request.user)
-            .select_related("associated_record")
-            .only(*self._LIST_FIELDS, "associated_record__title")
+            DocumentData.objects.for_user(self.request.user)
+            .with_record()
+            .only(*LIST_FIELDS, "associated_record__title")
             .order_by("-date_added")
         )
         search_query = self.request.GET.get("search", "").strip()
@@ -68,13 +71,21 @@ class DocumentListView(LoginRequiredMixin, FilterView):
 
 class BaseR2UploadView(LoginRequiredMixin, View):
     def _handle_presign_request(self, request, record_id=None):
-        file_hash = request.POST.get("file_hash", "").strip()
-        filename = request.POST.get("filename", "").strip()
-        content_type = (
-            request.POST.get("content_type", "").strip().split(";")[0].strip()
-        )
-        notes = request.POST.get("notes", "").strip()
-        force_upload = request.POST.get("force_upload") == "true"
+        import json
+
+        if request.content_type == "application/json":
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "Invalid JSON."}, status=400)
+        else:
+            data = request.POST
+
+        file_hash = data.get("file_hash", "").strip()
+        filename = data.get("filename", "").strip()
+        content_type = data.get("content_type", "").strip().split(";")[0].strip()
+        notes = data.get("notes", "").strip()
+        force_upload = data.get("force_upload") == "true"
 
         if not file_hash or not filename:
             return JsonResponse({"error": "Missing file_hash or filename."}, status=400)
@@ -90,9 +101,10 @@ class BaseR2UploadView(LoginRequiredMixin, View):
 
         if not force_upload:
             existing_doc = (
-                DocumentData.objects.filter(user=request.user, file_hash=file_hash)
+                DocumentData.objects.for_user(request.user)
+                .filter(file_hash=file_hash)
                 .exclude(status=DocumentStatus.DELETING)
-                .select_related("associated_record")
+                .with_record()
                 .first()
             )
             if existing_doc:
@@ -243,7 +255,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return [self.template_name]
 
     def get_queryset(self):
-        return DocumentData.objects.filter(user=self.request.user)
+        return DocumentData.objects.for_user(self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -252,11 +264,11 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return context
 
     def search_records(self):
-        queryset = Record.objects.filter(user=self.request.user, is_active=True)
+        queryset = Record.objects.for_user(self.request.user).active()
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             queryset = queryset.smart_search(search_query)
-        return queryset[0:20]
+        return queryset[:20]
 
     @transaction.atomic
     def form_valid(self, form):
@@ -285,9 +297,7 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
     model = DocumentData
 
     def get_queryset(self):
-        return self.model.objects.filter(user=self.request.user).select_related(
-            "associated_record"
-        )
+        return self.model.objects.for_user(self.request.user).with_record()
 
     def get_success_url(self):
         associated_record = self.object.associated_record
@@ -334,3 +344,43 @@ class AddSupportDocuments(BaseR2UploadView):
     def post(self, request, record_id):
         get_object_or_404(Record, pk=record_id, user=request.user)
         return self._handle_presign_request(request, record_id=record_id)
+
+
+class StreamDocumentView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        document = get_object_or_404(DocumentData, pk=pk, user=request.user)
+
+        if not document.filepath:
+            raise Http404("Document has no file.")
+
+        try:
+            s3_client = get_s3_client()
+            response = s3_client.get_object(Bucket=BUCKET, Key=document.filepath)
+        except ClientError as e:
+            logger.error("Failed to stream document %s: %s", pk, e)
+            raise Http404("Document not found in storage.")
+
+        file_size = response.get("ContentLength", 0)
+        content_type = response.get("ContentType", "application/octet-stream")
+
+        def file_iterator():
+            body = response["Body"]
+            if hasattr(body, "iter_chunks"):
+                for chunk in body.iter_chunks(chunk_size=1024 * 1024):
+                    yield chunk
+            else:
+                while True:
+                    chunk = body.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        safe_filename = os.path.basename(document.filepath)
+        response = StreamingHttpResponse(
+            file_iterator(),
+            content_type=content_type,
+        )
+        response["Content-Length"] = str(file_size)
+        response["Content-Disposition"] = f'inline; filename="{safe_filename}"'
+        response["Cache-Control"] = "private, max-age=3600"
+        return response

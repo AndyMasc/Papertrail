@@ -19,14 +19,13 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 SITE_ID = 1
 ROOT_URLCONF = "Papertrail.urls"
 WSGI_APPLICATION = "Papertrail.wsgi.application"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+DATABASES = {"default": env.db("DATABASE_URL", default="sqlite:///db.sqlite3")}
+DATABASES["default"].setdefault("CONN_MAX_AGE", env.int("DB_CONN_MAX_AGE", default=60))
+if DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3":
+    DATABASES["default"].setdefault("OPTIONS", {"connect_timeout": 10})
 
 # Apps
 INSTALLED_APPS = [
@@ -37,6 +36,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "django.contrib.sitemaps",
+    # Security
+    "csp",
+    "corsheaders",
     # Django QStash
     "django_qstash",
     "django_qstash.results",
@@ -62,15 +65,59 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "core.middleware.TimezoneMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "csp.middleware.CSPMiddleware",
+    "core.middleware.TimezoneMiddleware",
     "allauth.account.middleware.AccountMiddleware",
 ]
+
+# Security - Production hardening
+if not DEBUG:
+    SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+    SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# CSP - Content Security Policy (django-csp 4.0+ format)
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"),
+        "style-src": (
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdn.tailwindcss.com",
+        ),
+        "font-src": ("'self'", "https://fonts.gstatic.com", "data:"),
+        "img-src": ("'self'", "data:", "blob:", "https:"),
+        "connect-src": ("'self'", "https://*.upstash.io", "https://*.resend.com"),
+        "frame-ancestors": ("'none'",),
+        "base-uri": ("'self'",),
+        "form-action": ("'self'",),
+        "object-src": ("'none'",),
+    }
+}
+
+# CORS
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOW_CREDENTIALS = True
 
 # Auth & Allauth
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
@@ -86,12 +133,13 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False
 ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_FORMS = {
-    "signup": "core.forms.PasswordlessSignupForm",  # custom signup form to allow exclusively email only signups
-    "login": "core.forms.PasswordlessLoginForm",  # custom login form to remove password field
+    "signup": "core.forms.PasswordlessSignupForm",
+    "login": "core.forms.PasswordlessLoginForm",
 }
 ACCOUNT_RATE_LIMITS = {
-    "login": "3/m/ip",  # 3 attempts per minute
-    "login_failed": "3/5m/ip",  # 3 failures locks the IP out for 5 minutes ('5m')
+    "login": "3/m/ip",
+    "login_failed": "3/5m/ip",
+    "signup": "3/m/ip",
 }
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
@@ -110,26 +158,18 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 AUTHENTICATION_BACKENDS = [
-    # Needed to login by username in Django admin, regardless of `allauth`
     "django.contrib.auth.backends.ModelBackend",
-    # `allauth` specific authentication methods, such as login by email
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-# Password validation - https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
     },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # Templates
@@ -145,6 +185,9 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
             ],
+            "builtins": [
+                "django.templatetags.static",
+            ],
         },
     },
 ]
@@ -152,44 +195,63 @@ TEMPLATES = [
 # Cache & Session
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",  # "django_redis.cache.RedisCache",
+        "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": env("REDIS_URL"),
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-    },
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+            "IGNORE_EXCEPTIONS": True,
+            "MAX_CONNECTIONS": 50,
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+        },
+        "KEY_PREFIX": "papertrail",
+    }
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
 
 # Email
-EMAIL_BACKEND = "core.backends.QStashEmailBackend"
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 ANYMAIL = {"RESEND_API_KEY": env("RESEND_API_KEY")}
 DEFAULT_FROM_EMAIL = env(
     "DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>"
 )
-# EMAIL_HOST = env("EMAIL_HOST")
-# EMAIL_PORT = int(env("EMAIL_PORT"))
-# EMAIL_USE_TLS = env("EMAIL_USE_TLS") == "True"
-# EMAIL_HOST_USER = env("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
 
-# Storage (S3/R2)- Uploads use signed urls in Cloudflare R2
+# Storage (S3/R2) - Uploads use signed urls in Cloudflare R2
 R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY")
 R2_STORAGE_BUCKET_NAME = env("R2_STORAGE_BUCKET_NAME")
 R2_S3_ENDPOINT_URL = env("R2_S3_ENDPOINT_URL")
 R2_PAPERTRAIL_STORAGE_ACCOUNT_ID = env("R2_PAPERTRAIL_STORAGE_ACCOUNT_ID")
 
+AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
 AWS_STORAGE_BUCKET_NAME = R2_STORAGE_BUCKET_NAME
 AWS_S3_ENDPOINT_URL = R2_S3_ENDPOINT_URL
 AWS_S3_REGION_NAME = "auto"
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = True
+AWS_S3_VERIFY = True
+AWS_S3_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "region_name": AWS_S3_REGION_NAME,
+            "default_acl": AWS_DEFAULT_ACL,
+            "querystring_auth": AWS_QUERYSTRING_AUTH,
+            "file_overwrite": False,
+            "custom_domain": False,
+        },
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
     },
 }
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
@@ -212,11 +274,62 @@ USE_I18N = True
 USE_TZ = True
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "media/"
 
 TAILWIND_APP_NAME = "theme"
 TAILWIND_USE_STANDALONE_BINARY = True
-SITE_ID = 1  # Ensure this matches the ID of your site in the admin
+SITE_ID = 1
 ALLAUTH_UI_THEME = "noir"
 
 # List view pagination
 PAGINATE_BY = 25
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "documents": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "records": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
+# Celery/QStash settings
+DJANGO_QSTASH_QUEUE_NAME = "default"
+DJANGO_QSTASH_MAX_RETRIES = 3
+DJANGO_QSTASH_BACKOFF_FACTOR = 2

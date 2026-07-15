@@ -22,6 +22,20 @@ from .models import Record
 
 logger = logging.getLogger(__name__)
 
+LIST_FIELDS = (
+    "pk",
+    "is_active",
+    "record_type",
+    "title",
+    "merchant",
+    "products",
+    "expiry_date",
+    "transaction_date",
+    "date_added",
+    "balance",
+    "last_edited",
+)
+
 
 class RecordListView(LoginRequiredMixin, FilterView):
     model = Record
@@ -30,26 +44,12 @@ class RecordListView(LoginRequiredMixin, FilterView):
     filterset_class = RecordFilter
     paginate_by = settings.PAGINATE_BY
 
-    _LIST_FIELDS = (
-        "pk",
-        "is_active",
-        "record_type",
-        "title",
-        "merchant",
-        "products",
-        "expiry_date",
-        "transaction_date",
-        "date_added",
-        "balance",
-        "last_edited",
-    )
-
     def get_queryset(self):
-        qs = Record.objects.filter(user=self.request.user).order_by("-last_edited")
+        qs = Record.objects.for_user(self.request.user).order_by("-last_edited")
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             return qs.smart_search(search_query)
-        return qs.only(*self._LIST_FIELDS).order_by("-last_edited")
+        return qs.only(*LIST_FIELDS).order_by("-last_edited")
 
     def get_template_names(self):
         if self.request.headers.get("HX-Target") == "query-results-container":
@@ -70,7 +70,7 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         return [self.template_name]
 
     def get_queryset(self):
-        return Record.objects.filter(user=self.request.user)
+        return Record.objects.for_user(self.request.user)
 
     @transaction.atomic
     def form_valid(self, form):
@@ -98,7 +98,7 @@ class AddRecordView(LoginRequiredMixin, CreateView):
     form_class = AddRecordForm
 
     @cached_property
-    def document(self):
+    def document(self) -> DocumentData | None:
         document_id = self.kwargs.get("document_id")
         if not document_id:
             return None
@@ -278,4 +278,4 @@ class DeleteRecord(LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy("records:view_all_records")
 
     def get_queryset(self):
-        return Record.objects.filter(user=self.request.user)
+        return Record.objects.for_user(self.request.user)

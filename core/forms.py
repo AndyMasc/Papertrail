@@ -7,15 +7,11 @@ from .models import UserSettings
 class PasswordlessSignupForm(SignupForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if "password1" in self.fields:
-            del self.fields["password1"]
-        if "password2" in self.fields:
-            del self.fields["password2"]
+        self.fields.pop("password1", None)
+        self.fields.pop("password2", None)
 
     def save(self, request):
         user = super().save(request)
-
-        # Mark the password as unusable in the database so traditional login fails
         user.set_unusable_password()
         user.save()
         return user
@@ -24,8 +20,7 @@ class PasswordlessSignupForm(SignupForm):
 class PasswordlessLoginForm(LoginForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if "password" in self.fields:
-            del self.fields["password"]
+        self.fields.pop("password", None)
 
 
 class UpdateUserSettingsForm(forms.ModelForm):

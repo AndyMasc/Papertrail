@@ -1,7 +1,8 @@
 import logging
+from dataclasses import dataclass
+from django.core.exceptions import ValidationError
 
 import filetype
-from django.core.exceptions import ValidationError
 
 try:
     import magic as python_magic
@@ -17,7 +18,6 @@ ALLOWED_MIME_TYPES = frozenset(
     {
         "application/pdf",
         "image/jpeg",
-        "image/jpg",
         "image/png",
         "image/webp",
         "image/tiff",
@@ -59,7 +59,13 @@ def _detect_mime_from_bytes(header_bytes: bytes) -> str | None:
     return None
 
 
-def validate_file_upload(file_obj, declared_mime_type=None):
+@dataclass
+class ValidationResult:
+    file_size: int
+    mime_type: str
+
+
+def validate_file_upload(file_obj, declared_mime_type=None) -> ValidationResult:
     file_obj.seek(0, 2)
     file_size = file_obj.tell()
     file_obj.seek(0)
@@ -83,10 +89,10 @@ def validate_file_upload(file_obj, declared_mime_type=None):
             f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
         )
 
-    return {"file_size": file_size, "mime_type": detected_mime}
+    return ValidationResult(file_size=file_size, mime_type=detected_mime)
 
 
-def validate_file_bytes(header_bytes: bytes, content_length: int) -> dict:
+def validate_file_bytes(header_bytes: bytes, content_length: int) -> ValidationResult:
     if content_length == 0:
         raise ValidationError("File is empty.")
     if content_length > MAX_FILE_SIZE:
@@ -103,4 +109,4 @@ def validate_file_bytes(header_bytes: bytes, content_length: int) -> dict:
             f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
         )
 
-    return {"file_size": content_length, "mime_type": detected_mime}
+    return ValidationResult(file_size=content_length, mime_type=detected_mime)

@@ -1,7 +1,9 @@
 from datetime import datetime, time, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import connection
 from django.db.models import Count, Q, Sum
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -23,6 +25,24 @@ def privacy_policy(request):
     return render(request, "core/privacy_policy.html")
 
 
+def health_check(request):
+    db_ok = True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except Exception:
+        db_ok = False
+
+    status = 200 if db_ok else 503
+    return JsonResponse(
+        {
+            "status": "healthy" if db_ok else "unhealthy",
+            "database": "connected" if db_ok else "disconnected",
+        },
+        status=status,
+    )
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
@@ -38,7 +58,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
         expiring_cutoff = now + timedelta(days=30)
 
-        active_records_qs = Record.objects.filter(user=user, is_active=True)
+        active_records_qs = Record.objects.for_user(user).active()
 
         stats = active_records_qs.aggregate(
             active_count=Count("id"),
@@ -49,27 +69,47 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ),
         )
 
-        expiring_soon = list(
+        recent_and_expiring = list(
             active_records_qs.filter(
-                expiry_date__gte=now,
-                expiry_date__lte=expiring_cutoff,
-            ).order_by("-date_added")[:4]
+                Q(expiry_date__gte=now, expiry_date__lte=expiring_cutoff)
+                | Q(last_edited__isnull=False)
+            )
+            .order_by("-last_edited")
+            .select_related()
+            .only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
+            )[:9]
         )
 
-        context["active_records_count"] = stats["active_count"]
-        context["records"] = list(active_records_qs.order_by("-last_edited")[:5])
+        expiring_soon = [
+            r
+            for r in recent_and_expiring
+            if r.expiry_date and now.date() <= r.expiry_date <= expiring_cutoff.date()
+        ][:4]
+        recent_records = [
+            r
+            for r in recent_and_expiring
+            if not (
+                r.expiry_date and now.date() <= r.expiry_date <= expiring_cutoff.date()
+            )
+        ][:5]
 
-        context["expiring_soon"] = expiring_soon
-        context["expiring_soon_count"] = len(expiring_soon)
+        context["active_records_count"] = stats["active_count"]
+        context["records"] = recent_records
 
         context["expiring_soon"] = expiring_soon
         context["expiring_soon_count"] = len(expiring_soon)
         context["monthly_expenses"] = stats["monthly_expenses"] or 0
 
-        context["orphaned_document_count"] = DocumentData.objects.filter(
-            user=user,
-            associated_record__isnull=True,
-        ).count()
+        context["orphaned_document_count"] = (
+            DocumentData.objects.for_user(user).orphaned().count()
+        )
 
         return context
 

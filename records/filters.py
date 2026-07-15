@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import django_filters
 from django import forms
 from django.core.cache import cache
@@ -35,7 +33,7 @@ class RecordFilter(django_filters.FilterSet):
     this_month = django_filters.BooleanFilter(
         method="filter_this_month",
         label="Records from this month",
-        field_name="This months records",
+        field_name="this_month_records",
         widget=forms.Select(choices=[(False, "All Time"), (True, "This Month")]),
     )
 
@@ -68,7 +66,11 @@ class RecordFilter(django_filters.FilterSet):
 
             all_choices = Record.RecordTypes.choices
             if user_record_types:
-                filtered = [(value, label) for value, label in all_choices if value in user_record_types]
+                filtered = [
+                    (value, label)
+                    for value, label in all_choices
+                    if value in user_record_types
+                ]
             else:
                 filtered = list(all_choices)
 
@@ -85,7 +87,7 @@ class RecordFilter(django_filters.FilterSet):
         if value:
             today = timezone.now().date()
             return queryset.filter(
-                expiry_date__lte=today + timedelta(days=30),
+                expiry_date__lte=today + timezone.timedelta(days=30),
                 expiry_date__gte=today,
             )
         return queryset

@@ -16,7 +16,7 @@ class TrimmedTextarea(forms.Textarea):
         return format_html("<textarea{}>{}</textarea>", flatatt(attrs), value)
 
 
-class AddRecordForm(forms.ModelForm):
+class BaseRecordForm(forms.ModelForm):
     title = forms.CharField(max_length=255, required=True)
     products = forms.CharField(widget=TrimmedTextarea, max_length=500, required=True)
     merchant = forms.CharField(max_length=255, required=False)
@@ -27,12 +27,10 @@ class AddRecordForm(forms.ModelForm):
     expiry_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}), required=False
     )
-
     record_type = forms.ChoiceField(
         choices=Record.RecordTypes.choices,
         required=True,
     )
-
     notes = forms.CharField(widget=TrimmedTextarea, required=False, max_length=500)
 
     class Meta:
@@ -52,19 +50,20 @@ class AddRecordForm(forms.ModelForm):
             raise ValidationError("Balance cannot be negative.")
         return balance
 
-    def clean(
-        self,
-    ):  # clean is a method name. Only works with clean_<field_name>, where field_name is from model
+    def clean(self):
         cleaned_data = super().clean()
         expiry_date = cleaned_data.get("expiry_date")
         transaction_date = cleaned_data.get("transaction_date")
-        if (expiry_date and transaction_date) and (expiry_date < transaction_date):
+        if expiry_date and transaction_date and expiry_date < transaction_date:
             raise ValidationError(
                 {"expiry_date": "Expiry date cannot be before transaction date."}
             )
         return cleaned_data
 
 
-class RecordUpdateForm(AddRecordForm):
-    class Meta(AddRecordForm.Meta):
-        pass
+class AddRecordForm(BaseRecordForm):
+    pass
+
+
+class RecordUpdateForm(BaseRecordForm):
+    pass
