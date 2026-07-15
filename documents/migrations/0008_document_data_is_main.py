@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="document_data",
-            name="is_main",
+            name="did_ocr",
             field=models.BooleanField(default=False),
         ),
     ]

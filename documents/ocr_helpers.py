@@ -1,6 +1,10 @@
-from PIL import Image
 import io
 import logging
+import cv2
+from deskew import determine_skew
+import numpy as np
+
+from PIL import Image, ImageFilter
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +29,44 @@ def ocr_data_to_form_initial(data) -> dict:
     }
 
 
+# Deskew, recolor, compress and save as webp to reduce gemini latency
 def prepare_image_for_gemini(image_bytes: bytes) -> bytes:
     try:
-        with Image.open(io.BytesIO(image_bytes)) as img:
-            if img.mode != "RGB":
-                img = img.convert("RGB")
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("Could not decode image bytes")
 
-            max_dim = 1200
-            if max(img.size) > max_dim:
-                img.thumbnail((max_dim, max_dim))
+        small_grayscale = cv2.resize(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (500, 500))
+        angle = determine_skew(small_grayscale)
 
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=85, optimize=True)
-            return buf.getvalue()
+        if angle:
+            (h, w) = img.shape[:2]
+            center = (w // 2, h // 2)
+            matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+            img = cv2.warpAffine(
+                img,
+                matrix,
+                (w, h),
+                flags=cv2.INTER_CUBIC,
+                borderMode=cv2.BORDER_REPLICATE,
+            )
+
+        max_dim = 1200
+        h, w = img.shape[:2]
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            img = cv2.resize(
+                img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA
+            )
+
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        pil_img = Image.fromarray(img_rgb).filter(ImageFilter.SHARPEN)
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format="WEBP", quality=85, optimize=True)
+        return buf.getvalue()
+
     except Exception as e:
         logger.error("Failed to optimize image: %s", e)
-        return image_bytes  # Return original bytes as a fallback
+        return image_bytes

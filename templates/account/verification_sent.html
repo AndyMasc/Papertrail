@@ -1,9 +1,12 @@
 {% extends "account/verification_sent.html" %}
 {% load i18n %}
 {% load allauth_ui %}
+{% load tailwind_tags %}
+{% tailwind_css %}
+
 {% block content %}
     {% trans "Confirm Email Address" as heading %}
-    {% blocktrans asvar subheading %}We sent a temporary login link to your email. Please check your inbox. If its not there, check your spam folder.{% endblocktrans %}
+    {% blocktrans asvar subheading %}We have sent an email to you for verification. Follow the link provided to finalize the signup process. If you do not see the verification email in your main inbox, check your spam folder. Please contact us if you do not receive the verification email within a few minutes.{% endblocktrans %}
     {% #container heading=heading subheading=subheading %}
     {% /container %}
 {% endblock content %}

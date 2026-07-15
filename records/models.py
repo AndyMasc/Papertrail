@@ -1,96 +1,159 @@
-import dateparser
+import calendar
+import datetime
+import re
+from decimal import Decimal, InvalidOperation
+from functools import reduce
+from operator import or_
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
 
+_MONTH_MAP = {
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
+    "may": 5,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
+}
+
+_RELATIVE_DAYS = frozenset({"today", "yesterday", "tomorrow"})
+_YEAR_RE = re.compile(r"^\d{4}$")
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+_TEXT_SEARCH_FIELDS = ("title", "merchant", "products", "notes")
+_DATE_FIELDS = ("transaction_date", "expiry_date", "date_added")
+
+
+def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
+    last_day = calendar.monthrange(year, month)[1]
+    return datetime.date(year, month, 1), datetime.date(year, month, last_day)
+
 
 class RecordQuerySet(models.QuerySet):
-    MONTH_SHORTCUTS = [
-        "jan",
-        "feb",
-        "mar",
-        "apr",
-        "may",
-        "jun",
-        "jul",
-        "aug",
-        "sep",
-        "oct",
-        "nov",
-        "dec",
-    ]
-
-    def smart_search(self, search_query):
-        search_query = search_query.strip()
-        if not search_query:
+    def smart_search(self, search_query: str):
+        if not (search_query := search_query.strip()):
             return self
 
-        # 1. Standard text fields using OR is fine for basic data
-        conditions = (
-            Q(title__icontains=search_query)
-            | Q(merchant__icontains=search_query)
-            | Q(products__icontains=search_query)
-            | Q(notes__icontains=search_query)
-            | Q(record_type__icontains=search_query)
+        lower = search_query.lower()
+
+        conditions = reduce(
+            or_,
+            (
+                Q(**{f"{field}__icontains": search_query})
+                for field in _TEXT_SEARCH_FIELDS
+            ),
         )
 
-        # 2. Optimized Balance Search (Prevents crashing on malformed strings)
-        clean_numeric = "".join(c for c in search_query if c.isdigit() or c == ".")
-        if clean_numeric and clean_numeric.replace(".", "", 1).isdigit():
+        from .models import Record
+
+        matching_choices = [
+            k
+            for k, v in Record.RecordTypes.choices
+            if search_query.lower() in k.lower() or search_query.lower() in v.lower()
+        ]
+        if matching_choices:
+            conditions |= Q(record_type__in=matching_choices)
+
+        clean_num = "".join(c for c in search_query if c.isdigit() or c == ".")
+        if clean_num and clean_num.replace(".", "", 1).isdigit():
             try:
-                val = float(clean_numeric)
-                conditions |= Q(balance__range=(val, val + 0.99))
+                val = Decimal(clean_num)
+                conditions |= Q(balance__gte=val, balance__lt=val + 1)
+            except (InvalidOperation, ValueError, OverflowError):
+                pass
+
+        start: datetime.date | None = None
+        end: datetime.date | None = None
+
+        if lower in _RELATIVE_DAYS:
+            delta = {"today": 0, "yesterday": -1, "tomorrow": 1}[lower]
+            start = end = datetime.date.today() + datetime.timedelta(days=delta)
+
+        elif _YEAR_RE.match(search_query):
+            year = int(search_query)
+            start, end = datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+
+        elif lower in _MONTH_MAP:
+            start, end = _month_range(datetime.date.today().year, _MONTH_MAP[lower])
+
+        elif _ISO_DATE_RE.match(search_query):
+            try:
+                start = end = datetime.date.fromisoformat(search_query)
             except ValueError:
                 pass
 
-        lower_query = search_query.lower()
-        contains_alpha_month = any(m in lower_query for m in self.MONTH_SHORTCUTS)
-        has_digits = any(c.isdigit() for c in search_query)
-        is_relative = any(w in lower_query for w in ["today", "yesterday", "tomorrow"])
-
-        if contains_alpha_month or has_digits or is_relative:
-            parsed_date = dateparser.parse(
-                search_query,
-                settings={"PREFER_DATES_FROM": "past", "STRICT_PARSING": False},
+        # Apply date filters explicitly across indexed range properties
+        if start is not None and end is not None:
+            conditions |= reduce(
+                or_,
+                (Q(**{f"{f}__range": (start, end)}) for f in _DATE_FIELDS),
             )
 
-            if parsed_date:
-                if search_query.isdigit() and len(search_query) == 4:
-                    conditions |= (
-                        Q(transaction_date__year=parsed_date.year)
-                        | Q(expiry_date__year=parsed_date.year)
-                        | Q(date_added__year=parsed_date.year)
-                    )
-                elif search_query.isalpha() and contains_alpha_month:
-                    conditions |= (
-                        Q(transaction_date__month=parsed_date.month)
-                        | Q(expiry_date__month=parsed_date.month)
-                        | Q(date_added__month=parsed_date.month)
-                    )
-                else:
-                    conditions |= (
-                        Q(transaction_date=parsed_date.date())
-                        | Q(expiry_date=parsed_date.date())
-                        | Q(date_added=parsed_date.date())
-                    )
+        return self.filter(conditions)
 
-                    if not is_relative:
-                        conditions |= (
-                            Q(
-                                transaction_date__year=parsed_date.year,
-                                transaction_date__month=parsed_date.month,
-                            )
-                            | Q(
-                                expiry_date__year=parsed_date.year,
-                                expiry_date__month=parsed_date.month,
-                            )
-                            | Q(
-                                date_added__year=parsed_date.year,
-                                date_added__month=parsed_date.month,
-                            )
-                        )
+    def _build_text_conditions(self, query: str) -> Q:
+        return reduce(
+            or_,
+            (Q(**{f"{field}__icontains": query}) for field in _TEXT_SEARCH_FIELDS),
+        )
 
-        return self.filter(conditions).distinct()
+    def _append_numeric_condition(self, conditions: Q, query: str) -> None:
+        clean = "".join(c for c in query if c.isdigit() or c == ".")
+        if not clean or not clean.replace(".", "", 1).isdigit():
+            return
+        try:
+            val = Decimal(clean)
+            conditions |= Q(balance__gte=val, balance__lt=val + 1)
+        except (ValueError, OverflowError, InvalidOperation):
+            pass
+
+    def _append_date_range_conditions(self, conditions: Q, query: str) -> None:
+        lower = query.lower()
+        today = datetime.date.today()
+        start: datetime.date | None = None
+        end: datetime.date | None = None
+
+        if lower in _RELATIVE_DAYS:
+            delta = {"today": 0, "yesterday": -1, "tomorrow": 1}[lower]
+            start = end = today + datetime.timedelta(days=delta)
+
+        elif _YEAR_RE.match(query):
+            year = int(query)
+            start, end = datetime.date(year, 1, 1), datetime.date(year, 12, 31)
+
+        elif lower in _MONTH_MAP:
+            start, end = _month_range(today.year, _MONTH_MAP[lower])
+
+        elif _ISO_DATE_RE.match(query):
+            try:
+                start = end = datetime.date.fromisoformat(query)
+            except ValueError:
+                return
+
+        if start is not None and end is not None:
+            conditions |= reduce(
+                or_,
+                (Q(**{f"{f}__range": (start, end)}) for f in _DATE_FIELDS),
+            )
 
 
 class Record(models.Model):
@@ -156,6 +219,14 @@ class Record(models.Model):
             models.Index(fields=["user", "record_type"]),
             models.Index(fields=["expiry_date"]),
             models.Index(fields=["transaction_date"]),
+            models.Index(
+                fields=["user", "is_active", "-last_edited"],
+                name="idx_record_list_cover",
+            ),
+            models.Index(
+                fields=["user", "is_active", "record_type"],
+                name="idx_record_type_filter",
+            ),
         ]
 
     def __str__(self):

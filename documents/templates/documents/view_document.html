@@ -39,9 +39,9 @@
                                 {% endif %}
                             </div>
 
-                            {% if document.is_main %}
+                            {% if document.did_ocr %}
                                 <span class="bg-emerald-500/10 text-emerald-500 text-[10px] border border-emerald-500/30 font-bold tracking-wider uppercase px-2 py-0.5 rounded-full shrink-0 mt-1">
-                                    Main
+                                    OCR
                                 </span>
                             {% endif %}
                         </div>
@@ -159,7 +159,7 @@
                                               class="flex flex-col flex-1 overflow-hidden m-0">
                                             {% csrf_token %}
 
-                                            <div id="search-results" class="p-2 overflow-y-auto space-y-2.5 max-h-[40vh]" x-data="{ localSelected: null }">
+                                            <div id="search-results" class="p-2 overflow-y-auto space-y-2.5">
                                                 {% include "documents/partials/record_list_partial.html" %}
                                             </div>
 

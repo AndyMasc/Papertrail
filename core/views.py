@@ -8,10 +8,11 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.views.generic import TemplateView, UpdateView
 
+from documents.models import DocumentData
 from records.models import Record
+
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
-from documents.models import DocumentData
 
 
 def index(request):

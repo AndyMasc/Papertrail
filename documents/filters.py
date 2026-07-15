@@ -1,7 +1,8 @@
 import django_filters
 from django import forms
-from .models import DocumentData
 from django.core.cache import cache
+
+from .models import DocumentData
 
 FILTER_CHOICES_CACHE_TTL = 300
 
@@ -32,30 +33,30 @@ class DocumentFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
-            cache_key = f"doc_extensions_{self.request.user.id}"
-            existing_extensions = cache.get(cache_key)
-            if existing_extensions is None:
-                existing_extensions = list(
+            cache_key = f"de_{self.request.user.id}"
+            extensions = cache.get(cache_key)
+            if extensions is None:
+                extensions = list(
                     DocumentData.objects.filter(user=self.request.user)
                     .exclude(file_extension="")
                     .exclude(file_extension__isnull=True)
                     .values_list("file_extension", flat=True)
                     .distinct()
-                    .order_by("file_extension")
                 )
-                cache.set(cache_key, existing_extensions, FILTER_CHOICES_CACHE_TTL)
+                cache.set(cache_key, extensions, FILTER_CHOICES_CACHE_TTL)
         else:
-            existing_extensions = (
-                self.queryset.exclude(file_extension="")
-                .exclude(file_extension__isnull=True)
+            extensions = (
+                DocumentData.objects.filter(
+                    file_extension__isnull=False,
+                )
+                .exclude(file_extension="")
                 .values_list("file_extension", flat=True)
                 .distinct()
-                .order_by("file_extension")
             )
 
         self.filters["file_type"].extra["choices"] = [("", "All File Types")] + [
             (ext.lower(), ext.upper())
-            for ext in existing_extensions
+            for ext in extensions
             if ext and ext.isalnum() and len(ext) <= 10
         ]
 

@@ -1,8 +1,8 @@
-from django.test import TestCase
-from django.contrib.auth.models import User
-from django.test import Client
 import json
 from unittest.mock import patch
+
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
 
 
 class UploadViewTests(TestCase):

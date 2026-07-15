@@ -1,8 +1,9 @@
-<div class="space-y-2">
+<div class="space-y-2"
+     x-data="{ selectedRecord: null }">
     {% for record in records %}
         <label data-record-id="{{ record.pk }}"
-               class="relative block transition-all duration-150 rounded-2xl cursor-pointer focus-within:outline-hidden"
-               :class="selectedRecord == '{{ record.pk }}' ? 'ring-2 ring-black dark:ring-white shadow-xs' : 'hover:opacity-95'">
+               class="relative block transition-all duration-150 rounded-xl cursor-pointer"
+               :class="selectedRecord == '{{ record.pk }}' ? 'border border-black dark:border-white shadow-xs' : 'hover:opacity-95'">
 
             <input type="radio"
                    name="associated_record"
@@ -11,7 +12,6 @@
                    class="sr-only">
 
             {% include 'documents/partials/record_card_simple.html' %}
-
         </label>
     {% empty %}
         <div class="text-center py-12 px-4 text-xs font-medium text-zinc-400 dark:text-zinc-500">

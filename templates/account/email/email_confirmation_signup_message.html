@@ -7,8 +7,14 @@
         {% user_display user as user_display %}
 
         <p>
-            {% blocktranslate with site_name=current_site.name site_domain=current_site.domain %}
-                You're receiving this email because user <strong>{{ user_display }}</strong> has given your email address to register an account on <strong>{{ site_domain }}</strong>.
+            {% blocktranslate with site_name=current_site.name %}
+                Welcome to <strong>{{ site_name }}</strong>!
+            {% endblocktranslate %}
+        </p>
+
+        <p>
+            {% blocktranslate %}
+                You are receiving this email because you have registered an account. Please verify your email address to get started.
             {% endblocktranslate %}
         </p>
 
@@ -22,14 +28,14 @@
             </div>
         {% else %}
             <p>
-                {% blocktranslate %}To confirm this is correct, please click the button below to verify your email address.{% endblocktranslate %}
+                {% blocktranslate %}Please click the button below to confirm your email address and activate your account.{% endblocktranslate %}
             </p>
 
             <table cellspacing="0" cellpadding="0" style="margin: 28px 0;">
                 <tr>
                     <td align="center" style="border-radius: 9999px; background-color: #18181b;">
                         <a href="{{ activate_url }}" style="padding: 10px 20px; display: inline-block; color: #ffffff; font-size: 13px; font-weight: 500; text-decoration: none; border-radius: 9999px;">
-                            {% trans "Verify Email Address" %}
+                            {% trans "Confirm Email Address" %}
                         </a>
                     </td>
                 </tr>
@@ -44,7 +50,7 @@
         <hr style="border: 0; border-top: 1px solid #e4e4e7; margin: 24px 0;">
 
         <p style="font-size: 12px; color: #71717a; margin: 0;">
-            {% blocktranslate %}This email was sent because an account registration was initiated. If you did not request this, please ignore this email.{% endblocktranslate %}
+            {% blocktranslate %}If you did not sign up for an account on {{ site_name }}, you can safely ignore this email.{% endblocktranslate %}
         </p>
     {% endautoescape %}
 {% endblock content %}

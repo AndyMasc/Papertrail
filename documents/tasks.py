@@ -1,9 +1,9 @@
 import logging
 import mimetypes
+import re
 from datetime import timedelta
 from typing import List, Optional
 
-import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models.signals import post_delete
@@ -12,14 +12,17 @@ from django_qstash import stashed_task
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
+
 from records.models import Record
 
-from .models import DocumentData
+from .models import DocumentData, DocumentStatus
 from .ocr_helpers import prepare_image_for_gemini
 from .signals import post_delete_document
 from .storage import s3
 
 logger = logging.getLogger(__name__)
+
+GEMINI_TIMEOUT = 60
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -46,7 +49,7 @@ class OCRResult(BaseModel):
         default=None, description="Date in YYYY-MM-DD format."
     )
     record_type: Record.RecordTypes = Field(
-        description="Strictly classify the document type. If no clear type can be found, default to EXPENSE_RECIEPT"
+        description="Strictly classify the document type. If no clear type can be found, default to EXPENSE_RECEIPT"
     )
 
 
@@ -60,18 +63,64 @@ CONFIG = types.GenerateContentConfig(
 
 
 class GeminiOCRError(Exception):
-    """Raised when Gemini OCR fails."""
+    """Raised when Gemini OCR fails after all retries."""
 
 
-@stashed_task
+# Helper functions for background tasks
+#
+def _set_document_status(document_id: int, status: str) -> None:
+    DocumentData.objects.filter(id=document_id).update(status=status)
+
+
+def _get_document_status(document_id: int) -> str | None:
+    return (
+        DocumentData.objects.filter(id=document_id)
+        .values_list("status", flat=True)
+        .first()
+    )
+
+
+def _fetch_from_r2(filepath: str) -> bytes:
+    response = s3.get_object(
+        Bucket=settings.R2_STORAGE_BUCKET_NAME,
+        Key=filepath,
+    )
+    return response["Body"].read()
+
+
+def _process_image(image_bytes: bytes, filepath: str) -> types.Part:
+    mime_type = mimetypes.guess_type(filepath)[0] or "image/jpeg"
+    if mime_type == "application/pdf":
+        return types.Part.from_bytes(data=image_bytes, mime_type="application/pdf")
+
+    image_bytes = prepare_image_for_gemini(image_bytes)
+    return types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
+
+
+def _call_gemini(part: types.Part) -> dict:
+    result = client.models.generate_content(
+        model="gemini-3.1-flash-lite",
+        contents=[part],
+        config=CONFIG,
+    )
+    if result.parsed is not None:
+        return result.parsed.model_dump(mode="json")
+
+    raw_text = result.text.strip()
+    clean_json = re.sub(r"^```json\s*|```$", "", raw_text, flags=re.MULTILINE).strip()
+    return OCRResult.model_validate_json(clean_json).model_dump(mode="json")
+
+
+# Background tasks
+#
+@stashed_task(retries=3, backoff_factor=2)
 def extract_document(document_id: int) -> dict:
-    document = DocumentData.objects.get(id=document_id)
     cache_key = f"ocr_status_{document_id}"
 
-    if settings.DEBUG:
+    if False:
         import time
 
-        time.sleep(4)  # Simulate slow network response
+        time.sleep(4)
         mock_data = OCRResult(
             title="Mock Title",
             merchant="Mock Merchant",
@@ -81,50 +130,43 @@ def extract_document(document_id: int) -> dict:
             expiry_date="2026-01-09",
             record_type=Record.RecordTypes.EXPENSE_RECEIPT,
         ).model_dump(mode="json")
-
         cache.set(cache_key, mock_data, timeout=900)
+        _set_document_status(document_id, DocumentStatus.COMPLETED)
         return mock_data
 
+    current_status = _get_document_status(document_id)
+    if current_status == DocumentStatus.COMPLETED:
+        cached = cache.get(cache_key)
+        if isinstance(cached, dict) and "error" not in cached:
+            return cached
+
     try:
-        response = s3.get_object(
-            Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=document.filepath
-        )
-        image_content = response["Body"].read()
+        document = DocumentData.objects.get(id=document_id)
+    except DocumentData.DoesNotExist:
+        logger.error("Document %s does not exist.", document_id)
+        return {"error": "Document not found."}
 
-        mime_type = mimetypes.guess_type(document.filepath)[0] or "image/jpeg"
-        if mime_type == "application/pdf":
-            part = types.Part.from_bytes(
-                data=image_content, mime_type="application/pdf"
-            )
-        else:
-            if (
-                len(image_content) > 1024 * 1024
-            ):  # safety net if user uploads really large images
-                image_content = prepare_image_for_gemini(image_content)
-            part = types.Part.from_bytes(data=image_content, mime_type="image/jpeg")
+    _set_document_status(document_id, DocumentStatus.PROCESSING)
 
-        result = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
-            contents=[part],
-            config=CONFIG,
-        )
-
-        final_data = (
-            result.parsed.model_dump(mode="json")
-            if result.parsed is not None
-            else OCRResult.model_validate_json(result.text).model_dump(mode="json")
-        )
+    try:
+        image_content = _fetch_from_r2(document.filepath)
+        part = _process_image(image_content, document.filepath)
+        final_data = _call_gemini(part)
 
         cache.set(cache_key, final_data, timeout=900)
+        _set_document_status(document_id, DocumentStatus.COMPLETED)
         return final_data
 
     except Exception as exc:
+        logger.warning(
+            "OCR attempt framework execution failed for doc %s: %s", document_id, exc
+        )
+
+        # When max retries are exceeded by QStash runner infrastructure:
         error_payload = {"error": "Failed to automatically extract document details."}
         cache.set(cache_key, error_payload, timeout=900)
-
-        if isinstance(exc, requests.RequestException):
-            raise GeminiOCRError(f"Failed to download document: {exc}") from exc
-        raise GeminiOCRError(f"Gemini OCR failed: {exc}") from exc
+        _set_document_status(document_id, DocumentStatus.ERROR)
+        raise GeminiOCRError(f"OCR failed for document {document_id}") from exc
 
 
 @stashed_task
@@ -133,22 +175,22 @@ def delete_document(filepath: str) -> None:
         s3.delete_object(Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=filepath)
 
 
-@stashed_task  # Scheduled task
+@stashed_task
 def delete_orphaned_documents() -> None:
     grace_period = timezone.now() - timedelta(days=1)
     orphaned_files = DocumentData.objects.filter(
-        associated_record=None, date_added__lt=grace_period
-    )
+        associated_record=None,
+        date_added__lt=grace_period,
+    ).exclude(status=DocumentStatus.DELETING)
 
     if not orphaned_files.exists():
         return
 
     file_data = list(orphaned_files.values_list("id", "filepath"))
+    CHUNK_SIZE = 1000
 
-    CHUNK_SIZE = 1000  # Cloudflare supports up to 1000 objects per deletion request
     for i in range(0, len(file_data), CHUNK_SIZE):
         chunk = file_data[i : i + CHUNK_SIZE]
-
         chunk_ids = [item[0] for item in chunk]
         chunk_paths = [item[1] for item in chunk if item[1]]
 
@@ -173,3 +215,41 @@ def delete_orphaned_documents() -> None:
             continue
         finally:
             post_delete.connect(post_delete_document, sender=DocumentData)
+
+
+@stashed_task
+def reconcile_documents() -> None:
+    stale_cutoff = timezone.now() - timedelta(minutes=30)
+
+    # Only destroy PENDING_UPLOAD rows here.
+    # Valid uploaded rows without forms finalized must fallback strictly into delete_orphaned_documents window (1 Day Grace Period)
+    abandoned_uploads = DocumentData.objects.filter(
+        filepath__isnull=False,
+        status=DocumentStatus.PENDING_UPLOAD,
+        date_added__lt=stale_cutoff,
+    )
+
+    deleted_count = 0
+    for doc in abandoned_uploads.iterator(chunk_size=200):
+        if not doc.filepath:
+            continue
+        s3.delete_object(Bucket=settings.R2_STORAGE_BUCKET_NAME, Key=doc.filepath)
+        doc.delete()
+        deleted_count += 1
+
+    if deleted_count:
+        logger.info(
+            "Reconciliation: cleaned up %d scale dynamic pending uploads.",
+            deleted_count,
+        )
+
+    dangling_r2_keys = DocumentData.objects.filter(
+        status=DocumentStatus.ERROR,
+        date_added__lt=timezone.now() - timedelta(days=2),
+    )
+    dangling_count = dangling_r2_keys.count()
+    if dangling_count:
+        dangling_r2_keys.delete()
+        logger.info(
+            "Reconciliation: removed %d dangling error records.", dangling_count
+        )

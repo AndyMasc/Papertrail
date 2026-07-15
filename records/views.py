@@ -1,9 +1,10 @@
 import logging
 
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.db import transaction
-from django.http import HttpResponseBadRequest, Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils.functional import cached_property
@@ -11,15 +12,13 @@ from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django_filters.views import FilterView
 
-from documents.models import DocumentData
+from documents.models import DocumentData, DocumentStatus
+from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
+
 from .filters import RecordFilter
 from .forms import AddRecordForm, RecordUpdateForm
 from .models import Record
-from documents.ocr_helpers import ocr_data_to_form_initial
-from django.conf import settings
-
-paginate_by = settings.PAGINATE_BY
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +30,26 @@ class RecordListView(LoginRequiredMixin, FilterView):
     filterset_class = RecordFilter
     paginate_by = settings.PAGINATE_BY
 
+    _LIST_FIELDS = (
+        "pk",
+        "is_active",
+        "record_type",
+        "title",
+        "merchant",
+        "products",
+        "expiry_date",
+        "transaction_date",
+        "date_added",
+        "balance",
+        "last_edited",
+    )
+
     def get_queryset(self):
-        queryset = (
-            super()
-            .get_queryset()
-            .filter(user=self.request.user)
-            .order_by("-last_edited")
-        )
+        qs = Record.objects.filter(user=self.request.user).order_by("-last_edited")
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
-            return queryset.smart_search(search_query)
-        return queryset
+            return qs.smart_search(search_query)
+        return qs.only(*self._LIST_FIELDS).order_by("-last_edited")
 
     def get_template_names(self):
         if self.request.headers.get("HX-Target") == "query-results-container":
@@ -108,11 +116,15 @@ class AddRecordView(LoginRequiredMixin, CreateView):
                     "This document is already associated with a record."
                 )
 
-            cache_key = f"ocr_status_{document.id}"
-            current_status = cache.get(cache_key)
-            if current_status is None:
-                cache.set(cache_key, "processing", timeout=600)
-                extract_document.delay(document.id)
+            if document.status in (
+                DocumentStatus.UPLOADED,
+                DocumentStatus.PENDING_UPLOAD,
+            ):
+                cache_key = f"ocr_status_{document.id}"
+                current_cached = cache.get(cache_key)
+                if current_cached is None:
+                    cache.set(cache_key, "processing", timeout=600)
+                    extract_document.delay(document.id)
 
         return super().get(request, *args, **kwargs)
 
@@ -127,10 +139,23 @@ class AddRecordView(LoginRequiredMixin, CreateView):
             cache_key = f"ocr_status_{document.id}"
             cached_status = cache.get(cache_key)
 
-            if cached_status == "processing" or cached_status is None:
+            if document.status in (
+                DocumentStatus.PROCESSING,
+                DocumentStatus.UPLOADED,
+                DocumentStatus.PENDING_UPLOAD,
+            ):
                 is_waiting = True
 
-            elif isinstance(cached_status, dict):
+            elif document.status == DocumentStatus.ERROR:
+                is_waiting = False
+                error_data = cached_status if isinstance(cached_status, dict) else {}
+                if isinstance(error_data, dict) and "error" in error_data:
+                    context["error_message"] = error_data["error"]
+                form = self.form_class()
+
+            elif document.status == DocumentStatus.COMPLETED and isinstance(
+                cached_status, dict
+            ):
                 is_waiting = False
                 form = self.form_class(initial=ocr_data_to_form_initial(cached_status))
 
@@ -159,7 +184,7 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
         if document:
             document.associated_record = self.object
-            document.save()
+            document.save(update_fields=["associated_record"])
 
             transaction.on_commit(lambda: cache.delete(f"ocr_status_{document.id}"))
 
@@ -168,43 +193,62 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
 class CheckOCRStatus(LoginRequiredMixin, View):
     def get(self, request, document_id):
-        if not DocumentData.objects.filter(id=document_id, user=request.user).exists():
+        document = DocumentData.objects.filter(
+            id=document_id, user=request.user
+        ).first()
+        if not document:
             raise Http404("Document not found.")
 
-        cache_key = f"ocr_status_{document_id}"
-        data = cache.get(cache_key)
+        if document.status in (
+            DocumentStatus.COMPLETED,
+            DocumentStatus.ERROR,
+        ):
+            cache_key = f"ocr_status_{document_id}"
+            data = cache.get(cache_key)
 
-        # 1. Still processing
-        if not isinstance(data, dict):
-            return render(
-                request,
-                "records/partials/form_card.html",
-                {
-                    "is_waiting": True,
-                    "document_id": document_id,
-                },
-            )
+            if document.status == DocumentStatus.ERROR:
+                error_msg = (
+                    data.get("error", "Extraction failed.")
+                    if isinstance(data, dict)
+                    else "Extraction failed."
+                )
+                return render(
+                    request,
+                    "records/partials/form_card.html",
+                    {
+                        "is_waiting": False,
+                        "error_message": error_msg,
+                        "form": AddRecordForm(),
+                    },
+                )
 
-        # 2. Processed but failed
-        if "error" in data:
+            if isinstance(data, dict) and "error" not in data:
+                form = AddRecordForm(initial=ocr_data_to_form_initial(data))
+                return render(
+                    request,
+                    "records/partials/form_card.html",
+                    {
+                        "form": form,
+                        "is_waiting": False,
+                    },
+                )
+
             return render(
                 request,
                 "records/partials/form_card.html",
                 {
                     "is_waiting": False,
-                    "error_message": data["error"],
-                    "form": AddRecordForm(),  # fallback to an empty form so they can manually type
+                    "error_message": "Extraction produced no data. Please enter details manually.",
+                    "form": AddRecordForm(),
                 },
             )
 
-        # 3. Processed successfully
-        form = AddRecordForm(initial=ocr_data_to_form_initial(data))
         return render(
             request,
             "records/partials/form_card.html",
             {
-                "form": form,
-                "is_waiting": False,
+                "is_waiting": True,
+                "document_id": document_id,
             },
         )
 

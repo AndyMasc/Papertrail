@@ -1,7 +1,8 @@
 from django import forms
-from .models import Record
-from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+from .models import Record
 
 
 class AddRecordForm(forms.ModelForm):

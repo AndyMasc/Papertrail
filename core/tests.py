@@ -1,8 +1,9 @@
+from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.contrib.auth.models import User
+
 from records.models import Record
-from django.core.cache import cache
 
 
 class HomeViewTest(TestCase):

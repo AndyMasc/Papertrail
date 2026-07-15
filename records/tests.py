@@ -1,7 +1,8 @@
-from django.test import TestCase
-from records.models import Record
 from django.contrib.auth.models import User
+from django.test import TestCase
 from django.urls import reverse
+
+from records.models import Record
 
 
 class RecordTestCase(TestCase):

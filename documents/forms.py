@@ -1,7 +1,9 @@
-from django import forms
 from pathlib import Path
-from .models import DocumentData
+
+from django import forms
 from django.core.exceptions import ValidationError
+
+from .models import DocumentData
 
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 ALLOWED_CONTENT_TYPES = {

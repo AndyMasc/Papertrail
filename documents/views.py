@@ -1,4 +1,7 @@
+import hashlib
 import logging
+import os
+import uuid
 
 from django.conf import settings
 from django.contrib import messages
@@ -10,16 +13,21 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import DeleteView, UpdateView
 from django_filters.views import FilterView
+
 from records.models import Record
 
 from .filters import DocumentFilter
 from .forms import DocumentUpdateForm, R2UploadForm
-from .models import DocumentData
-from .storage import generate_read_presigned_url, initiate_r2_upload
+from .models import DocumentData, DocumentStatus
+from .storage import (
+    gatekeeper_validate_r2_object,
+    generate_presigned_post,
+    generate_read_presigned_url,
+    generate_upload_key,
+    verify_r2_object_exists,
+)
 
 logger = logging.getLogger(__name__)
-
-paginate_by = settings.PAGINATE_BY
 
 
 class DocumentListView(LoginRequiredMixin, FilterView):
@@ -29,18 +37,28 @@ class DocumentListView(LoginRequiredMixin, FilterView):
     filterset_class = DocumentFilter
     paginate_by = settings.PAGINATE_BY
 
+    _LIST_FIELDS = (
+        "pk",
+        "title",
+        "did_ocr",
+        "notes",
+        "date_added",
+        "filepath",
+        "file_extension",
+        "associated_record_id",
+    )
+
     def get_queryset(self):
-        queryset = (
-            super()
-            .get_queryset()
-            .filter(user=self.request.user)
+        qs = (
+            DocumentData.objects.filter(user=self.request.user)
             .select_related("associated_record")
+            .only(*self._LIST_FIELDS, "associated_record__title")
             .order_by("-date_added")
         )
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
-            return queryset.search(search_query)
-        return queryset
+            return qs.search(search_query)
+        return qs
 
     def get_template_names(self):
         if self.request.headers.get("HX-Target") == "query-results-container":
@@ -49,97 +67,162 @@ class DocumentListView(LoginRequiredMixin, FilterView):
 
 
 class BaseR2UploadView(LoginRequiredMixin, View):
-    def _handle_r2_upload(self, request, record_id=None):
-        file_obj = request.FILES.get("image")
-        if not file_obj:
-            return JsonResponse({"error": "Missing file payload."}, status=400)
-
+    def _handle_presign_request(self, request, record_id=None):
+        file_hash = request.POST.get("file_hash", "").strip()
+        filename = request.POST.get("filename", "").strip()
+        content_type = (
+            request.POST.get("content_type", "").strip().split(";")[0].strip()
+        )
+        notes = request.POST.get("notes", "").strip()
         force_upload = request.POST.get("force_upload") == "true"
-        calculated_hash = DocumentData.calculate_hash(file_obj)
+
+        if not file_hash or not filename:
+            return JsonResponse({"error": "Missing file_hash or filename."}, status=400)
+
+        form = R2UploadForm(
+            {"filename": filename, "content_type": content_type, "notes": notes}
+        )
+        if not form.is_valid():
+            return JsonResponse(
+                {"error": "Invalid file parameters.", "details": form.errors},
+                status=400,
+            )
 
         if not force_upload:
             existing_doc = (
-                DocumentData.objects.filter(
-                    user=request.user, file_hash=calculated_hash
-                )
+                DocumentData.objects.filter(user=request.user, file_hash=file_hash)
+                .exclude(status=DocumentStatus.DELETING)
                 .select_related("associated_record")
                 .first()
             )
-
             if existing_doc:
-                record_id = None
+                record_id_out = None
                 record_label = "Unassociated Document"
                 record_url = "#"
-
                 if existing_doc.associated_record:
-                    record_id = existing_doc.associated_record.id
+                    record_id_out = existing_doc.associated_record.id
                     record_label = getattr(
-                        existing_doc.associated_record, "title", f"Record #{record_id}"
+                        existing_doc.associated_record,
+                        "title",
+                        f"Record #{record_id_out}",
                     )
-                    record_url = f"/records/record_detail/{record_id}"
-
+                    record_url = f"/records/record_detail/{record_id_out}"
                 return JsonResponse(
                     {
                         "status": "duplicate_confirmed",
                         "document_id": existing_doc.id,
-                        "record_id": record_id,
+                        "record_id": record_id_out,
                         "record_label": record_label,
                         "record_url": record_url,
                     }
                 )
 
-        form_data = {
-            "filename": file_obj.name,
-            "content_type": file_obj.content_type,
-            "notes": request.POST.get("notes", "").strip(),
-        }
-        form = R2UploadForm(form_data)
+        effective_hash = file_hash
+        if force_upload:
+            salt = f"-forced-{uuid.uuid4().hex}"
+            effective_hash = hashlib.sha256(
+                (file_hash + salt).encode("utf-8")
+            ).hexdigest()
 
-        if not form.is_valid():
-            logger.warning(
-                f"R2UploadForm validation failed for user {request.user.id}: {form.errors.as_json()}"
-            )
-            return JsonResponse(
-                {"error": "Invalid file extension or structure."}, status=400
+        ext = os.path.splitext(filename)[1].lower() or ".bin"
+        safe_title = os.path.splitext(filename)[0]
+        safe_title = safe_title.replace("_", " ").replace("-", " ").title()
+
+        key = generate_upload_key(request.user.id, ext)
+
+        with transaction.atomic():
+            document = DocumentData.objects.create(
+                user=request.user,
+                filepath=key,
+                associated_record_id=record_id,
+                did_ocr=(record_id is None),
+                title=safe_title,
+                notes=notes,
+                file_hash=effective_hash,
+                status=DocumentStatus.PENDING_UPLOAD,
             )
 
-        try:
-            upload_kwargs = {
-                "user": request.user,
-                "file_obj": file_obj,
-                "content_type": form.cleaned_data["content_type"],
-                "file_hash": calculated_hash,
-                "notes": form.cleaned_data.get("notes", ""),
-                "force_upload": force_upload,
+        upload_url = generate_presigned_post(request.user.id, key, content_type)
+
+        return JsonResponse(
+            {
+                "status": "upload_url",
+                "upload_url": upload_url,
+                "key": key,
+                "document_id": document.id,
             }
-            if record_id:
-                upload_kwargs["record_id"] = record_id
-
-            result = initiate_r2_upload(**upload_kwargs)
-            return JsonResponse(result)
-
-        except Exception as e:
-            logger.error(
-                f"R2 initialization failure for user {request.user.id}: {e}",
-                exc_info=True,
-            )
-            return JsonResponse(
-                {"error": "Internal server error initiating upload."}, status=500
-            )
+        )
 
 
 class UploadView(BaseR2UploadView):
     def get(self, request):
         context = {
             "page_title": "Upload a financial record.",
-            "page_subtitle": "We’ll extract and organize the details automatically.",
+            "page_subtitle": "We'll extract and organize the details automatically.",
             "api_url": reverse("documents:upload_document"),
-            "redirect_url_template": "/records/add_record/__ID__",
+            "redirect_url_template": reverse(
+                "records:add_record", kwargs={"document_id": "0"}
+            ),  # "/records/add_record/__ID__",
         }
         return render(request, "documents/upload_file.html", context)
 
     def post(self, request):
-        return self._handle_r2_upload(request)
+        return self._handle_presign_request(request)
+
+
+class ConfirmUploadView(LoginRequiredMixin, View):
+    def post(self, request):
+        document_id = request.POST.get("document_id")
+        key = request.POST.get("key", "").strip()
+
+        if not document_id or not key:
+            return JsonResponse({"error": "Missing document_id or key."}, status=400)
+
+        try:
+            document = DocumentData.objects.select_for_update().get(
+                id=document_id,
+                user=request.user,
+            )
+        except DocumentData.DoesNotExist:
+            return JsonResponse({"error": "Document not found."}, status=404)
+
+        if document.status != DocumentStatus.PENDING_UPLOAD:
+            return JsonResponse(
+                {"error": f"Unexpected status: {document.status}."},
+                status=409,
+            )
+
+        if document.filepath != key:
+            logger.warning(
+                "Key mismatch for doc %s: expected=%s, received=%s",
+                document_id,
+                document.filepath,
+                key,
+            )
+            return JsonResponse({"error": "Key mismatch."}, status=400)
+
+        if not verify_r2_object_exists(key):
+            document.status = DocumentStatus.ERROR
+            document.save(update_fields=["status"])
+            return JsonResponse({"error": "File not found in storage."}, status=404)
+
+        validation = gatekeeper_validate_r2_object(key)
+        if not validation["valid"]:
+            document.status = DocumentStatus.ERROR
+            document.notes = (
+                (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
+            ).strip()
+            document.save(update_fields=["status", "notes"])
+            logger.warning(
+                "Gatekeeper rejected doc %s: %s", document_id, validation["error"]
+            )
+            return JsonResponse({"error": validation["error"]}, status=422)
+
+        with transaction.atomic():
+            document.status = DocumentStatus.UPLOADED
+            document.save(update_fields=["status"])
+
+        return JsonResponse({"status": "confirmed", "document_id": document.id})
 
 
 class ViewDocument(LoginRequiredMixin, UpdateView):
@@ -151,13 +234,11 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
     def get_template_names(self):
         if self.request.headers.get("HX-Target") == "search-results":
             return ["documents/partials/record_list_partial.html"]
-
         if self.request.headers.get("HX-Target") in [
             "document-form-container",
             "document-metadata-form",
         ]:
             return ["documents/partials/document_form_partial.html"]
-
         return [self.template_name]
 
     def get_queryset(self):
@@ -176,6 +257,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
             queryset = queryset.smart_search(search_query)
         return queryset[0:20]
 
+    @transaction.atomic
     def form_valid(self, form):
         if "associated_record" in self.request.POST:
             record_id = self.request.POST.get("associated_record", "").strip()
@@ -185,14 +267,10 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
                 record = get_object_or_404(Record, pk=record_id, user=self.request.user)
                 form.instance.associated_record = record
 
-            form.save()
-
-            if self.request.headers.get("HX-Request") == "true":
-                return HttpResponse(status=204, headers={"HX-Refresh": "true"})
-            return redirect("documents:view_document", pk=self.object.pk)
-
         form.save()
         if self.request.headers.get("HX-Request") == "true":
+            if "associated_record" in self.request.POST:
+                return HttpResponse(status=204, headers={"HX-Refresh": "true"})
             return HttpResponse(status=204)
         return redirect("documents:view_document", pk=self.object.pk)
 
@@ -216,23 +294,24 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
             return reverse("records:record_detail", kwargs={"pk": associated_record.id})
         return reverse("records:view_all_records")
 
+    @transaction.atomic
     def form_valid(self, form):
         try:
-            with transaction.atomic():
-                return super().form_valid(form)
+            return super().form_valid(form)
         except Exception as e:
             logger.error(
-                f"Failed to safely delete document {self.object.pk} for user {self.request.user.id}: {e}",
+                "Failed to delete document %s for user %s: %s",
+                self.object.pk,
+                self.request.user.id,
+                e,
                 exc_info=True,
             )
             messages.error(
                 self.request,
                 "Failed to complete deletion safely due to a system error.",
             )
-
             if self.request.headers.get("HX-Request") == "true":
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})
-
             return redirect(self.get_success_url())
 
 
@@ -251,4 +330,5 @@ class AddSupportDocuments(BaseR2UploadView):
         return render(request, "documents/upload_supporting_files.html", context)
 
     def post(self, request, record_id):
-        return self._handle_r2_upload(request, record_id=record_id)
+        get_object_or_404(Record, pk=record_id, user=request.user)
+        return self._handle_presign_request(request, record_id=record_id)

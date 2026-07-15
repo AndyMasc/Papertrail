@@ -30,9 +30,9 @@
                                             <p class="text-xs font-semibold text-zinc-800 dark:text-zinc-200 truncate">
                                                 {{ document.title }}
                                             </p>
-                                            {% if document.is_main %}
+                                            {% if document.did_ocr %}
                                                 <span class="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold border border-emerald-500/30 tracking-wider uppercase px-1.5 py-0.5 rounded-full shrink-0">
-                                                    Main
+                                                    OCR
                                                 </span>
                                             {% endif %}
                                         </div>

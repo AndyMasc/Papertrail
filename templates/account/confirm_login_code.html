@@ -4,6 +4,10 @@
 {% load allauth %}
 {% load allauth_ui %}
 {% load widget_tweaks %}
+
+{% load tailwind_tags %}
+{% tailwind_css %}
+
 {% block content %}
     {% trans "Sign In" as heading %}
     {% #container heading=heading subheading=subheading %}

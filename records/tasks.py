@@ -1,6 +1,7 @@
-from django_qstash import stashed_task
-from django.utils import timezone
 from django.db.models import F
+from django.utils import timezone
+from django_qstash import stashed_task
+
 from .models import Record
 
 

@@ -1,9 +1,11 @@
 from datetime import timedelta
-from django import forms
-from django.utils import timezone
+
 import django_filters
-from .models import Record
+from django import forms
 from django.core.cache import cache
+from django.utils import timezone
+
+from .models import Record
 
 FILTER_CHOICES_CACHE_TTL = 300
 
@@ -48,55 +50,51 @@ class RecordFilter(django_filters.FilterSet):
 
     class Meta:
         model = Record
-        # Left empty because all filters are explicitly declared above
         fields = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
-            cache_key = f"record_types_{self.request.user.id}"
+            cache_key = f"rt_{self.request.user.id}"
             user_record_types = cache.get(cache_key)
             if user_record_types is None:
-                user_record_types = list(
-                    Record.objects.filter(user=self.request.user)
-                    .values_list("record_type", flat=True)
-                    .distinct()
+                user_record_types = set(
+                    Record.objects.filter(
+                        user=self.request.user, is_active=True
+                    ).values_list("record_type", flat=True)
                 )
                 cache.set(cache_key, user_record_types, FILTER_CHOICES_CACHE_TTL)
 
-            filtered_choices = [
-                (choice_value, choice_label)
-                for choice_value, choice_label in Record.RecordTypes.choices
-                if choice_value in user_record_types
-            ]
+            all_choices = Record.RecordTypes.choices
+            if user_record_types:
+                filtered = [(v, l) for v, l in all_choices if v in user_record_types]
+            else:
+                filtered = list(all_choices)
 
             self.filters["record_type"].extra["choices"] = [
                 ("", "All Types")
-            ] + filtered_choices
+            ] + filtered
 
     def filter_is_current(self, queryset, name, value):
         if value:
-            return queryset.filter(
-                expiry_date__gt=timezone.now().date(),
-            ).order_by("-date_added")
+            return queryset.filter(expiry_date__gt=timezone.now().date())
         return queryset
 
     def filter_expiring_soon(self, queryset, name, value):
         if value:
-            month_from_now = timezone.now().date() + timedelta(days=30)
+            today = timezone.now().date()
             return queryset.filter(
-                expiry_date__lte=month_from_now,
-                expiry_date__gte=timezone.now().date(),
-            ).order_by("-date_added")
-
+                expiry_date__lte=today + timedelta(days=30),
+                expiry_date__gte=today,
+            )
         return queryset
 
     def filter_this_month(self, queryset, name, value):
         if value:
+            now = timezone.now()
             return queryset.filter(
-                date_added__month=timezone.now().month,
-                date_added__year=timezone.now().year,
-            ).order_by("-date_added")
-
+                date_added__month=now.month,
+                date_added__year=now.year,
+            )
         return queryset

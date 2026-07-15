@@ -13,11 +13,11 @@
                 {% block page_title %}{{ page_title|default:"Upload a file" }}{% endblock %}
             </h1>
             <p class="text-sm text-zinc-400 text-center">
-                {% block page_subtitle %}{{ page_subtitle|default:"We’ll extract and organize the details automatically." }}{% endblock %}
+                {% block page_subtitle %}{{ page_subtitle|default:"We'll extract and organize the details automatically." }}{% endblock %}
             </p>
 
             <div class="w-full mt-8 mb-2 flex flex-col space-y-4">
-                <div id="dropzone" class="max-h-70 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-800/70 cursor-pointer flex flex-col items-center justify-center p-10 rounded-4xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/40">
+                <div id="dropzone" class="max-h-70 transition-all duration-200 ease-out hover:bg-zinc-200 dark:hover:bg-zinc-800/70 cursor-pointer flex flex-col items-center justify-center p-10 rounded-2xl border w-full border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-800/40">
                     <div class="flex flex-col items-center justify-center w-full h-64 bg-neutral-secondary-medium">
                         <div class="flex flex-col items-center justify-center text-body pt-5 pb-6">
                             <svg class="size-12 mb-4 text-zinc-500 dark:text-zinc-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -30,13 +30,13 @@
                 </div>
 
                 {% block extra_fields %}
-                    <textarea id="docNotes" rows="2" class="focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 text-sm w-full p-5 resize-none rounded-4xl bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 transition-colors duration-150" placeholder="Add a note..."></textarea>
+                    <textarea id="docNotes" rows="2" class="focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 text-sm w-full p-5 resize-none rounded-2xl bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 transition-colors duration-150" placeholder="Add a note..."></textarea>
                 {% endblock extra_fields %}
             </div>
 
             <input type="file" id="fileInput" required class="hidden" accept=".jpg, .png, .jpeg, .webp, .pdf, .heic"/>
 
-            <button id="uploadButton" onclick="uploadFile();" class="mt-2 bg-black dark:bg-white dark:text-black text-white py-2 px-4 rounded-4xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200 flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white">
+            <button id="uploadButton" onclick="uploadFile();" class="mt-2 bg-black dark:bg-white dark:text-black text-white py-2 px-4 rounded-2xl text-sm w-full cursor-pointer hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-all ease-in-out duration-200 flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-black dark:disabled:hover:bg-white">
                 <span id="buttonSpinner" class="hidden">
                     <svg class="animate-spin h-4 w-4 text-white dark:text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -56,10 +56,17 @@
         </section>
     </main>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
     <script>
-        const dropzone = document.getElementById('dropzone'), fileInput = document.getElementById('fileInput'), status = document.getElementById('status'), uploadButton = document.getElementById('uploadButton'), buttonSpinner = document.getElementById('buttonSpinner'), buttonText = document.getElementById('buttonText'), uploadContainer = document.getElementById('uploadContainer');
+        const dropzone = document.getElementById('dropzone'),
+              fileInput = document.getElementById('fileInput'),
+              status = document.getElementById('status'),
+              uploadButton = document.getElementById('uploadButton'),
+              buttonSpinner = document.getElementById('buttonSpinner'),
+              buttonText = document.getElementById('buttonText');
         const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
-        let isSupportingFlow = false, selectedFile = null;
+        const CONFIRM_URL = "{% url 'documents:confirm_upload' %}";
+        let selectedFile = null;
 
         uploadButton.dataset.forceUpload = "false";
 
@@ -69,14 +76,17 @@
 
         function setStatus(msg, type = "idle") {
             status.innerHTML = msg;
-            status.className = "mb-4 text-sm text-center min-h-5 transition-all duration-200 " + (type === "error" ? "text-rose-500" : type === "success" ? "text-emerald-500" : "text-zinc-500 dark:text-zinc-400");
+            status.className = "mb-4 text-sm text-center min-h-5 transition-all duration-200 " +
+            (type === "error" ? "text-rose-500" : type === "success" ? "text-emerald-500" : "text-zinc-500 dark:text-zinc-400");
         }
 
         function setFile(file) {
             if (file.size > 5 * 1024 * 1024) return setStatus("File exceeds 5MB limit.", "error");
             selectedFile = file;
             uploadButton.dataset.forceUpload = "false";
-            fileStatus.innerHTML = `<div class="text-emerald-500 font-medium text-sm">✓ ${file.name}</div><div class="text-xs text-zinc-400 mt-1">${(file.size / 1024 / 1024).toFixed(2)} MB · ready</div>`;
+            fileStatus.innerHTML =
+                `<div class="text-emerald-500 font-medium text-sm">\u2713 ${file.name}</div>` +
+            `<div class="text-xs text-zinc-400 mt-1">${(file.size / 1024 / 1024).toFixed(2)} MB \u00b7 ready</div>`;
             setStatus("");
         }
 
@@ -86,11 +96,44 @@
         dropzone.ondragleave = () => dropzone.classList.remove('scale-[1.01]');
         dropzone.ondrop = e => { e.preventDefault(); dropzone.classList.remove('scale-[1.01]'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); };
 
-        async function getOcrBlob(file) {
-            if (!file.type.startsWith('image/')) return null;
-            try {
-                return await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1200, useWebWorker: true });
-            } catch (e) { return file; }
+        // Hash the file using SparkMD5 in chunks to avoid memory issues with large files
+        function hashFile(file) {
+            return new Promise((resolve, reject) => {
+                const spark = new SparkMD5.ArrayBuffer();
+                const reader = new FileReader();
+                const chunkSize = 2 * 1024 * 1024;
+                let offset = 0;
+
+                reader.onload = e => {
+                    spark.append(e.target.result);
+                    offset += e.target.result.byteLength;
+
+                    // Update status with progress
+                    const percent = Math.round((offset / file.size) * 100);
+                    setStatus(`Hashing file... ${percent}%`);
+
+                    if (offset < file.size) {
+                        readNextChunk();
+                    } else {
+                        resolve(spark.end());
+                    }
+                };
+
+                reader.onerror = () => reject(new Error("Failed to read file"));
+
+                function readNextChunk() {
+                    const blob = file.slice(offset, offset + chunkSize);
+                    reader.readAsArrayBuffer(blob);
+                }
+
+                readNextChunk();
+            });
+        }
+
+        function setLoading(loading) {
+            uploadButton.disabled = loading;
+            buttonSpinner.classList.toggle('hidden', !loading);
+            buttonText.textContent = loading ? "Processing..." : "Upload and continue";
         }
 
         window.triggerForceUpload = function() {
@@ -103,103 +146,99 @@
 
             const notesValue = document.getElementById('docNotes')?.value;
             const resolvedMimeType = selectedFile.type || 'application/octet-stream';
-            const ocrBlobPromise = getOcrBlob(selectedFile);
-
-            uploadButton.disabled = true;
-            buttonSpinner.classList.remove('hidden');
-            buttonText.textContent = "Processing...";
-
-            setStatus("Initializing upload profile...", "idle");
-
-            const formData = new FormData();
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            formData.append('csrfmiddlewaretoken', csrfToken);
-            formData.append('image', selectedFile);
-            formData.append('notes', notesValue || "");
-
-            formData.append('force_upload', uploadButton.dataset.forceUpload);
+            setLoading(true);
+            setStatus("Computing file fingerprint...", "idle");
 
             try {
-                const res = await fetch(API_URL, {
+                const fileHash = await hashFile(selectedFile);
+
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const metadataBody = new URLSearchParams();
+                metadataBody.append('csrfmiddlewaretoken', csrfToken);
+                metadataBody.append('file_hash', fileHash);
+                metadataBody.append('filename', selectedFile.name);
+                metadataBody.append('content_type', resolvedMimeType);
+                metadataBody.append('notes', notesValue || "");
+                metadataBody.append('force_upload', uploadButton.dataset.forceUpload);
+
+                const presignRes = await fetch(API_URL, {
                     method: "POST",
                     headers: {
                         "X-CSRFToken": csrfToken,
-                        "Cache-Control": "no-cache" // Explicitly prevent browser from returning a cached copy
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Cache-Control": "no-cache",
                     },
-                    body: formData
+                    body: metadataBody,
                 });
 
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
+                if (!presignRes.ok) {
+                    const errorData = await presignRes.json().catch(() => ({}));
                     throw new Error(errorData.error || "Backend validation failed.");
                 }
 
-                const data = await res.json();
+                const data = await presignRes.json();
 
                 if (data.status === 'duplicate_confirmed') {
-                    uploadButton.disabled = false;
-                    buttonSpinner.classList.add('hidden');
-                    buttonText.textContent = "Upload and continue";
-
-                    let message = "";
-                    if (data.record_id) {
-                        message = `
-                    <div class="text-center text-amber-600 dark:text-amber-400 font-medium">
-                        This file is already attached to 
-                        <a href="${data.record_url}" class="underline font-bold hover:text-amber-700 dark:hover:text-amber-300 transition-colors">${data.record_label}</a>. 
-                        <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">
-                            Upload anyway?
-                        </button>
-                    </div>
-                `;
-                    } else {
-                        message = `
-                    <div class="text-center text-amber-600 dark:text-amber-400 font-medium">
-                        This document has already been uploaded in your library. 
-                        <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">
-                            Upload anyway?
-                        </button>
-                    </div>
-                `;
-                    }
-
+                    setLoading(false);
+                    let message = data.record_id
+                        ? `<div class="text-center text-amber-600 dark:text-amber-400 font-medium">
+                               This file is already attached to
+                               <a href="${data.record_url}" class="underline font-bold hover:text-amber-700 dark:hover:text-amber-300 transition-colors">${data.record_label}</a>.
+                               <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">Upload anyway?</button>
+                           </div>`
+                        : `<div class="text-center text-amber-600 dark:text-amber-400 font-medium">
+                               This document has already been uploaded in your library.
+                               <button onclick="window.triggerForceUpload();" class="inline underline font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer focus:outline-none">Upload anyway?</button>
+                           </div>`;
                     setStatus(message, "idle");
                     return;
                 }
-                const { upload_url, document_id } = data;
 
-                if (!upload_url) {
-                    throw new Error("Target upload endpoint config is invalid.");
+                const { upload_url, document_id, key } = data;
+
+                if (!upload_url || !key) {
+                    throw new Error("Invalid upload configuration from server.");
                 }
 
-                ocrBlobPromise.then(ocrBlob => {
-                    if (ocrBlob) {
-                        const fd = new FormData();
-                        fd.append('csrfmiddlewaretoken', csrfToken);
-                        fd.append('image', ocrBlob);
-                        fetch(`/records/ocr-direct/${document_id}/`, {
-                            method: 'POST',
-                            headers: { "X-CSRFToken": csrfToken },
-                            body: fd
-                        }).catch(console.error);
-                    }
+                setStatus("Uploading directly to secure storage...", "success");
+
+                const uploadRes = await fetch(upload_url, {
+                    method: "PUT",
+                    headers: { "Content-Type": resolvedMimeType },
+                    body: selectedFile,
                 });
-
-                setStatus("Starting document upload...", "success");
-
-                const uploadRes = await fetch(upload_url, { method: "PUT", headers: { "Content-Type": resolvedMimeType }, body: selectedFile });
                 if (!uploadRes.ok) throw new Error("Storage upload failed.");
 
-                setStatus("Upload completed successfully!", "success");
+                setStatus("Verifying upload...", "idle");
 
+                const confirmBody = new URLSearchParams();
+                confirmBody.append('csrfmiddlewaretoken', csrfToken);
+                confirmBody.append('document_id', document_id);
+                confirmBody.append('key', key);
+
+                const confirmRes = await fetch(CONFIRM_URL, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: confirmBody,
+                });
+
+                if (!confirmRes.ok) {
+                    const err = await confirmRes.json().catch(() => ({}));
+                    throw new Error(err.error || "Upload verification failed.");
+                }
+
+                setStatus("Upload completed successfully", "success");
                 uploadButton.dataset.forceUpload = "false";
 
-                window.location.href = REDIRECT_URL_TEMPLATE.replace('__ID__', document_id);
+                const getRedirectURL = (template, id) => template.replace('/0/', `/${id}/`);
+                window.location.href = getRedirectURL(REDIRECT_URL_TEMPLATE, document_id);
+
             } catch (err) {
                 setStatus(err.message, "error");
-                uploadButton.disabled = false;
-                buttonSpinner.classList.add('hidden');
-                buttonText.textContent = "Upload and continue";
+                setLoading(false);
             }
         }
     </script>

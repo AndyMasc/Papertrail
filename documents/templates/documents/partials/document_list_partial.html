@@ -1,14 +1,14 @@
 {% for document in documents %}
     <div class="block group relative rounded-xl last:mb-0 mb-2 overflow-hidden border border-zinc-200/50 bg-white/70 backdrop-blur-sm dark:border-zinc-800/60 dark:bg-[#131316]/80 hover:bg-white dark:hover:bg-[#161619] hover:border-zinc-300/80 dark:hover:border-zinc-700/60 transform hover:scale-[1.01] hover:shadow-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
 
-        <div class="absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 {% if document.is_main %}bg-black dark:bg-white{% else %}bg-zinc-200 dark:bg-zinc-800{% endif %}"></div>
+        <div class="absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 {% if document.did_ocr %}bg-black dark:bg-white{% else %}bg-zinc-200 dark:bg-zinc-800{% endif %}"></div>
 
         <div class="grid grid-cols-[1fr_auto] items-center pl-5 pr-4 py-3 gap-2">
 
             <a href="{% url 'documents:view_document' document.pk %}" class="grid grid-cols-1 sm:grid-cols-[100px_1fr_85px_50px] items-center gap-3 sm:gap-4 pr-2 min-w-0">
 
                 <div class="flex items-center shrink-0 min-w-0">
-                    {% if document.is_main %}
+                    {% if document.did_ocr %}
                         <span class="px-2 py-0.5 rounded-4xl text-[10px] font-semibold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border border-transparent uppercase tracking-wider block text-center w-full max-w-[85px]">
                             Main
                         </span>

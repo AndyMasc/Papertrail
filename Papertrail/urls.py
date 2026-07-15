@@ -1,6 +1,6 @@
 from django.contrib import admin
-from django.urls import path, include
 from django.http import HttpResponseForbidden
+from django.urls import include, path
 
 
 def forbidden_view(request, *args, **kwargs):

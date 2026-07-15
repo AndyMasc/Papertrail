@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -72,7 +73,6 @@ MIDDLEWARE = [
 ]
 
 # Auth & Allauth
-ACCOUNT_ADAPTER = "core.adapters.QStashEmailAdapter"
 ACCOUNT_SIGNUP_FIELDS = ["email*"]
 ACCOUNT_LOGIN_BY_CODE_SUPPORTS_RESEND = True
 ACCOUNT_LOGIN_METHODS = {"email"}
@@ -152,7 +152,7 @@ TEMPLATES = [
 # Cache & Session
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",  # "django_redis.cache.RedisCache",
         "LOCATION": env("REDIS_URL"),
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
@@ -160,7 +160,7 @@ CACHES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 
 # Email
-EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+EMAIL_BACKEND = "core.backends.QStashEmailBackend"
 ANYMAIL = {"RESEND_API_KEY": env("RESEND_API_KEY")}
 DEFAULT_FROM_EMAIL = env(
     "DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>"
@@ -216,6 +216,7 @@ STATIC_URL = "static/"
 TAILWIND_APP_NAME = "theme"
 TAILWIND_USE_STANDALONE_BINARY = True
 SITE_ID = 1  # Ensure this matches the ID of your site in the admin
+ALLAUTH_UI_THEME = "noir"
 
 # List view pagination
 PAGINATE_BY = 25
