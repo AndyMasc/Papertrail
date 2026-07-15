@@ -162,7 +162,8 @@ class UploadView(BaseR2UploadView):
             "api_url": reverse("documents:upload_document"),
             "redirect_url_template": reverse(
                 "records:add_record", kwargs={"document_id": "0"}
-            ),  # "/records/add_record/__ID__",
+            ),
+            "is_supporting_flow": False,
         }
         return render(request, "documents/upload_file.html", context)
 
@@ -326,6 +327,7 @@ class AddSupportDocuments(BaseR2UploadView):
                 "documents:add_support_docs", kwargs={"record_id": record_id}
             ),
             "redirect_url_template": f"/records/record_detail/{record_id}",
+            "is_supporting_flow": True,
         }
         return render(request, "documents/upload_supporting_files.html", context)
 

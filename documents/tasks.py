@@ -117,7 +117,7 @@ def _call_gemini(part: types.Part) -> dict:
 def extract_document(document_id: int) -> dict:
     cache_key = f"ocr_status_{document_id}"
 
-    if False:
+    if settings.DEBUG:
         import time
 
         time.sleep(4)
@@ -221,8 +221,7 @@ def delete_orphaned_documents() -> None:
 def reconcile_documents() -> None:
     stale_cutoff = timezone.now() - timedelta(minutes=30)
 
-    # Only destroy PENDING_UPLOAD rows here.
-    # Valid uploaded rows without forms finalized must fallback strictly into delete_orphaned_documents window (1 Day Grace Period)
+    # Only destroy PENDING_UPLOAD rows here. Valid uploaded rows without forms finalized must fallback strictly into delete_orphaned_documents window (1 Day Grace Period)
     abandoned_uploads = DocumentData.objects.filter(
         filepath__isnull=False,
         status=DocumentStatus.PENDING_UPLOAD,

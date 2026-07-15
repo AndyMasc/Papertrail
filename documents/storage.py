@@ -1,36 +1,27 @@
 import logging
 import uuid
+from io import BytesIO
 
 import boto3
-import filetype
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from PIL import Image, ImageFile
 
-try:
-    import magic as python_magic
-
-    HAS_MAGIC = True
-except (ImportError, OSError):
-    python_magic = None
-    HAS_MAGIC = False
+from .validators import (
+    ALLOWED_MIME_TYPES,
+    MAX_FILE_SIZE,
+    MAX_IMAGE_PIXELS,
+    validate_file_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 BUCKET = settings.R2_STORAGE_BUCKET_NAME
 TIMEOUT_SECONDS = 30
-
-ALLOWED_MIME_TYPES = frozenset(
-    {
-        "application/pdf",
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-        "image/heic",
-        "image/heif",
-    }
-)
 
 s3 = boto3.client(
     service_name="s3",
@@ -94,49 +85,45 @@ def gatekeeper_validate_r2_object(key: str) -> dict:
     if head is None:
         return {"valid": False, "error": "Object not found in R2."}
 
-    r2_content_type = head.get("ContentType", "")
     content_length = head.get("ContentLength", 0)
 
-    if content_length > 50 * 1024 * 1024:
+    if content_length > MAX_FILE_SIZE:
         s3.delete_object(Bucket=BUCKET, Key=key)
-        return {"valid": False, "error": "File exceeds 50MB limit."}
+        return {"valid": False, "error": f"File exceeds {MAX_FILE_SIZE / 1024 / 1024}MB limit."}
 
     if content_length == 0:
         s3.delete_object(Bucket=BUCKET, Key=key)
         return {"valid": False, "error": "Empty file rejected."}
 
-    r2_ct_normalized = r2_content_type.lower().split(";")[0].strip()
-    if r2_ct_normalized not in ALLOWED_MIME_TYPES:
-        s3.delete_object(Bucket=BUCKET, Key=key)
-        return {
-            "valid": False,
-            "error": f"Rejected MIME type: {r2_ct_normalized}",
-        }
-
     try:
         resp = s3.get_object(
             Bucket=BUCKET,
             Key=key,
-            Range="bytes=0-2047",
+            Range="bytes=0-8191",
         )
         header_bytes = resp["Body"].read()
 
-        if HAS_MAGIC:
-            detected_mime = python_magic.from_buffer(header_bytes, mime=True)
-        else:
-            kind = filetype.guess(header_bytes)
-            detected_mime = kind.mime if kind else r2_ct_normalized
+        validate_file_bytes(header_bytes, content_length)
 
-        if detected_mime not in ALLOWED_MIME_TYPES:
-            s3.delete_object(Bucket=BUCKET, Key=key)
-            return {
-                "valid": False,
-                "error": f"File signature mismatch: {detected_mime}",
-            }
+        if header_bytes[:4] in (b"\xff\xd8\xff", b"\x89\x50\x4e\x47", b"\x52\x49\x46\x46", b"\x42\x4d") or header_bytes.startswith(b"%PDF"):
+            try:
+                img = Image.open(BytesIO(header_bytes))
+                img.verify()
+                img = Image.open(BytesIO(header_bytes))
+                width, height = img.size
+                total_pixels = width * height
+                if total_pixels > MAX_IMAGE_PIXELS:
+                    s3.delete_object(Bucket=BUCKET, Key=key)
+                    return {
+                        "valid": False,
+                        "error": f"Image dimensions too large ({width}x{height}). Maximum {MAX_IMAGE_PIXELS:,} pixels.",
+                    }
+            except Exception as e:
+                logger.warning("Image dimension check failed for %s: %s", key, e)
     except ClientError as e:
         logger.warning("Gatekeeper partial read failed for %s: %s", key, e)
 
-    return {"valid": True, "content_type": r2_ct_normalized}
+    return {"valid": True}
 
 
 def delete_r2_object(key: str) -> None:

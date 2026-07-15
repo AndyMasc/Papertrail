@@ -64,9 +64,10 @@
               uploadButton = document.getElementById('uploadButton'),
               buttonSpinner = document.getElementById('buttonSpinner'),
               buttonText = document.getElementById('buttonText');
-        const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
-        const CONFIRM_URL = "{% url 'documents:confirm_upload' %}";
-        let selectedFile = null;
+const API_URL = "{{ api_url }}", REDIRECT_URL_TEMPLATE = "{{ redirect_url_template }}";
+const CONFIRM_URL = "{% url 'documents:confirm_upload' %}";
+const isSupportingFlow = {{ is_supporting_flow|yesno:"true,false" }};
+let selectedFile = null;
 
         uploadButton.dataset.forceUpload = "false";
 
@@ -234,7 +235,19 @@
                 uploadButton.dataset.forceUpload = "false";
 
                 const getRedirectURL = (template, id) => template.replace('/0/', `/${id}/`);
-                window.location.href = getRedirectURL(REDIRECT_URL_TEMPLATE, document_id);
+
+                if (typeof isSupportingFlow !== 'undefined' && isSupportingFlow) {
+                    setTimeout(() => {
+                        selectedFile = null;
+                        fileInput.value = '';
+                        fileStatus.innerHTML = '';
+                        setStatus('File uploaded. Add another or click "Done adding files".', 'success');
+                        buttonText.textContent = 'Upload and continue';
+                        setLoading(false);
+                    }, 1500);
+                } else {
+                    window.location.href = getRedirectURL(REDIRECT_URL_TEMPLATE, document_id);
+                }
 
             } catch (err) {
                 setStatus(err.message, "error");

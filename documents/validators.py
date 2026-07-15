@@ -22,10 +22,13 @@ ALLOWED_MIME_TYPES = frozenset(
         "image/webp",
         "image/tiff",
         "image/bmp",
+        "image/heic",
+        "image/heif",
     }
 )
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_IMAGE_PIXELS = 50_000_000
 
 MAGIC_SIGNATURES = {
     b"\x25\x50\x44\x46": "application/pdf",
@@ -81,3 +84,23 @@ def validate_file_upload(file_obj, declared_mime_type=None):
         )
 
     return {"file_size": file_size, "mime_type": detected_mime}
+
+
+def validate_file_bytes(header_bytes: bytes, content_length: int) -> dict:
+    if content_length == 0:
+        raise ValidationError("File is empty.")
+    if content_length > MAX_FILE_SIZE:
+        raise ValidationError(
+            f"File size ({content_length / 1024 / 1024:.2f}MB) exceeds maximum of {MAX_FILE_SIZE / 1024 / 1024}MB."
+        )
+
+    detected_mime = _detect_mime_from_bytes(header_bytes)
+    if not detected_mime:
+        raise ValidationError("Unable to validate file type.")
+
+    if detected_mime not in ALLOWED_MIME_TYPES:
+        raise ValidationError(
+            f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
+        )
+
+    return {"file_size": content_length, "mime_type": detected_mime}
