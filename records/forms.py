@@ -36,7 +36,13 @@ class BaseRecordForm(forms.ModelForm):
     class Meta:
         model = Record
         fields = "__all__"
-        exclude = ["user", "date_added", "last_edited", "is_active"]
+        exclude = [
+            "user",
+            "date_added",
+            "last_edited",
+            "is_active",
+            "expiry_notification_sent",
+        ]
 
     def clean_transaction_date(self):
         transaction_date = self.cleaned_data.get("transaction_date")

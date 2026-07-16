@@ -16,11 +16,6 @@
             <span>/</span>
             <span id="record-title" class="text-zinc-800 dark:text-zinc-200 truncate">{{ record.title }}</span>
         </div>
-        <div class="flex items-center gap-2.5">
-            <a href="{% url 'core:dashboard' %}" class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 border border-zinc-200/40 dark:border-zinc-800/60 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors">
-                Return
-            </a>
-        </div>
     </nav>
 
     {% if form.non_field_errors %}

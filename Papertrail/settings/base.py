@@ -213,7 +213,7 @@ SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
 
 # Email
-EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+EMAIL_BACKEND = "core.backends.QStashEmailBackend"  # Use custom backend to queue emails sending, and use anymail
 ANYMAIL = {"RESEND_API_KEY": env("RESEND_API_KEY")}
 DEFAULT_FROM_EMAIL = env(
     "DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>"

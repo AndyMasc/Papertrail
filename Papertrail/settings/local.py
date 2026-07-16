@@ -1,4 +1,4 @@
-from .base import (  # noqa: F403,F401
+from .base import (
     INSTALLED_APPS,
     MIDDLEWARE,
     STORAGES,
@@ -15,7 +15,6 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
-# Use simple static files storage in dev (no manifest required)
 STORAGES = {
     "default": STORAGES["default"],
     "staticfiles": {
@@ -23,7 +22,6 @@ STORAGES = {
     },
 }
 
-# Disable CSP in dev
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": (
@@ -43,3 +41,5 @@ CONTENT_SECURITY_POLICY = {
         "frame-ancestors": ("'none'",),
     }
 }
+
+SITE_URL = "http://localhost:8000"

@@ -97,14 +97,13 @@
                         <form
                             hx-post="{% url 'core:profile_page' %}"
                             hx-target="#UserSettingsForm"
+                            hx-swap="outerHTML"
                             hx-trigger="change"
-                            method="POST"
-                            class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                            hx-include="this"
+                            method="POST">
                             {% csrf_token %}
 
-                            <div id="UserSettingsForm">
-                                {% include 'core/partials/user_settings_partial.html' %}
-                            </div>
+                            {% include 'core/partials/user_settings_partial.html' %}
                         </form>
                     </div>
                 </div>

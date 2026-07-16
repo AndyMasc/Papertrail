@@ -1,0 +1,7 @@
+{% load i18n %}{% autoescape off %}Hello from Papertrail!
+
+{% block content %}{% endblock content %}
+
+Thank you for using Papertrail!
+{{ site_domain_plain }}
+{% endautoescape %}

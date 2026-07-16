@@ -58,8 +58,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
         expiring_cutoff = now + timedelta(days=30)
 
+        # Base active queryset for this specific user
         active_records_qs = Record.objects.for_user(user).active()
 
+        # Calculate high-level aggregates
         stats = active_records_qs.aggregate(
             active_count=Count("id"),
             monthly_expenses=Sum(
@@ -69,6 +71,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ),
         )
 
+        # Pull the primary working slice ordered by most recent activity
         recent_and_expiring = list(
             active_records_qs.filter(
                 Q(expiry_date__gte=now, expiry_date__lte=expiring_cutoff)
@@ -87,26 +90,23 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             )[:9]
         )
 
+        # 1. Filter out the subset that specifically expires within 30 days
         expiring_soon = [
             r
             for r in recent_and_expiring
             if r.expiry_date and now.date() <= r.expiry_date <= expiring_cutoff.date()
         ][:4]
-        recent_records = [
-            r
-            for r in recent_and_expiring
-            if not (
-                r.expiry_date and now.date() <= r.expiry_date <= expiring_cutoff.date()
-            )
-        ][:5]
 
+        # 2. FIXED: Grab the top 5 most recently edited/added records unconditionally
+        # so newly made records show up here instantly even if they expire soon.
+        recent_records = recent_and_expiring[:5]
+
+        # Hydrate the UI context payload
         context["active_records_count"] = stats["active_count"]
         context["records"] = recent_records
-
         context["expiring_soon"] = expiring_soon
         context["expiring_soon_count"] = len(expiring_soon)
         context["monthly_expenses"] = stats["monthly_expenses"] or 0
-
         context["orphaned_document_count"] = (
             DocumentData.objects.for_user(user).orphaned().count()
         )
@@ -140,7 +140,9 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
 
     def form_invalid(self, form):
         if self.request.headers.get("HX-Request"):
-            return render(
+            response = render(
                 self.request, "core/partials/user_settings_partial.html", {"form": form}
             )
+            response.status_code = 422
+            return response
         return super().form_invalid(form)

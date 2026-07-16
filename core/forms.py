@@ -24,10 +24,10 @@ class PasswordlessLoginForm(LoginForm):
 
 
 class UpdateUserSettingsForm(forms.ModelForm):
-    auto_archive_expired_records = forms.BooleanField(required=False)
-    auto_delete_archived_records = forms.BooleanField(required=False)
-
     class Meta:
         model = UserSettings
-        fields = "__all__"
-        exclude = ("user",)
+        fields = [
+            "auto_archive_expired_records",
+            "auto_delete_archived_records",
+            "expiring_notifications_advance_time",
+        ]

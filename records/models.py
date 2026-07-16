@@ -198,6 +198,8 @@ class Record(models.Model):
         db_index=True,
     )
 
+    expiry_notification_sent = models.BooleanField(default=False, db_index=True)
+
     objects = RecordManager()
 
     class Meta:

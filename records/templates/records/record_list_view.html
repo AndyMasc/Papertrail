@@ -28,7 +28,7 @@
                 </div>
                 <input
                     class="w-full bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-900 py-3 pl-10 pr-4 text-xs rounded-2xl dark:text-white text-black placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-800 transition-all shadow-3xs"
-                    placeholder="Search records (supports natural language date syntax)"
+                    placeholder="Search records..."
                     id="search" type="search" name="search"
                     hx-get="{% url 'records:view_all_records' %}"
                     hx-trigger="input changed delay:300ms, keyup[key=='Enter']"

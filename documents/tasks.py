@@ -187,6 +187,8 @@ def delete_document(filepath: str) -> None:
             logger.error("Failed to delete R2 object %s: %s", filepath, e)
 
 
+# Scheduled tasks
+#
 @stashed_task
 def delete_orphaned_documents() -> None:
     grace_period = timezone.now() - timedelta(days=1)
