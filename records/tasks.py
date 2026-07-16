@@ -98,10 +98,7 @@ def send_record_expiry_emails() -> None:
         user_records_map.setdefault(user, []).append(record)
 
         if user not in user_settings_cache:
-            is_cached = "_settings_cache" in user.__dict__
-            user_settings_cache[user] = (
-                user.__dict__.get("_settings_cache") if is_cached else None
-            )
+            user_settings_cache[user] = getattr(user, "settings", None)
 
     if notifications_to_create:
         Notification.objects.bulk_create(notifications_to_create)
@@ -118,7 +115,9 @@ def send_record_expiry_emails() -> None:
         for user, records in user_records_map.items():
             user_settings = user_settings_cache.get(user)
 
-            if user_settings and user_settings.auto_archive_expired_records:
+            if user_settings and getattr(
+                user_settings, "auto_archive_expired_records", False
+            ):
                 auto_archive_msg = (
                     "Since you have enabled auto-archiving, your records will be "
                     "automatically archived once the expiry passes."
