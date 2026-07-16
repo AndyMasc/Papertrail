@@ -241,10 +241,10 @@
                     setTimeout(() => {
                         selectedFile = null;
                         fileInput.value = '';
-                        
+
                         const notesElem = document.getElementById('docNotes');
-                        if (notesElem) notesElem.value = ''; 
-                        
+                        if (notesElem) notesElem.value = '';
+
                         fileStatus.innerHTML = '';
                         setStatus('File uploaded. Add another or click "Done adding files".', 'success');
                         buttonText.textContent = 'Upload and continue';
