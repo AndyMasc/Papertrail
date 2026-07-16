@@ -7,20 +7,29 @@ from django.db.models import F, Q
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 from django_qstash import stashed_task
 
 from core.models import Notification
-from core.tasks import send_background_email
-from webpush import send_user_notification
+from core.services import send_push_notification_sync, send_email_notification_sync
 from .models import Record
 
 logger = logging.getLogger(__name__)
 
 
 @stashed_task
+def fire_single_webpush(user_id: int, payload: dict) -> None: # Async worker task wrapper around the webpush service execution.
+    User = get_user_model()
+    try:
+        user = User.objects.get(id=user_id)
+        send_push_notification_sync(user=user, payload=payload)
+    except User.DoesNotExist:
+        logger.error(f"Abandoning webpush task. User ID {user_id} not found.")
+
+
+@stashed_task
 def archive_expired_records() -> None:
     today = timezone.now().date()
-
     active_expired_records = Record.objects.filter(
         expiry_date__lt=today,
         expiry_date__gte=F("date_added"),
@@ -35,7 +44,6 @@ def archive_expired_records() -> None:
 @stashed_task
 def delete_2month_archived_records() -> None:
     two_months_ago = timezone.now() - timedelta(days=60)
-
     two_month_expired_records = Record.objects.filter(
         last_edited__lt=two_months_ago,
         expiry_date__gte=F("date_added"),
@@ -59,26 +67,11 @@ def send_expiry_notifications() -> None:
             expiry_date__gte=F("date_added"),
         )
         .filter(
-            Q(
-                user__settings__expiring_notifications_advance_time="1",
-                expiry_date__lte=today + timedelta(days=1),
-            )
-            | Q(
-                user__settings__expiring_notifications_advance_time="3",
-                expiry_date__lte=today + timedelta(days=3),
-            )
-            | Q(
-                user__settings__expiring_notifications_advance_time="7",
-                expiry_date__lte=today + timedelta(days=7),
-            )
-            | Q(
-                user__settings__expiring_notifications_advance_time="14",
-                expiry_date__lte=today + timedelta(days=14),
-            )
-            | Q(
-                user__settings__expiring_notifications_advance_time="30",
-                expiry_date__lte=today + timedelta(days=30),
-            )
+            Q(user__settings__expiring_notifications_advance_time="1", expiry_date__lte=today + timedelta(days=1))
+            | Q(user__settings__expiring_notifications_advance_time="3", expiry_date__lte=today + timedelta(days=3))
+            | Q(user__settings__expiring_notifications_advance_time="7", expiry_date__lte=today + timedelta(days=7))
+            | Q(user__settings__expiring_notifications_advance_time="14", expiry_date__lte=today + timedelta(days=14))
+            | Q(user__settings__expiring_notifications_advance_time="30", expiry_date__lte=today + timedelta(days=30))
             | Q(user__settings__isnull=True, expiry_date__lte=today + timedelta(days=7))
         )
         .select_related("user__settings")
@@ -86,6 +79,7 @@ def send_expiry_notifications() -> None:
 
     notifications_to_create = []
     user_records_map = {}
+    user_object_map = {}
     user_settings_cache = {}
 
     for record in expiring_records:
@@ -96,61 +90,47 @@ def send_expiry_notifications() -> None:
                 message=f"Your record '{record.title}' is expiring on {record.expiry_date}.",
             )
         )
-        user_records_map.setdefault(user, []).append(record)
+        
+        user_records_map.setdefault(user.id, []).append(record)
+        if user.id not in user_object_map:
+            user_object_map[user.id] = user
 
-        if user not in user_settings_cache:
-            user_settings_cache[user] = getattr(user, "settings", None)
+        if user.id not in user_settings_cache:
+            user_settings_cache[user.id] = getattr(user, "settings", None)
 
     if notifications_to_create:
         Notification.objects.bulk_create(notifications_to_create)
 
         record_ids = [r.id for r in expiring_records]
         Record.objects.filter(id__in=record_ids).update(expiry_notification_sent=True)
-
         logger.info("Created %d DB notifications.", len(notifications_to_create))
 
         site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
         parsed_url = urlparse(site_url)
         site_domain_plain = parsed_url.netloc
 
-        for user, records in user_records_map.items():
-            # Send push notifications
+        for user_id, records in user_records_map.items():
+            user = user_object_map[user_id]
+            
             payload = {
                 "head": "Record Expiry Alert",
                 "body": f"You have {len(records)} records expiring soon.",
-                # "icon": "https://yourdomain.com/static/icon.png",
-                # "url": f"{site_url.rstrip('/')}{reverse('core:dashboard')}"
             }
-            try:
-                send_user_notification(user=user, payload=payload, ttl=1000)
-                logger.info(f"Dispatched push notification to {user.email}")
-            except Exception as e:
-                logger.error(f"Failed to send push to {user.email}: {e}")
+            fire_single_webpush.delay(user_id=user.id, payload=payload)
 
-            # Send email notifications
-            user_settings = user_settings_cache.get(user)
-
-            if user_settings and getattr(
-                user_settings, "auto_archive_expired_records", False
-            ):
-                auto_archive_msg = (
-                    "Since you have enabled auto-archiving, your records will be "
-                    "automatically archived once the expiry passes."
-                )
-            else:
-                auto_archive_msg = ""
+            user_settings = user_settings_cache.get(user_id)
+            auto_archive_msg = (
+                "Since you have enabled auto-archiving, your records will be automatically archived once the expiry passes."
+                if user_settings and getattr(user_settings, "auto_archive_expired_records", False)
+                else ""
+            )
 
             action_url = f"{site_url.rstrip('/')}{reverse('core:dashboard')}"
-
             MAX_DISPLAY_RECORDS = 5
             total_records_count = len(records)
 
-            if total_records_count > MAX_DISPLAY_RECORDS:
-                display_records = records[:MAX_DISPLAY_RECORDS]
-                remaining_count = total_records_count - MAX_DISPLAY_RECORDS
-            else:
-                display_records = records
-                remaining_count = 0
+            display_records = records[:MAX_DISPLAY_RECORDS]
+            remaining_count = max(0, total_records_count - MAX_DISPLAY_RECORDS)
 
             context_payload = {
                 "user": user,
@@ -163,19 +143,14 @@ def send_expiry_notifications() -> None:
                 "site_domain_plain": site_domain_plain,
             }
 
-            text_body = render_to_string(
-                "notifications/expiring_record_email.txt", context_payload
-            )
-            html_body = render_to_string(
-                "notifications/expiring_record_email.html", context_payload
-            )
+            text_body = render_to_string("notifications/expiring_record_email.txt", context_payload)
+            html_body = render_to_string("notifications/expiring_record_email.html", context_payload)
 
-            send_background_email.delay(
+            send_email_notification_sync(
+                user=user,
                 subject="Expiring Records on Papertrail",
-                message=text_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_body,
+                text_body=text_body,
+                html_body=html_body
             )
 
-        logger.info("Dispatched background emails to %d users.", len(user_records_map))
+        logger.info("Successfully scheduled notices for %d unique users.", len(user_records_map))
