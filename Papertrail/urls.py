@@ -8,6 +8,9 @@ def forbidden_view(request, *args, **kwargs):
 
 
 urlpatterns = [
+    # Landing page
+    path("", include("core.urls")),
+    # Admin URLs
     path("admin/", admin.site.urls),
     path("__reload__/", include("django_browser_reload.urls")),  # NOT FOR PRODUCTION
     path("qstash/webhook/", include("django_qstash.urls")),
@@ -17,7 +20,8 @@ urlpatterns = [
     path("accounts/password/reset/", forbidden_view),
     # Include allauth normally for everything else
     path("accounts/", include("allauth.urls")),
-    path("", include("core.urls")),
     path("documents/", include("documents.urls")),
     path("records/", include("records.urls")),
+    # Webpush
+    path("webpush/", include("webpush.urls")),
 ]

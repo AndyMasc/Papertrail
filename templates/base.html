@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
     <head>
@@ -39,7 +40,9 @@
         {% load tailwind_tags %}
         {% tailwind_css %}
         {% load form_tags %}
-        {% load static %}
+
+        {% load webpush_notifications %}
+        {% webpush_header %}
 
         <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
         <link rel="icon" href="{% static 'favicon-package/favicon.svg' %}" type="image/svg+xml" sizes="any">

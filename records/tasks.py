@@ -11,6 +11,7 @@ from django_qstash import stashed_task
 
 from core.models import Notification
 from core.tasks import send_background_email
+from webpush import send_user_notification
 from .models import Record
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def delete_2month_archived_records() -> None:
 
 
 @stashed_task
-def send_record_expiry_emails() -> None:
+def send_expiry_notifications() -> None:
     today = timezone.now().date()
 
     expiring_records = (
@@ -113,6 +114,20 @@ def send_record_expiry_emails() -> None:
         site_domain_plain = parsed_url.netloc
 
         for user, records in user_records_map.items():
+            # Send push notifications
+            payload = {
+                "head": "Record Expiry Alert",
+                "body": f"You have {len(records)} records expiring soon.",
+                # "icon": "https://yourdomain.com/static/icon.png",
+                # "url": f"{site_url.rstrip('/')}{reverse('core:dashboard')}"
+            }
+            try:
+                send_user_notification(user=user, payload=payload, ttl=1000)
+                logger.info(f"Dispatched push notification to {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send push to {user.email}: {e}")
+
+            # Send email notifications
             user_settings = user_settings_cache.get(user)
 
             if user_settings and getattr(
@@ -155,7 +170,7 @@ def send_record_expiry_emails() -> None:
                 "notifications/expiring_record_email.html", context_payload
             )
 
-            send_background_email(
+            send_background_email.delay(
                 subject="Expiring Records on Papertrail",
                 message=text_body,
                 from_email=settings.DEFAULT_FROM_EMAIL,

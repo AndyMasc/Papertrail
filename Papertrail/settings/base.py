@@ -2,6 +2,7 @@ from pathlib import Path
 
 import environ
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
@@ -61,6 +62,8 @@ INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "documents.apps.DocumentsConfig",
     "records.apps.RecordsConfig",
+    # Webpush
+    "webpush",
 ]
 
 MIDDLEWARE = [
@@ -333,3 +336,10 @@ LOGGING = {
 DJANGO_QSTASH_QUEUE_NAME = "default"
 DJANGO_QSTASH_MAX_RETRIES = 3
 DJANGO_QSTASH_BACKOFF_FACTOR = 2
+
+# Webpush
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": env("WEB_PUSH_PUBLIC_KEY"),
+    "VAPID_PRIVATE_KEY": env("WEB_PUSH_PRIVATE_KEY"),
+    "VAPID_ADMIN_EMAIL": "admin@example.com",
+}
