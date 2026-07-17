@@ -302,7 +302,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
                 form.instance.associated_record = record
 
         form.save()
-        messages.success(self.request, "Attached successfully.")
+        messages.success(self.request, "Updated successfully.")
 
         if self.request.headers.get("HX-Request") == "true":
             if "associated_record" in self.request.POST:
@@ -318,7 +318,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return redirect("documents:view_document", pk=self.object.pk)
 
     def form_invalid(self, form):
-        messages.error(self.request, "An error occured while attaching the file.")
+        messages.error(self.request, "An error occured.")
         if self.request.headers.get("HX-Request") == "true":
             return self.render_to_response(self.get_context_data(form=form), status=422)
         return super().form_invalid(form)

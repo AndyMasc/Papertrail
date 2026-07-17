@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Sum
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -17,6 +17,12 @@ from records.models import Record
 
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
+
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from webpush.views import save_info
+from webpush.models import SubscriptionInfo
 
 
 def index(request):
@@ -45,6 +51,24 @@ def health_check(request):
     )
 
 
+@csrf_exempt
+@require_POST
+def safe_webpush_save_info(request):
+    try:
+        post_data = json.loads(request.body.decode("utf-8"))
+        endpoint = post_data.get("subscription", {}).get("endpoint")
+
+        if endpoint:
+            existing_subs = SubscriptionInfo.objects.filter(endpoint=endpoint)
+
+            if existing_subs.exists():
+                existing_subs.delete()
+    except Exception:
+        pass
+
+    return save_info(request)
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
@@ -54,7 +78,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if not webpush_enabled and user.settings.enable_push_notifications:
             messages.warning(
                 self.request,
-                "Subscribe to push messagess in settings to recieve push notifications.",
+                "Subscribe to push messages in settings to recieve push notifications.",
             )
         elif webpush_enabled and not user.settings.enable_push_notifications:
             messages.warning(
@@ -150,11 +174,15 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, "Settings saved successfully.")
 
         if self.request.headers.get("HX-Request"):
-            return render(
-                self.request,
-                "core/partials/user_settings_partial.html",
-                {"form": form},
+            response = HttpResponse(status=204)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "djangoMessages": [
+                        {"message": "Settings saved successfully.", "level": 25}
+                    ]
+                }
             )
+            return response
         return super().form_valid(form)
 
     def form_invalid(self, form):
@@ -165,5 +193,12 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
                 self.request, "core/partials/user_settings_partial.html", {"form": form}
             )
             response.status_code = 422
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "djangoMessages": [
+                        {"message": "An unresolved error exists.", "level": 40}
+                    ]
+                }
+            )
             return response
         return super().form_invalid(form)

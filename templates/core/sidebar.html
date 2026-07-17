@@ -6,6 +6,19 @@
     <div class="relative bg-black">
 
         <div
+            x-show="open"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed inset-0 z-40 bg-zinc-900/15 dark:bg-zinc-900/40 backdrop-blur-sm sm:hidden"
+            @click="open = false"
+            aria-hidden="true">
+        </div>
+
+        <div
             class="fixed top-0 left-0 z-50 w-64 h-screen transition-all duration-300 ease-out"
             :class="open ? 'translate-x-0 shadow-2xl shadow-zinc-950/10' : '-translate-x-full'"
             x-cloak

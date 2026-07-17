@@ -12,6 +12,7 @@ from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django_filters.views import FilterView
 from django.http import HttpResponse
+import json
 
 from django.contrib import messages
 from documents.models import DocumentData, DocumentStatus
@@ -80,12 +81,16 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         self.object = form.save()
 
         if self.request.headers.get("HX-Request") == "true":
-            return render(
-                self.request,
-                "records/partials/record_form_partial.html",
-                self.get_context_data(form=form),
+            response = HttpResponse(status=204)
+            response["HX-Trigger"] = json.dumps(
+                {
+                    "showToast": {
+                        "text": "Record updated successfully.",
+                        "tags": "success",
+                    }
+                }
             )
-        return super().form_valid(form)
+            return response
 
     def form_invalid(self, form):
         messages.error(self.request, "An error was left in a record")

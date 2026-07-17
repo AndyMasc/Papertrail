@@ -42,7 +42,7 @@ class HtmxMessageMiddleware:
 
             for message in storage:
                 messages_list.append(
-                    {"message": str(message.message), "tags": message.tags}
+                    {"message": str(message.message), "level": message.level}
                 )
 
             if messages_list:

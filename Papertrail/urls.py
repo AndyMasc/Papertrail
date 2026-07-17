@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.http import HttpResponseForbidden
 from django.urls import include, path
+from core.views import safe_webpush_save_info
 
 
 def forbidden_view(request, *args, **kwargs):
@@ -23,5 +24,8 @@ urlpatterns = [
     path("documents/", include("documents.urls")),
     path("records/", include("records.urls")),
     # Webpush
+    path(
+        "webpush/save_information", safe_webpush_save_info, name="save_webpush_info"
+    ),  # Custom URL to catch webpush POST before sent to fix webpush MultipleObjectsReturned error.
     path("webpush/", include("webpush.urls")),
 ]

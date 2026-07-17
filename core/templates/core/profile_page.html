@@ -2,10 +2,12 @@
 {% load i18n %}
 {% load widget_tweaks %}
 
-{% load webpush_notifications %}
-{% webpush_header %}
-
 {% block title %}{% trans "Profile Settings" %}{% endblock %}
+
+{% block extra_head %}
+    {% load webpush_notifications %}
+    {% webpush_header %}
+{% endblock %}
 
 {% block content %}
     <div
@@ -194,7 +196,7 @@
                             <p class="text-[11px] text-zinc-400 dark:text-zinc-500">
                                 Your account has {{ webpush_subscription_count }} active subscriptions.<br>
                                 {% if webpush_enabled %}
-                                    You must revoke them on the browser and device you subscribed on.
+                                    Revoke them on the browser and device you subscribed on.
                                 {% endif %}
                             </p>
                         </div>
