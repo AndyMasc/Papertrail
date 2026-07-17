@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
 from webpush import send_user_notification
+from django.templatetags.static import static
 
 from core.tasks import send_background_email, fire_single_webpush
 
@@ -41,11 +42,17 @@ def build_site_context() -> dict:
         },
     }
 
+    
+base_payload = {
+    "icon": static("favicon-package/icon-512.png"),
+    "url" : settings.SITE_URL
+}
 
 def build_expiry_webpush_payload(record_count: int) -> dict:
     return {
+        **base_payload,
         "head": "Record Expiry Alert",
-        "body": f"You have {record_count} record{'s' if record_count != 1 else ''} expiring soon.",
+        "body": f"You have {record_count} record{'s' if record_count > 1 else ''} expiring soon.",
     }
 
 
@@ -95,7 +102,6 @@ def send_email_notification(
 
 
 def _user_can_receive_push(user: User) -> bool:
-    """Check if user has push notifications enabled and has subscriptions."""
     if not hasattr(user, "settings"):
         return False
     if not user.settings.enable_push_notifications:

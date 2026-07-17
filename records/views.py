@@ -11,6 +11,7 @@ from django.utils.functional import cached_property
 from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django_filters.views import FilterView
+from django.http import HttpResponse
 
 from django.contrib import messages
 from documents.models import DocumentData, DocumentStatus
@@ -76,8 +77,8 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
     @transaction.atomic
     def form_valid(self, form):
         messages.success(self.request, "Record updated successfully.")
-
         self.object = form.save()
+        
         if self.request.headers.get("HX-Request") == "true":
             return render(
                 self.request,
@@ -265,6 +266,12 @@ class ArchiveRecord(LoginRequiredMixin, View):
         )
         record.is_active = False
         record.save(update_fields=["is_active"])
+        
+        if request.headers.get("HX-Request") == "true":
+            response = HttpResponse(status=200)
+            response["HX-Trigger"] = "recordChanged"
+            return response
+            
         return redirect("records:view_all_records")
 
 
