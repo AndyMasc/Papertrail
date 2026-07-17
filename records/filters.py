@@ -96,7 +96,7 @@ class RecordFilter(django_filters.FilterSet):
         if value:
             now = timezone.now()
             return queryset.filter(
-                date_added__month=now.month,
-                date_added__year=now.year,
+                transaction_date__month=now.month,
+                transaction_date__year=now.year,
             )
         return queryset
