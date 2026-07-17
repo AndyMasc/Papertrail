@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.views.generic import TemplateView, UpdateView
 from django.contrib import messages
+from webpush.models import PushInformation
 
 from documents.models import DocumentData
 from records.models import Record
@@ -46,6 +47,22 @@ def health_check(request):
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        webpush_enabled = PushInformation.objects.filter(user=user).exists()
+        if not webpush_enabled and user.settings.enable_push_notifications:
+            messages.warning(
+                self.request,
+                "Subscribe to push messagess in settings to recieve push notifications.",
+            )
+        elif webpush_enabled and not user.settings.enable_push_notifications:
+            messages.warning(
+                self.request,
+                "Enable push messages in settings to recieve push notifications.",
+            )
+
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -42,11 +42,12 @@ def build_site_context() -> dict:
         },
     }
 
-    
+
 base_payload = {
     "icon": static("favicon-package/icon-512.png"),
-    "url" : settings.SITE_URL
+    "url": settings.SITE_URL,
 }
+
 
 def build_expiry_webpush_payload(record_count: int) -> dict:
     return {

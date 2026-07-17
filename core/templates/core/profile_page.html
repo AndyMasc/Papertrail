@@ -191,7 +191,12 @@
                     <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-800/30 p-6 flex items-center justify-between shadow-xs">
                         <div class="space-y-0.5">
                             <h4 class="text-xs font-medium text-zinc-900 dark:text-zinc-200">Push notifications</h4>
-                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500">Each subscription recieves a notification.</p>
+                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500">
+                                Your account has {{ webpush_subscription_count }} active subscriptions.<br>
+                                {% if webpush_enabled %}
+                                    You must revoke them on the browser and device you subscribed on.
+                                {% endif %}
+                            </p>
                         </div>
                         <div>
                             {% webpush_button with_class="border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-[11px] font-medium px-4 py-2 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition shadow-xs" %}
