@@ -163,7 +163,7 @@
                                                 {% include "documents/partials/record_list_partial.html" %}
                                             </div>
 
-                                            <div class="flex items-center justify-end gap-2 p-4 bg-zinc-50 dark:bg-zinc-800/30 border-t border-zinc-100 dark:border-zinc-800/60">
+                                            <div class="flex items-center justify-end gap-2 p-4 border-t border-zinc-100 dark:border-zinc-800/60">
                                                 <button @click="modalOpen=false" type="button" class="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-150 cursor-pointer">
                                                     Cancel
                                                 </button>
@@ -222,3 +222,5 @@
 
         </div>
 {% endblock %}
+
+{% include 'core/pagination_controls.html' %}

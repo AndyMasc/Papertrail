@@ -3,17 +3,17 @@ import logging
 import os
 import uuid
 
-from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
-from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 from django.views.generic import DeleteView, UpdateView
 from django_filters.views import FilterView
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 from records.models import Record
 
@@ -21,12 +21,10 @@ from .filters import DocumentFilter
 from .forms import DocumentUpdateForm, R2UploadForm
 from .models import DocumentData, DocumentStatus
 from .storage import (
-    BUCKET,
     gatekeeper_validate_r2_object,
     generate_presigned_post,
     generate_read_presigned_url,
     generate_upload_key,
-    get_s3_client,
     verify_r2_object_exists,
 )
 
@@ -191,47 +189,47 @@ class ConfirmUploadView(LoginRequiredMixin, View):
         if not document_id or not key:
             return JsonResponse({"error": "Missing document_id or key."}, status=400)
 
-        try:
-            document = DocumentData.objects.select_for_update().get(
-                id=document_id,
-                user=request.user,
-            )
-        except DocumentData.DoesNotExist:
-            return JsonResponse({"error": "Document not found."}, status=404)
-
-        if document.status != DocumentStatus.PENDING_UPLOAD:
-            return JsonResponse(
-                {"error": f"Unexpected status: {document.status}."},
-                status=409,
-            )
-
-        if document.filepath != key:
-            logger.warning(
-                "Key mismatch for doc %s: expected=%s, received=%s",
-                document_id,
-                document.filepath,
-                key,
-            )
-            return JsonResponse({"error": "Key mismatch."}, status=400)
-
-        if not verify_r2_object_exists(key):
-            document.status = DocumentStatus.ERROR
-            document.save(update_fields=["status"])
-            return JsonResponse({"error": "File not found in storage."}, status=404)
-
-        validation = gatekeeper_validate_r2_object(key)
-        if not validation["valid"]:
-            document.status = DocumentStatus.ERROR
-            document.notes = (
-                (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
-            ).strip()
-            document.save(update_fields=["status", "notes"])
-            logger.warning(
-                "Gatekeeper rejected doc %s: %s", document_id, validation["error"]
-            )
-            return JsonResponse({"error": validation["error"]}, status=422)
-
         with transaction.atomic():
+            try:
+                document = DocumentData.objects.select_for_update().get(
+                    id=document_id,
+                    user=request.user,
+                )
+            except DocumentData.DoesNotExist:
+                return JsonResponse({"error": "Document not found."}, status=404)
+
+            if document.status != DocumentStatus.PENDING_UPLOAD:
+                return JsonResponse(
+                    {"error": f"Unexpected status: {document.status}."},
+                    status=409,
+                )
+
+            if document.filepath != key:
+                logger.warning(
+                    "Key mismatch for doc %s: expected=%s, received=%s",
+                    document_id,
+                    document.filepath,
+                    key,
+                )
+                return JsonResponse({"error": "Key mismatch."}, status=400)
+
+            if not verify_r2_object_exists(key):
+                document.status = DocumentStatus.ERROR
+                document.save(update_fields=["status"])
+                return JsonResponse({"error": "File not found in storage."}, status=404)
+
+            validation = gatekeeper_validate_r2_object(key)
+            if not validation["valid"]:
+                document.status = DocumentStatus.ERROR
+                document.notes = (
+                    (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
+                ).strip()
+                document.save(update_fields=["status", "notes"])
+                logger.warning(
+                    "Gatekeeper rejected doc %s: %s", document_id, validation["error"]
+                )
+                return JsonResponse({"error": validation["error"]}, status=422)
+
             document.status = DocumentStatus.UPLOADED
             document.save(update_fields=["status"])
 
@@ -245,13 +243,18 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
     context_object_name = "document"
 
     def get_template_names(self):
-        if self.request.headers.get("HX-Target") == "search-results":
+        if self.request.headers.get("HX-Target") in [
+            "search-results",
+            "query-results-container",
+        ]:
             return ["documents/partials/record_list_partial.html"]
+
         if self.request.headers.get("HX-Target") in [
             "document-form-container",
             "document-metadata-form",
         ]:
             return ["documents/partials/document_form_partial.html"]
+
         return [self.template_name]
 
     def get_queryset(self):
@@ -260,15 +263,33 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
-        context["records"] = self.search_records()
+
+        records_list = self.search_records()
+        paginator = Paginator(records_list, 5)
+        page = self.request.GET.get("page", 1)
+
+        try:
+            page_obj = paginator.page(page)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(paginator.num_pages)
+
+        context["records"] = page_obj.object_list
+        context["page_obj"] = page_obj
+        context["is_paginated"] = page_obj.has_other_pages()
+
         return context
 
     def search_records(self):
-        queryset = Record.objects.for_user(self.request.user).active()
+        queryset = (
+            Record.objects.for_user(self.request.user).active().only("id", "title")
+        )
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             queryset = queryset.smart_search(search_query)
-        return queryset[:20]
+
+        return queryset
 
     @transaction.atomic
     def form_valid(self, form):
@@ -281,13 +302,23 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
                 form.instance.associated_record = record
 
         form.save()
+        messages.success(self.request, "Attached successfully.")
+
         if self.request.headers.get("HX-Request") == "true":
             if "associated_record" in self.request.POST:
-                return HttpResponse(status=204, headers={"HX-Refresh": "true"})
+                redirect_url = reverse(
+                    "documents:view_document", kwargs={"pk": self.object.pk}
+                )
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = redirect_url
+                return response
+
             return HttpResponse(status=204)
+
         return redirect("documents:view_document", pk=self.object.pk)
 
     def form_invalid(self, form):
+        messages.error(self.request, "An error occured while attaching the file.")
         if self.request.headers.get("HX-Request") == "true":
             return self.render_to_response(self.get_context_data(form=form), status=422)
         return super().form_invalid(form)
@@ -344,43 +375,3 @@ class AddSupportDocuments(BaseR2UploadView):
     def post(self, request, record_id):
         get_object_or_404(Record, pk=record_id, user=request.user)
         return self._handle_presign_request(request, record_id=record_id)
-
-
-class StreamDocumentView(LoginRequiredMixin, View):
-    def get(self, request, pk):
-        document = get_object_or_404(DocumentData, pk=pk, user=request.user)
-
-        if not document.filepath:
-            raise Http404("Document has no file.")
-
-        try:
-            s3_client = get_s3_client()
-            response = s3_client.get_object(Bucket=BUCKET, Key=document.filepath)
-        except ClientError as e:
-            logger.error("Failed to stream document %s: %s", pk, e)
-            raise Http404("Document not found in storage.")
-
-        file_size = response.get("ContentLength", 0)
-        content_type = response.get("ContentType", "application/octet-stream")
-
-        def file_iterator():
-            body = response["Body"]
-            if hasattr(body, "iter_chunks"):
-                for chunk in body.iter_chunks(chunk_size=1024 * 1024):
-                    yield chunk
-            else:
-                while True:
-                    chunk = body.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    yield chunk
-
-        safe_filename = os.path.basename(document.filepath)
-        response = StreamingHttpResponse(
-            file_iterator(),
-            content_type=content_type,
-        )
-        response["Content-Length"] = str(file_size)
-        response["Content-Disposition"] = f'inline; filename="{safe_filename}"'
-        response["Cache-Control"] = "private, max-age=3600"
-        return response

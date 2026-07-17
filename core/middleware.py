@@ -1,7 +1,6 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
 from django.contrib.messages import get_messages
-from django.utils.safestring import SafeString
 
 from django.utils import timezone
 
@@ -33,25 +32,35 @@ class HtmxMessageMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
-        if request.headers.get("HX-Request") == "true":
+        if (
+            request.headers.get("HX-Request") == "true"
+            and "HX-Redirect" not in response
+            and "HX-Refresh" not in response
+        ):
             storage = get_messages(request)
-            for message in storage:
-                msg_data = {"message": str(message.message), "tags": message.tags}
+            messages_list = []
 
+            for message in storage:
+                messages_list.append(
+                    {"message": str(message.message), "tags": message.tags}
+                )
+
+            if messages_list:
                 hx_trigger = response.get("HX-Trigger")
+
+                payload = {"djangoMessages": messages_list}
+
                 if hx_trigger:
                     try:
                         trigger_data = json.loads(hx_trigger)
                         if isinstance(trigger_data, dict):
-                            trigger_data["django-messages"] = msg_data
+                            trigger_data.update(payload)
                             response["HX-Trigger"] = json.dumps(trigger_data)
                     except ValueError:
                         response["HX-Trigger"] = json.dumps(
-                            {hx_trigger: {}, "django-messages": msg_data}
+                            {hx_trigger: {}, "djangoMessages": messages_list}
                         )
                 else:
-                    response["HX-Trigger"] = json.dumps({"django-messages": msg_data})
-
-                break
+                    response["HX-Trigger"] = json.dumps(payload)
 
         return response

@@ -94,19 +94,15 @@
 
     <script>
         document.body.addEventListener('djangoMessages', function(evt) {
-            const messages = evt.detail; // This is the array of messages from the middleware
+            const messages = evt.detail;
 
             messages.forEach(msg => {
-                        // Option A: If your core/toast.html relies on standard JS custom events
                 const toastEvent = new CustomEvent('show-toast', {
                     detail: { message: msg.message, type: msg.tags }
                 });
                 window.dispatchEvent(toastEvent);
-
-                        // Option B: If your core/toast.html uses an Alpine.js global store or dispatch
-                        // you can also trigger it directly like this if needed:
                 if (window.Alpine) {
-                    Alpine.store('toasts', msg.message); // (Adjust to match your toast system variable names)
+                    Alpine.store('toasts', msg.message);
                 }
             });
         });
