@@ -1,5 +1,6 @@
 Papertrail/papertrail_service_account.json
 papertrail_service_account.json
+.ruff_cache
 
 # Environment variables
 .env

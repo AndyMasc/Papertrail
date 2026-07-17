@@ -9,7 +9,6 @@
                 Automatically archive items that have surpassed their expiry date.
             </span>
         </div>
-
         <div class="flex items-center pt-0.5">
             {% render_field form.auto_archive_expired_records class="size-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-transparent cursor-pointer" %}
         </div>
@@ -24,7 +23,6 @@
                 Permanently delete records and associated data after two months in the archive.
             </span>
         </div>
-
         <div class="flex items-center pt-0.5">
             {% render_field form.auto_delete_archived_records class="size-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-transparent cursor-pointer" %}
         </div>
@@ -39,9 +37,10 @@
                 Time before a record expires to send notifications.
             </span>
         </div>
-
         <div class="flex items-center pt-0.5">
-            {% render_field form.expiring_notifications_advance_time class="w-full rounded border-zinc-300 dark:border-zinc-700 text-center text-sm bg-transparent cursor-pointer" %}
+            {% render_field form.expiring_notifications_advance_time class="w-24 rounded border-zinc-300 dark:border-zinc-700 text-center text-sm bg-transparent cursor-pointer px-2 py-1" %}
         </div>
     </div>
 </div>
+
+{% include 'core/toast.html' with is_htmx=True %}

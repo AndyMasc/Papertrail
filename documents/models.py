@@ -81,6 +81,8 @@ class DocumentData(models.Model):
         related_name="documents",
     )
     did_ocr = models.BooleanField(default=False)
+    ocr_retries = models.PositiveSmallIntegerField(default=0)
+    ocr_error = models.TextField(blank=True, default="")
     notes = models.TextField(blank=True, default="")
     file_extension = models.CharField(max_length=10, blank=True, default="")
     file_hash = models.CharField(max_length=64, db_index=True)

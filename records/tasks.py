@@ -1,6 +1,5 @@
 import logging
 from datetime import timedelta
-from urllib.parse import urlparse
 
 from django.conf import settings
 from django.db.models import F, Q
@@ -11,20 +10,17 @@ from django.contrib.auth import get_user_model
 from django_qstash import stashed_task
 
 from core.models import Notification
-from core.services import send_push_notification_sync, send_email_notification_sync
+from core.services.notifications import (
+    build_expiry_email_context,
+    build_expiry_webpush_payload,
+    build_site_context,
+    send_multi_channel_notification,
+)
 from .models import Record
 
 logger = logging.getLogger(__name__)
 
-
-@stashed_task
-def fire_single_webpush(user_id: int, payload: dict) -> None: # Async worker task wrapper around the webpush service execution.
-    User = get_user_model()
-    try:
-        user = User.objects.get(id=user_id)
-        send_push_notification_sync(user=user, payload=payload)
-    except User.DoesNotExist:
-        logger.error(f"Abandoning webpush task. User ID {user_id} not found.")
+User = get_user_model()
 
 
 @stashed_task
@@ -90,7 +86,7 @@ def send_expiry_notifications() -> None:
                 message=f"Your record '{record.title}' is expiring on {record.expiry_date}.",
             )
         )
-        
+
         user_records_map.setdefault(user.id, []).append(record)
         if user.id not in user_object_map:
             user_object_map[user.id] = user
@@ -98,59 +94,54 @@ def send_expiry_notifications() -> None:
         if user.id not in user_settings_cache:
             user_settings_cache[user.id] = getattr(user, "settings", None)
 
-    if notifications_to_create:
-        Notification.objects.bulk_create(notifications_to_create)
+    if not notifications_to_create:
+        return
 
-        record_ids = [r.id for r in expiring_records]
-        Record.objects.filter(id__in=record_ids).update(expiry_notification_sent=True)
-        logger.info("Created %d DB notifications.", len(notifications_to_create))
+    Notification.objects.bulk_create(notifications_to_create)
 
-        site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
-        parsed_url = urlparse(site_url)
-        site_domain_plain = parsed_url.netloc
+    record_ids = [r.id for r in expiring_records]
+    Record.objects.filter(id__in=record_ids).update(expiry_notification_sent=True)
+    logger.info("Created %d DB notifications.", len(notifications_to_create))
 
-        for user_id, records in user_records_map.items():
-            user = user_object_map[user_id]
-            
-            payload = {
-                "head": "Record Expiry Alert",
-                "body": f"You have {len(records)} records expiring soon.",
-            }
-            fire_single_webpush.delay(user_id=user.id, payload=payload)
+    site_context = build_site_context()
+    site_url = site_context["site_url"]
 
-            user_settings = user_settings_cache.get(user_id)
-            auto_archive_msg = (
-                "Since you have enabled auto-archiving, your records will be automatically archived once the expiry passes."
-                if user_settings and getattr(user_settings, "auto_archive_expired_records", False)
-                else ""
-            )
+    for user_id, records in user_records_map.items():
+        user = user_object_map[user_id]
 
-            action_url = f"{site_url.rstrip('/')}{reverse('core:dashboard')}"
-            MAX_DISPLAY_RECORDS = 5
-            total_records_count = len(records)
+        webpush_payload = build_expiry_webpush_payload(len(records))
 
-            display_records = records[:MAX_DISPLAY_RECORDS]
-            remaining_count = max(0, total_records_count - MAX_DISPLAY_RECORDS)
+        user_settings = user_settings_cache.get(user_id)
+        auto_archive_msg = (
+            "Since you have enabled auto-archiving, your records will be automatically archived once the expiry passes."
+            if user_settings and getattr(user_settings, "auto_archive_expired_records", False)
+            else ""
+        )
 
-            context_payload = {
-                "user": user,
-                "records": display_records,
-                "remaining_count": remaining_count,
-                "total_records_count": total_records_count,
-                "auto_archive_msg": auto_archive_msg,
-                "action_url": action_url,
-                "site_url_base": site_url,
-                "site_domain_plain": site_domain_plain,
-            }
+        action_url = f"{site_url.rstrip('/')}{reverse('core:dashboard')}"
+        MAX_DISPLAY_RECORDS = 5
+        total_records_count = len(records)
 
-            text_body = render_to_string("notifications/expiring_record_email.txt", context_payload)
-            html_body = render_to_string("notifications/expiring_record_email.html", context_payload)
+        display_records = records[:MAX_DISPLAY_RECORDS]
+        remaining_count = max(0, total_records_count - MAX_DISPLAY_RECORDS)
 
-            send_email_notification_sync(
-                user=user,
-                subject="Expiring Records on Papertrail",
-                text_body=text_body,
-                html_body=html_body
-            )
+        context = build_expiry_email_context(
+            user=user,
+            records=display_records,
+            remaining_count=remaining_count,
+            total_records_count=total_records_count,
+            auto_archive_msg=auto_archive_msg,
+            action_url=action_url,
+        )
 
-        logger.info("Successfully scheduled notices for %d unique users.", len(user_records_map))
+        send_multi_channel_notification(
+            user=user,
+            subject="Expiring Records on Papertrail",
+            text_body=render_to_string("notifications/expiring_record_email.txt", context),
+            html_body=render_to_string("notifications/expiring_record_email.html", context),
+            webpush_payload=webpush_payload,
+            send_db=True,
+            db_message=f"Your record '{', '.join(r.title for r in records[:3])}' is expiring soon.",
+        )
+
+    logger.info("Successfully scheduled notices for %d unique users.", len(user_records_map))

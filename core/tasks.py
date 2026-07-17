@@ -1,5 +1,13 @@
+import logging
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django_qstash import stashed_task
+from webpush import send_user_notification
+
+logger = logging.getLogger(__name__)
+
+User = get_user_model()
 
 
 @stashed_task
@@ -20,3 +28,16 @@ def send_background_email(
         email.attach_alternative(html_message, "text/html")
 
     email.send()
+
+
+@stashed_task
+def fire_single_webpush(user_id: int, payload: dict, ttl: int = 1000) -> None:
+    """Async worker task wrapper around the webpush service execution."""
+    try:
+        user = User.objects.get(id=user_id)
+        send_user_notification(user=user, payload=payload, ttl=ttl)
+        logger.info(f"Dispatched webpush to {user.email}")
+    except User.DoesNotExist:
+        logger.error(f"Abandoning webpush task. User ID {user_id} not found.")
+    except Exception as e:
+        logger.error(f"Failed webpush delivery to user {user_id}: {e}")

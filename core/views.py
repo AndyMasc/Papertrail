@@ -2,13 +2,14 @@ from datetime import datetime, time, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
-from django.db.models import Count, Q, Sum
+from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.views.generic import TemplateView, UpdateView
+from django.contrib import messages
 
 from documents.models import DocumentData
 from records.models import Record
@@ -58,48 +59,39 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
         expiring_cutoff = now + timedelta(days=30)
 
-        active_records_qs = Record.objects.for_user(user).active()
+        all_user_records = Record.objects.for_user(user)
+        active_records_qs = all_user_records.active()
 
-        stats = active_records_qs.aggregate(
-            active_count=Count("id"),
-            monthly_expenses=Sum(
-                "balance",
-                filter=Q(date_added__gte=start_of_month, date_added__lte=now),
-                default=0,
-            ),
+        active_count = active_records_qs.count()
+
+        monthly_expenses = all_user_records.filter(
+            transaction_date__gte=start_of_month,
+            transaction_date__lte=now,
+            balance__isnull=False
+        ).aggregate(
+            total=Sum("balance")
+        )["total"] or 0
+
+        recent_records = list(
+            active_records_qs.order_by("-last_edited")
+            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited")[:5]
         )
 
-        recent_and_expiring = list(
+        expiring_soon = list(
             active_records_qs.filter(
-                Q(expiry_date__gte=now, expiry_date__lte=expiring_cutoff)
-                | Q(last_edited__isnull=False)
+                expiry_date__gte=now.date(),
+                expiry_date__lte=expiring_cutoff.date()
             )
-            .order_by("-last_edited")
-            .select_related()
-            .only(
-                "id",
-                "title",
-                "merchant",
-                "balance",
-                "expiry_date",
-                "date_added",
-                "last_edited",
-            )[:9]
+            .order_by("expiry_date")
+            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited")
         )
 
-        expiring_soon = [
-            r
-            for r in recent_and_expiring
-            if r.expiry_date and now.date() <= r.expiry_date <= expiring_cutoff.date()
-        ][:4]
-
-        recent_records = recent_and_expiring[:5]
-
-        context["active_records_count"] = stats["active_count"]
+        # Context assignment
+        context["active_records_count"] = active_count
         context["records"] = recent_records
         context["expiring_soon"] = expiring_soon
         context["expiring_soon_count"] = len(expiring_soon)
-        context["monthly_expenses"] = stats["monthly_expenses"] or 0
+        context["monthly_expenses"] = monthly_expenses
         context["orphaned_document_count"] = (
             DocumentData.objects.for_user(user).orphaned().count()
         )
@@ -123,11 +115,13 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
         user_settings.user = self.request.user
         user_settings.save()
 
+        messages.success(self.request, "Settings saved successfully.")
+
         if self.request.headers.get("HX-Request"):
             return render(
                 self.request,
                 "core/partials/user_settings_partial.html",
-                {"form": form, "success": True},
+                {"form": form},
             )
         return super().form_valid(form)
 

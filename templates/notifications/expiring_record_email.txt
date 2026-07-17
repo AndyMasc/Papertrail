@@ -1,7 +1,8 @@
-{% extends "notifications/base_notification.txt" %}
+{% extends "account/email/base_message.txt" %}
 {% load i18n %}
 
 {% block content %}
+{% autoescape off %}
 {% blocktrans count counter=total_records_count %}You have {{ counter }} record expiring soon. If you haven't already, make sure you take action before the expiration date passes:{% plural %}You have {{ counter }} records expiring soon. If you haven't already, make sure you take action before the expiration dates pass:{% endblocktrans %}
 
 {% for r in records %}
@@ -13,5 +14,8 @@
 {% if auto_archive_msg %}
 {{ auto_archive_msg }}
 {% endif %}
+{% if action_url %}
 Review your dashboard items here: {{ action_url }}
+{% endif %}
+{% endautoescape %}
 {% endblock content %}

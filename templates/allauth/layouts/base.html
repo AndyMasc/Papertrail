@@ -93,67 +93,7 @@
             </div>
         {% endif %}
 
-        {% if messages %}
-            <div
-                class="fixed top-6 right-6 z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 p-4 shadow-xl shadow-zinc-200/40 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-900/90 dark:shadow-none"
-                x-data="{ messageVisible: false }"
-                x-init="
-                        setTimeout(() => { messageVisible = true }, 100);
-                        setTimeout(() => { messageVisible = false }, 5000);
-                       "
-                x-show="messageVisible"
-                x-cloak
-                x-transition:enter="transition ease-out duration-500"
-                x-transition:enter-start="translate-x-12 opacity-0 scale-95"
-                x-transition:enter-end="translate-x-0 opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-300"
-                x-transition:leave-start="translate-x-0 opacity-100"
-                x-transition:leave-end="translate-x-12 opacity-0"
-                style="display: none;">
-
-                {% for message in messages %}
-                    <div class="flex items-start gap-3">
-
-                        <div class="flex-shrink-0">
-                            {% if "success" in message.tags %}
-                                <span class="inline-flex rounded-xl bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">
-                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                    </svg>
-                                </span>
-                            {% elif "error" in message.tags or "danger" in message.tags %}
-                                <span class="inline-flex rounded-xl bg-rose-500/10 p-2 text-rose-600 dark:text-rose-400">
-                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                                    </svg>
-                                </span>
-                            {% elif "warning" in message.tags %}
-                                <span class="inline-flex rounded-xl bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
-                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z" />
-                                    </svg>
-                                </span>
-                            {% else %}
-                                <span class="inline-flex rounded-xl bg-zinc-500/10 p-2 text-zinc-600 dark:text-zinc-400">
-                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                                    </svg>
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        <div class="flex-1 space-y-0.5">
-                            <h5 class="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-                                {{ message.tags|title|default:"Notification" }}
-                            </h5>
-                            <p class="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                {{ message }}
-                            </p>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+        {% include 'core/toast.html' %}
 
         <main class="grow flex flex-col justify-center w-full py-8">
             {% block content %} {% endblock content %}
