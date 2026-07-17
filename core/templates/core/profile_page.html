@@ -141,7 +141,7 @@
                     <div class="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 overflow-hidden shadow-xs">
                         <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60">
                             <h3 class="text-xs font-medium text-zinc-900 dark:text-zinc-200">Notifications</h3>
-                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Regardless of these preferences, notifications will always come for required alerts.</p>
+                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Regardless of these preferences, required alerts will always be delivered.</p>
                         </div>
 
                         {# Renders check boxes for Push and Email Notification inside the dedicated context #}
@@ -165,7 +165,7 @@
                                         <label for="{{ form.enable_push_notifications.id_for_label }}" class="text-xs font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
                                             {{ form.enable_push_notifications.label }}
                                         </label>
-                                        <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Receive browser push notifications for all alerts.</span>
+                                        <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Receive push notifications.</span>
                                     </div>
                                     <div class="flex items-center pt-0.5">
                                         {% render_field form.enable_push_notifications class="size-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-transparent cursor-pointer" %}
@@ -177,7 +177,7 @@
                                         <label for="{{ form.enable_email_notifications.id_for_label }}" class="text-xs font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
                                             {{ form.enable_email_notifications.label }}
                                         </label>
-                                        <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Receive email notifications for all alerts.</span>
+                                        <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Receive email notifications.</span>
                                     </div>
                                     <div class="flex items-center pt-0.5">
                                         {% render_field form.enable_email_notifications class="size-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-transparent cursor-pointer" %}
@@ -191,7 +191,7 @@
                     <div class="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 p-6 flex items-center justify-between shadow-xs">
                         <div class="space-y-0.5">
                             <h4 class="text-xs font-medium text-zinc-900 dark:text-zinc-200">Push notifications</h4>
-                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500">Subscribe to push notifications.</p>
+                            <p class="text-[11px] text-zinc-400 dark:text-zinc-500">Each subscription recieves a notification.</p>
                         </div>
                         <div>
                             {% webpush_button with_class="border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-[11px] font-medium px-4 py-2 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 transition shadow-xs" %}
