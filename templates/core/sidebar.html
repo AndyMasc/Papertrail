@@ -59,15 +59,15 @@
                                 x-data="{ workspaceListOpen: $persist(true) }"
                                 class="flex flex-col gap-y-1">
 
-                                    <button
-                                        @click="workspaceListOpen = !workspaceListOpen"
-                                        id="workspaceToggle"
-                                        type="button"
-                                        aria-controls="workspaceList"
-                                        class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150 cursor-pointer">
-                                        <span>Workspace</span>
-                                        <svg
-                                            class="size-2.5 transition-transform duration-200 opacity-60"
+                                <button
+                                    @click="workspaceListOpen = !workspaceListOpen"
+                                    id="workspaceToggle"
+                                    type="button"
+                                    aria-controls="workspaceList"
+                                    class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150 cursor-pointer">
+                                    <span>Workspace</span>
+                                    <svg
+                                        class="size-2.5 transition-transform duration-200 opacity-60"
                                         :class="workspaceListOpen ? 'rotate-90' : 'rotate-180'"
                                         fill="none"
                                         viewBox="0 0 24 24"
@@ -83,11 +83,11 @@
                                         x-collapse
                                         class="space-y-0.5 pt-1">
                                         <li>
-                                    <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 transition-transform duration-150" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                                        </svg>
-                                        <span>Records</span>
+                                            <a href="{% filter_url 'records:view_all_records' is_active='True' %}" class="{% active_link 'records:view_all_records' base_css active_css %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-4 opacity-80 transition-transform duration-150" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+                                                </svg>
+                                                <span>Records</span>
                                             </a>
                                         </li>
                                         <li>
@@ -130,15 +130,15 @@
                                 x-data="{ accountListOpen: true }"
                                 class="flex flex-col gap-y-1">
 
-                                    <button
-                                        @click="accountListOpen = !accountListOpen"
-                                        id="accountToggle"
-                                        type="button"
-                                        aria-controls="accountList"
-                                        class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150 cursor-pointer">
-                                        <span>Account</span>
-                                        <svg
-                                            class="size-2.5 transition-transform duration-200 opacity-60"
+                                <button
+                                    @click="accountListOpen = !accountListOpen"
+                                    id="accountToggle"
+                                    type="button"
+                                    aria-controls="accountList"
+                                    class="flex items-center justify-between w-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400/90 dark:text-zinc-500/90 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors duration-150 cursor-pointer">
+                                    <span>Account</span>
+                                    <svg
+                                        class="size-2.5 transition-transform duration-200 opacity-60"
                                         :class="accountListOpen ? 'rotate-90' : 'rotate-180'"
                                         fill="none"
                                         viewBox="0 0 24 24"

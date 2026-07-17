@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("documents", "0023_documentdata_idx_doc_orphaned_cleanup_and_more"),
     ]

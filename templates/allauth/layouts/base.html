@@ -59,7 +59,7 @@
 
                     {% url 'account_email' as email_url %}
                     {% if email_url %}
-                            <a href="{{ email_url }}" class="block px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/20 rounded-lg transition-all duration-150">
+                        <a href="{{ email_url }}" class="block px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/20 rounded-lg transition-all duration-150">
                             {% trans "Change Email" %}
                         </a>
                     {% endif %}
