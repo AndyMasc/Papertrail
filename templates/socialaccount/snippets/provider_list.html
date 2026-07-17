@@ -22,8 +22,8 @@
             {% provider_login_url provider process=process scope=scope auth_params=auth_params as href %}
 
             <a class="
-                      btn w-full my-1 rounded-4xl
-                      text-black dark:text-white font-medium bg-zinc-200/30 dark:bg-zinc-800/30 border border-zinc-300 dark:border-zinc-800 hover:bg-zinc-300/50 dark:hover:bg-zinc-800/50 shadow-none"
+                      btn w-full my-1 rounded-2xl
+                      text-zinc-900 dark:text-zinc-100 font-medium bg-zinc-100 dark:bg-zinc-800/30 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-800/50 transition-all duration-150"
                title="{{ provider.name }}"
                href="{{ href }}">
                 {% if provider.id == 'google' %}

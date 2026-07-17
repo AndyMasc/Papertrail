@@ -1,7 +1,7 @@
 <div id="django-messages-toast" {% if is_htmx %}hx-swap-oob="true"{% endif %}>
     {% if messages %}
         <div
-            class="fixed top-6 right-6 z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-zinc-200/80 bg-white/90 p-4 shadow-xl shadow-zinc-200/40 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-900/90 dark:shadow-none"
+            class="fixed top-6 right-6 z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-zinc-200/50 bg-white/90 p-4 shadow-lg shadow-zinc-200/30 backdrop-blur-md dark:border-zinc-800/50 dark:bg-zinc-950/90 dark:shadow-none"
             x-data="{ messageVisible: false }"
             x-init="
                     setTimeout(() => { messageVisible = true }, 100);
@@ -9,12 +9,12 @@
                    "
             x-show="messageVisible"
             x-cloak
-            x-transition:enter="transition ease-out duration-500"
-            x-transition:enter-start="translate-x-12 opacity-0 scale-95"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-x-8 opacity-0 scale-95"
             x-transition:enter-end="translate-x-0 opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-300"
+            x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="translate-x-0 opacity-100"
-            x-transition:leave-end="translate-x-12 opacity-0">
+            x-transition:leave-end="translate-x-8 opacity-0">
 
             {% for message in messages %}
                 <div class="flex items-start gap-3">

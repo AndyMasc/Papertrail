@@ -2,13 +2,37 @@
 
 @import "tailwindcss";
 
-/**
-  * A catch-all path to Django template files, JavaScript, and Python files
-  * that contain Tailwind CSS classes and will be scanned by Tailwind to generate the final CSS file.
-  *
-  * If your final CSS file is not being updated after code changes, you may want to broaden or narrow
-  * the scope of this path.
-  */
+@theme {
+  --font-sans: 'Geist', system-ui, sans-serif;
+
+  --color-card: oklch(0.985 0 0);
+  --color-card-hover: oklch(0.97 0 0);
+  --color-card-dark: oklch(0.141 0.005 285.823 / 0.4);
+  --color-card-dark-hover: oklch(0.141 0.005 285.823 / 0.5);
+  --color-elevated: oklch(0.141 0.005 285.823 / 0.6);
+  --color-elevated-hover: oklch(0.141 0.005 285.823 / 0.7);
+
+  --radius-card: 0.75rem;
+  --radius-button: 0.75rem;
+  --radius-input: 0.75rem;
+  --radius-pill: 624.937rem;
+  --radius-modal: 1rem;
+
+  --transition-fast: 150ms;
+  --transition-base: 200ms;
+  --transition-slow: 300ms;
+}
+
 @source "../../../**/*.{html,py,js}";
 
 [x-cloak] { display: none !important; }
+
+::-webkit-calendar-picker-indicator {
+  background-color: #f1f1f1;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+::-webkit-datetime-edit-text {
+  color: #555;
+}

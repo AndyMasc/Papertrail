@@ -55,25 +55,10 @@
         <title>{% block title %}Papertrail{% endblock %}</title>
         {% block head %}{% endblock %}
 
-        <style>
-            [x-cloak] {
-                display: none !important;
-            }
-
-            ::-webkit-calendar-picker-indicator {
-                background-color: #f1f1f1;
-                padding: 5px;
-                cursor: pointer;
-                border-radius: 5px;
-            }
-            ::-webkit-datetime-edit-text {
-                color: #555;
-            }
-        </style>
     </head>
 
     <body
-        class="bg-white {% if request.path == '/' %}dark:bg-zinc-950{% else %}dark:bg-zinc-950/98.5{% endif %} text-zinc-950 dark:text-zinc-50 min-h-screen antialiased"
+        class="font-sans bg-zinc-50 dark:bg-[#0c0c0e] text-zinc-950 dark:text-zinc-50 min-h-screen antialiased selection:bg-zinc-900/10 dark:selection:bg-zinc-100/10"
         {% if user.is_authenticated %}
             x-data="{ open: $persist(true) }"
         {% endif %}>
@@ -95,12 +80,12 @@
 
         <main
             {% if user.is_authenticated %}
-                class="transition-all duration-300 ease-in-out"
+                class="transition-all duration-300 ease-out"
                 x-cloak
                 :class="open ? 'sm:pl-64' : 'sm:pl-0'"
             {% endif %}>
 
-            <div class="px-4 {% if user.is_authenticated %}sm:px-6 lg:px-8{% endif %} py-4">
+            <div class="px-4 sm:px-6 lg:px-8 py-6">
                 {% block content %}{% endblock %}
             </div>
         </main>

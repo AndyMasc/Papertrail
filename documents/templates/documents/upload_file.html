@@ -22,7 +22,7 @@
                      x-transition:leave="ease-in duration-200"
                      x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
                      x-transition:leave-end="opacity-0 -translate-y-2 sm:scale-95"
-                     class="relative px-7 py-6 w-full max-w-11/12 rounded-4xl dark:bg-zinc-950 dark:text-white bg-white dark:border-zinc-800 border shadow-lg border-neutral-200 sm:max-w-lg sm:rounded-4xl">
+                     class="relative px-7 py-6 w-full max-w-11/12 rounded-2xl dark:bg-zinc-950 dark:text-white bg-white dark:border-zinc-800 border border-zinc-200 shadow-xl sm:max-w-lg">
                     <div class="flex justify-between items-center pb-3">
                         <h3 class="text-lg font-semibold">Before you begin</h3>
                     </div>
@@ -35,8 +35,8 @@
                         </p>
                     </div>
                     <div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
-                        <button @click="window.location.href='{% url 'core:dashboard' %}'" type="button" class="cursor-pointer dark:border-zinc-500 inline-flex justify-center items-center px-4 py-2 h-10 text-sm font-medium rounded-4xl border transition-colors">Cancel</button>
-                        <button @click="modalOpen=false" type="button" class="cursor-pointer dark:bg-white dark:text-black inline-flex justify-center items-center px-4 py-2 h-10 text-sm font-medium text-white rounded-4xl border border-transparent transition-colors bg-zinc-950 hover:bg-zinc-950/80 dark:hover:bg-white/70">Continue</button>
+                        <button @click="window.location.href='{% url 'core:dashboard' %}'" type="button" class="cursor-pointer inline-flex justify-center items-center px-4 py-2 h-10 text-sm font-medium rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all duration-150 shadow-xs">Cancel</button>
+                        <button @click="modalOpen=false" type="button" class="cursor-pointer inline-flex justify-center items-center px-4 py-2 h-10 text-sm font-medium text-white dark:text-zinc-950 rounded-2xl transition-all duration-150 shadow-xs bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-[0.98]">Continue</button>
                     </div>
                 </div>
             </div>
