@@ -1,5 +1,4 @@
 import logging
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django_qstash import stashed_task

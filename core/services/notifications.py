@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
-from django.urls import reverse
 from webpush import send_user_notification
 
 from core.tasks import send_background_email, fire_single_webpush
@@ -104,6 +103,7 @@ def _user_can_receive_push(user: User) -> bool:
     # Check if user has any push subscriptions
     try:
         from webpush.models import PushInformation
+
         return PushInformation.objects.filter(user=user).exists()
     except Exception:
         return False
@@ -131,7 +131,9 @@ def send_multi_channel_notification(
     db_message: Optional[str] = None,
 ) -> None:
     if send_push and webpush_payload and _user_can_receive_push(user):
-        fire_single_webpush.delay(user_id=user.id, payload=webpush_payload, ttl=webpush_ttl)
+        fire_single_webpush.delay(
+            user_id=user.id, payload=webpush_payload, ttl=webpush_ttl
+        )
 
     if send_email and _user_can_receive_email(user):
         send_email_notification(
@@ -143,4 +145,5 @@ def send_multi_channel_notification(
 
     if send_db and db_message:
         from core.models import Notification
+
         Notification.objects.create(recipient=user, message=db_message)

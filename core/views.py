@@ -64,26 +64,41 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         active_count = active_records_qs.count()
 
-        monthly_expenses = all_user_records.filter(
-            transaction_date__gte=start_of_month,
-            transaction_date__lte=now,
-            balance__isnull=False
-        ).aggregate(
-            total=Sum("balance")
-        )["total"] or 0
+        monthly_expenses = (
+            all_user_records.filter(
+                transaction_date__gte=start_of_month,
+                transaction_date__lte=now,
+                balance__isnull=False,
+            ).aggregate(total=Sum("balance"))["total"]
+            or 0
+        )
 
         recent_records = list(
-            active_records_qs.order_by("-last_edited")
-            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited")[:5]
+            active_records_qs.order_by("-last_edited").only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
+            )[:5]
         )
 
         expiring_soon = list(
             active_records_qs.filter(
-                expiry_date__gte=now.date(),
-                expiry_date__lte=expiring_cutoff.date()
+                expiry_date__gte=now.date(), expiry_date__lte=expiring_cutoff.date()
             )
             .order_by("expiry_date")
-            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited")
+            .only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
+            )
         )
 
         # Context assignment
@@ -126,6 +141,8 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
     def form_invalid(self, form):
+        messages.error(self.request, "An unresolved error exists.")
+
         if self.request.headers.get("HX-Request"):
             response = render(
                 self.request, "core/partials/user_settings_partial.html", {"form": form}

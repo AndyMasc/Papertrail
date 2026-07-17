@@ -12,6 +12,7 @@ from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django_filters.views import FilterView
 
+from django.contrib import messages
 from documents.models import DocumentData, DocumentStatus
 from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
@@ -74,6 +75,8 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
 
     @transaction.atomic
     def form_valid(self, form):
+        messages.success(self.request, "Record updated successfully.")
+
         self.object = form.save()
         if self.request.headers.get("HX-Request") == "true":
             return render(
@@ -84,6 +87,8 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
     def form_invalid(self, form):
+        messages.error(self.request, "An error was left in a record")
+
         return render(
             self.request,
             self.get_template_names()[0],

@@ -125,11 +125,11 @@
                                 hx-include="this"
                                 method="POST">
                                 {% csrf_token %}
-                                
+
                                 {# Hidden fields to preserve Notifications tab settings #}
                                 {{ form.enable_push_notifications.as_hidden }}
                                 {{ form.enable_email_notifications.as_hidden }}
-                                
+
                                 {% include 'core/partials/user_settings_partial.html' %}
                             </form>
                         </div>
@@ -143,7 +143,7 @@
                             <h3 class="text-xs font-medium text-zinc-900 dark:text-zinc-200">Notifications</h3>
                             <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">Regardless of these preferences, notifications will always come for required alerts.</p>
                         </div>
-                        
+
                         {# Renders check boxes for Push and Email Notification inside the dedicated context #}
                         <form
                             hx-post="{% url 'core:profile_page' %}"
@@ -153,12 +153,12 @@
                             hx-include="this"
                             method="POST">
                             {% csrf_token %}
-                            
+
                             {# Hidden fields to preserve Preferences tab settings #}
                             {{ form.auto_archive_expired_records.as_hidden }}
                             {{ form.auto_delete_archived_records.as_hidden }}
                             {{ form.expiring_notifications_advance_time.as_hidden }}
-                            
+
                             <div class="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                                 <div class="flex items-start justify-between px-6 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10 transition-colors">
                                     <div class="flex flex-col pr-4">
