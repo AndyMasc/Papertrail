@@ -239,6 +239,7 @@ class QStashEmailBackendTest(TestCase):
     @patch("core.backends.send_background_email")
     def test_empty_messages(self, mock_task):
         from core.backends import QStashEmailBackend
+
         backend = QStashEmailBackend()
         count = backend.send_messages([])
         self.assertEqual(count, 0)
@@ -251,6 +252,7 @@ class NotificationsServiceTest(TestCase):
 
     def test_build_site_context(self):
         from core.services.notifications import build_site_context
+
         context = build_site_context()
         self.assertIn("site_url", context)
         self.assertIn("site_domain", context)
@@ -261,6 +263,7 @@ class NotificationsServiceTest(TestCase):
     def test_build_site_context_without_site(self):
         from core.services.notifications import build_site_context
         from django.contrib.sites.models import Site
+
         Site.objects.all().delete()
         context = build_site_context()
         self.assertIn("site_url", context)
@@ -268,29 +271,27 @@ class NotificationsServiceTest(TestCase):
 
     def test_build_expiry_webpush_payload(self):
         from core.services.notifications import build_expiry_webpush_payload
+
         payload = build_expiry_webpush_payload(3)
         self.assertEqual(payload["head"], "Record Expiry Alert")
-        self.assertEqual(
-            payload["body"], "You have 3 records expiring soon."
-        )
+        self.assertEqual(payload["body"], "You have 3 records expiring soon.")
 
     def test_build_expiry_webpush_payload_singular(self):
         from core.services.notifications import build_expiry_webpush_payload
+
         payload = build_expiry_webpush_payload(1)
-        self.assertEqual(
-            payload["body"], "You have 1 record expiring soon."
-        )
+        self.assertEqual(payload["body"], "You have 1 record expiring soon.")
 
     def test_user_can_receive_email_default_true(self):
         from core.services.notifications import _user_can_receive_email
-        user_no_settings = User.objects.create_user(
-            username="nosettings", password="pass"
-        )
+
+        user_no_settings = User.objects.create_user(username="nosettings", password="pass")
         result = _user_can_receive_email(user_no_settings)
         self.assertTrue(result)
 
     def test_user_can_receive_email_true(self):
         from core.services.notifications import _user_can_receive_email
+
         self.user.settings.enable_email_notifications = True
         self.user.settings.save()
         result = _user_can_receive_email(self.user)
@@ -298,6 +299,7 @@ class NotificationsServiceTest(TestCase):
 
     def test_user_can_receive_email_false(self):
         from core.services.notifications import _user_can_receive_email
+
         self.user.settings.enable_email_notifications = False
         self.user.settings.save()
         result = _user_can_receive_email(self.user)
@@ -305,14 +307,14 @@ class NotificationsServiceTest(TestCase):
 
     def test_user_can_receive_push_no_settings(self):
         from core.services.notifications import _user_can_receive_push
-        user_no_settings = User.objects.create_user(
-            username="nosettings2", password="pass"
-        )
+
+        user_no_settings = User.objects.create_user(username="nosettings2", password="pass")
         result = _user_can_receive_push(user_no_settings)
         self.assertFalse(result)
 
     def test_user_can_receive_push_disabled(self):
         from core.services.notifications import _user_can_receive_push
+
         self.user.settings.enable_push_notifications = False
         self.user.settings.save()
         result = _user_can_receive_push(self.user)
@@ -320,6 +322,7 @@ class NotificationsServiceTest(TestCase):
 
     def test_build_expiry_email_context(self):
         from core.services.notifications import build_expiry_email_context
+
         context = build_expiry_email_context(
             user=self.user,
             records=[],
@@ -336,10 +339,9 @@ class NotificationsServiceTest(TestCase):
     @patch("core.services.notifications.fire_single_webpush")
     @patch("core.services.notifications.send_email_notification")
     @patch("core.services.notifications._user_can_receive_push", return_value=True)
-    def test_send_multi_channel_both(
-        self, mock_can_push, mock_email, mock_push
-    ):
+    def test_send_multi_channel_both(self, mock_can_push, mock_email, mock_push):
         from core.services.notifications import send_multi_channel_notification
+
         self.user.settings.enable_push_notifications = True
         self.user.settings.enable_email_notifications = True
         self.user.settings.save()
@@ -358,6 +360,7 @@ class NotificationsServiceTest(TestCase):
     @patch("core.services.notifications.send_email_notification")
     def test_send_multi_channel_db_only(self, mock_email):
         from core.services.notifications import send_multi_channel_notification
+
         send_multi_channel_notification(
             user=self.user,
             subject="Test",
@@ -369,15 +372,14 @@ class NotificationsServiceTest(TestCase):
             db_message="DB Test",
         )
         mock_email.assert_not_called()
-        self.assertTrue(
-            Notification.objects.filter(message="DB Test").exists()
-        )
+        self.assertTrue(Notification.objects.filter(message="DB Test").exists())
 
 
 class CoreTasksTest(TestCase):
     @patch("core.tasks.EmailMultiAlternatives")
     def test_send_background_email(self, mock_email_cls):
         from core.tasks import send_background_email
+
         send_background_email(
             subject="Test",
             message="Text body",
@@ -391,14 +393,14 @@ class CoreTasksTest(TestCase):
     @patch("core.tasks.send_user_notification")
     def test_fire_single_webpush(self, mock_send):
         from core.tasks import fire_single_webpush
+
         user = User.objects.create_user(username="pushuser", password="pass")
-        fire_single_webpush(
-            user_id=user.id, payload={"head": "Test"}, ttl=1000
-        )
+        fire_single_webpush(user_id=user.id, payload={"head": "Test"}, ttl=1000)
         mock_send.assert_called_once()
 
     @patch("core.tasks.send_user_notification")
     def test_fire_single_webpush_user_not_found(self, mock_send):
         from core.tasks import fire_single_webpush
+
         fire_single_webpush(user_id=99999, payload={}, ttl=1000)
         mock_send.assert_not_called()

@@ -3,7 +3,7 @@ from django import forms
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import Record, Folder
+from .models import Folder, Record
 
 FILTER_CHOICES_CACHE_TTL = 300
 
@@ -20,9 +20,7 @@ class RecordFilter(django_filters.FilterSet):
     is_active = django_filters.BooleanFilter(
         field_name="is_active",
         lookup_expr="exact",
-        widget=forms.Select(
-            choices=[(None, "All"), (True, "Active"), (False, "Archived")]
-        ),
+        widget=forms.Select(choices=[(None, "All"), (True, "Active"), (False, "Archived")]),
     )
 
     record_type = django_filters.ChoiceFilter(
@@ -47,9 +45,7 @@ class RecordFilter(django_filters.FilterSet):
         method="filter_is_current",
         label="Current Records",
         field_name="is_current",
-        widget=forms.Select(
-            choices=[(None, "All"), (True, "Current"), (False, "Past")]
-        ),
+        widget=forms.Select(choices=[(None, "All"), (True, "Current"), (False, "Past")]),
     )
 
     class Meta:
@@ -60,44 +56,36 @@ class RecordFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
-            folder_filter = self.filters.get("folder") or self.base_filters.get(
-                "folder"
-            )
+            folder_filter = self.filters.get("folder") or self.base_filters.get("folder")
             if folder_filter:
-                user_folders = Folder.objects.filter(
-                    user=self.request.user
-                ).values_list("id", "name")
-                folder_filter.extra["choices"] = [("none", "All folders")] + list(
-                    user_folders
+                user_folders = Folder.objects.filter(user=self.request.user).values_list(
+                    "id", "name"
                 )
+                folder_filter.extra["choices"] = [("none", "All folders")] + list(user_folders)
 
             cache_key = f"rt_{self.request.user.id}"
             user_record_types = cache.get(cache_key)
             if user_record_types is None:
                 user_record_types = set(
-                    Record.objects.filter(
-                        user=self.request.user, is_active=True
-                    ).values_list("record_type", flat=True)
+                    Record.objects.filter(user=self.request.user, is_active=True).values_list(
+                        "record_type", flat=True
+                    )
                 )
                 cache.set(cache_key, user_record_types, FILTER_CHOICES_CACHE_TTL)
 
             all_choices = Record.RecordTypes.choices
             if user_record_types:
                 filtered = [
-                    (value, label)
-                    for value, label in all_choices
-                    if value in user_record_types
+                    (value, label) for value, label in all_choices if value in user_record_types
                 ]
             else:
                 filtered = list(all_choices)
 
-            type_filter = self.filters.get("record_type") or self.base_filters.get(
-                "record_type"
-            )
+            type_filter = self.filters.get("record_type") or self.base_filters.get("record_type")
             if type_filter:
                 type_filter.extra["choices"] = [("", "All Types")] + filtered
 
-    def filter_by_folder(self, queryset, name, value):
+    def filter_by_folder(self, queryset, name, value):  # noqa: ARG002
         if not value:
             return queryset
 
@@ -106,12 +94,12 @@ class RecordFilter(django_filters.FilterSet):
 
         return queryset.filter(folder_id=value)
 
-    def filter_is_current(self, queryset, name, value):
+    def filter_is_current(self, queryset, name, value):  # noqa: ARG002
         if value:
             return queryset.filter(expiry_date__gt=timezone.now().date())
         return queryset
 
-    def filter_expiring_soon(self, queryset, name, value):
+    def filter_expiring_soon(self, queryset, name, value):  # noqa: ARG002
         if value:
             today = timezone.now().date()
             return queryset.filter(
@@ -120,7 +108,7 @@ class RecordFilter(django_filters.FilterSet):
             )
         return queryset
 
-    def filter_this_month(self, queryset, name, value):
+    def filter_this_month(self, queryset, name, value):  # noqa: ARG002
         if value:
             now = timezone.now()
             return queryset.filter(

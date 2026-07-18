@@ -42,7 +42,7 @@
         {% load form_tags %}
 
         {% load webpush_notifications %}
-        {% webpush_header %}
+        {% if request %}{% webpush_header %}{% endif %}
 
         <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
         <link rel="icon" href="{% static 'favicon-package/favicon.svg' %}" type="image/svg+xml" sizes="any">

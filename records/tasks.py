@@ -1,12 +1,12 @@
 import logging
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.db.models import F, Q
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth import get_user_model
-from django_qstash import stashed_task
+from django_qstash import shared_task
 
 from core.models import Notification
 from core.services.notifications import (
@@ -15,6 +15,7 @@ from core.services.notifications import (
     build_site_context,
     send_multi_channel_notification,
 )
+
 from .models import Record
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-@stashed_task
+@shared_task
 def archive_expired_records() -> None:
     today = timezone.now().date()
     active_expired_records = Record.objects.filter(
@@ -36,7 +37,7 @@ def archive_expired_records() -> None:
         logger.info("Archived %d expired records.", count)
 
 
-@stashed_task
+@shared_task
 def delete_2month_archived_records() -> None:
     two_months_ago = timezone.now() - timedelta(days=60)
     two_month_expired_records = Record.objects.filter(
@@ -50,7 +51,7 @@ def delete_2month_archived_records() -> None:
         logger.info("Deleted %d archived records older than 60 days.", deleted_count)
 
 
-@stashed_task
+@shared_task
 def send_expiry_notifications() -> None:
     today = timezone.now().date()
 
@@ -83,9 +84,9 @@ def send_expiry_notifications() -> None:
         .select_related("user__settings")
     )
 
-    notifications_to_create = []
-    user_records_map = {}
-    user_object_map = {}
+    notifications_to_create: list = []
+    user_records_map: dict[int, list] = {}
+    user_object_map: dict[int, object] = {}
     user_settings_cache = {}
 
     for record in expiring_records:
@@ -124,8 +125,7 @@ def send_expiry_notifications() -> None:
         user_settings = user_settings_cache.get(user_id)
         auto_archive_msg = (
             "Since you have enabled auto-archiving, your records will be automatically archived once the expiry passes."
-            if user_settings
-            and getattr(user_settings, "auto_archive_expired_records", False)
+            if user_settings and getattr(user_settings, "auto_archive_expired_records", False)
             else ""
         )
 
@@ -148,17 +148,11 @@ def send_expiry_notifications() -> None:
         send_multi_channel_notification(
             user=user,
             subject="Expiring Records on Papertrail",
-            text_body=render_to_string(
-                "notifications/expiring_record_email.txt", context
-            ),
-            html_body=render_to_string(
-                "notifications/expiring_record_email.html", context
-            ),
+            text_body=render_to_string("notifications/expiring_record_email.txt", context),
+            html_body=render_to_string("notifications/expiring_record_email.html", context),
             webpush_payload=webpush_payload,
             send_db=True,
             db_message=f"Your record '{', '.join(r.title for r in records[:3])}' is expiring soon.",
         )
 
-    logger.info(
-        "Successfully scheduled notices for %d unique users.", len(user_records_map)
-    )
+    logger.info("Successfully scheduled notices for %d unique users.", len(user_records_map))

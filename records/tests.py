@@ -69,12 +69,8 @@ class RecordModelTest(TestCase):
         self.assertTrue(self.record.is_active)
 
     def test_ordering_by_last_edited_desc(self):
-        r1 = Record.objects.create(
-            user=self.user, title="First", record_type="expense_receipt"
-        )
-        r2 = Record.objects.create(
-            user=self.user, title="Second", record_type="voucher"
-        )
+        r1 = Record.objects.create(user=self.user, title="First", record_type="expense_receipt")
+        r2 = Record.objects.create(user=self.user, title="Second", record_type="voucher")
         qs = Record.objects.all()
         self.assertEqual(qs.first(), r2)
 
@@ -87,16 +83,12 @@ class RecordModelTest(TestCase):
         self.assertEqual(self.record.notes, "")
 
     def test_default_record_type(self):
-        record = Record.objects.create(
-            user=self.user, title="Default Type"
-        )
+        record = Record.objects.create(user=self.user, title="Default Type")
         self.assertEqual(record.record_type, "expense_receipt")
 
     def test_queryset_for_user(self):
         user2 = User.objects.create_user(username="user2", password="pass")
-        Record.objects.create(
-            user=user2, title="Other", record_type="expense_receipt"
-        )
+        Record.objects.create(user=user2, title="Other", record_type="expense_receipt")
         self.assertEqual(Record.objects.for_user(self.user).count(), 1)
         self.assertEqual(Record.objects.for_user(user2).count(), 1)
 
@@ -124,6 +116,7 @@ class RecordModelTest(TestCase):
     def test_queryset_with_documents(self):
         from documents.models import DocumentData
         import hashlib
+
         DocumentData.objects.create(
             user=self.user,
             associated_record=self.record,
@@ -323,9 +316,7 @@ class RecordModelExpiryNotificationTest(TestCase):
         self.user = User.objects.create_user(username="testuser", password="pass")
 
     def test_expiry_notification_sent_default(self):
-        record = Record.objects.create(
-            user=self.user, title="Test", record_type="expense_receipt"
-        )
+        record = Record.objects.create(user=self.user, title="Test", record_type="expense_receipt")
         self.assertFalse(record.expiry_notification_sent)
 
 
@@ -535,6 +526,7 @@ class RecordUpdateFormTest(TestCase):
 
 def _make_filter_request(user):
     from django.http import HttpRequest
+
     req = HttpRequest()
     req.user = user
     return req
@@ -563,7 +555,8 @@ class RecordFilterTest(TestCase):
 
     def test_filter_no_params(self):
         f = RecordFilter(
-            {}, queryset=Record.objects.for_user(self.user),
+            {},
+            queryset=Record.objects.for_user(self.user),
             request=_make_filter_request(self.user),
         )
         self.assertEqual(f.qs.count(), 3)
@@ -666,18 +659,14 @@ class RecordListViewTest(TestCase):
 
     def test_only_own_records_shown(self):
         user2 = User.objects.create_user(username="otherlist", password="pass")
-        Record.objects.create(
-            user=user2, title="Other's", record_type="expense_receipt"
-        )
+        Record.objects.create(user=user2, title="Other's", record_type="expense_receipt")
         self.client.force_login(self.user)
         response = self.client.get(self.url)
         self.assertEqual(len(response.context["records"]), 0)
 
     def test_records_visible(self):
         self.client.force_login(self.user)
-        Record.objects.create(
-            user=self.user, title="My Record", record_type="expense_receipt"
-        )
+        Record.objects.create(user=self.user, title="My Record", record_type="expense_receipt")
         response = self.client.get(self.url)
         self.assertEqual(len(response.context["records"]), 1)
 
@@ -694,6 +683,52 @@ class RecordListViewTest(TestCase):
     def test_filter_no_match(self):
         self.client.force_login(self.user)
         response = self.client.get(self.url, {"search": "NOMATCH"})
+        self.assertEqual(len(response.context["records"]), 0)
+
+    def test_pagination_first_page(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            Record.objects.create(
+                user=self.user,
+                title=f"Record {i}",
+                record_type="expense_receipt",
+            )
+        response = self.client.get(self.url)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(len(response.context["records"]), 25)
+
+    def test_pagination_second_page(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            Record.objects.create(
+                user=self.user,
+                title=f"Record {i}",
+                record_type="expense_receipt",
+            )
+        response = self.client.get(self.url, {"page": 2})
+        self.assertEqual(len(response.context["records"]), 5)
+
+    def test_pagination_invalid_page_returns_404(self):
+        self.client.force_login(self.user)
+        Record.objects.create(user=self.user, title="Test", record_type="expense_receipt")
+        response = self.client.get(self.url, {"page": "abc"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_pagination_out_of_range_page_returns_404(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            Record.objects.create(
+                user=self.user,
+                title=f"Record {i}",
+                record_type="expense_receipt",
+            )
+        response = self.client.get(self.url, {"page": 999})
+        self.assertEqual(response.status_code, 404)
+
+    def test_pagination_empty_page_returns_no_records(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertFalse(response.context["is_paginated"])
         self.assertEqual(len(response.context["records"]), 0)
 
 
@@ -723,9 +758,7 @@ class AddRecordViewTest(TestCase):
             },
         )
         self.assertIn(response.status_code, [200, 302])
-        self.assertTrue(
-            Record.objects.filter(title="New Record", user=self.user).exists()
-        )
+        self.assertTrue(Record.objects.filter(title="New Record", user=self.user).exists())
 
     def test_post_invalid(self):
         self.client.force_login(self.user)
@@ -974,13 +1007,9 @@ class CreateFolderViewTest(TestCase):
 
     def test_post_valid(self):
         self.client.force_login(self.user)
-        response = self.client.post(
-            self.url, {"name": "New Folder"}, HTTP_HX_REQUEST="true"
-        )
+        response = self.client.post(self.url, {"name": "New Folder"}, HTTP_HX_REQUEST="true")
         self.assertIn(response.status_code, [200, 302])
-        self.assertTrue(
-            Folder.objects.filter(name="New Folder", user=self.user).exists()
-        )
+        self.assertTrue(Folder.objects.filter(name="New Folder", user=self.user).exists())
 
 
 class FolderUpdateViewTest(TestCase):
@@ -991,9 +1020,7 @@ class FolderUpdateViewTest(TestCase):
 
     def test_owner_can_update(self):
         self.client.force_login(self.user)
-        response = self.client.post(
-            self.url, {"name": "New Name"}, HTTP_HX_REQUEST="true"
-        )
+        response = self.client.post(self.url, {"name": "New Name"}, HTTP_HX_REQUEST="true")
         self.assertIn(response.status_code, [200, 302])
         self.folder.refresh_from_db()
         self.assertEqual(self.folder.name, "New Name")
@@ -1062,6 +1089,7 @@ class TasksTest(TestCase):
         )
         Record.objects.filter(pk=expired.pk).update(date_added=past - timedelta(days=1))
         from records.tasks import archive_expired_records
+
         archive_expired_records()
         expired.refresh_from_db()
         self.assertFalse(expired.is_active)
@@ -1075,10 +1103,9 @@ class TasksTest(TestCase):
             expiry_date=past,
             is_active=False,
         )
-        Record.objects.filter(pk=already_inactive.pk).update(
-            date_added=past - timedelta(days=1)
-        )
+        Record.objects.filter(pk=already_inactive.pk).update(date_added=past - timedelta(days=1))
         from records.tasks import archive_expired_records
+
         archive_expired_records()
         already_inactive.refresh_from_db()
         self.assertFalse(already_inactive.is_active)
@@ -1095,6 +1122,7 @@ class TasksTest(TestCase):
         )
         Record.objects.filter(pk=expired.pk).update(date_added=past - timedelta(days=1))
         from records.tasks import archive_expired_records
+
         archive_expired_records()
         expired.refresh_from_db()
         self.assertTrue(expired.is_active)
@@ -1113,6 +1141,7 @@ class TasksTest(TestCase):
             last_edited=timezone.now() - timedelta(days=70),
         )
         from records.tasks import delete_2month_archived_records
+
         delete_2month_archived_records()
         self.assertFalse(Record.objects.filter(id=old.id).exists())
 
@@ -1124,6 +1153,7 @@ class TasksTest(TestCase):
             is_active=False,
         )
         from records.tasks import delete_2month_archived_records
+
         delete_2month_archived_records()
         self.assertTrue(Record.objects.filter(id=recent.id).exists())
 
@@ -1140,11 +1170,13 @@ class TasksTest(TestCase):
         self.user.settings.expiring_notifications_advance_time = "7"
         self.user.settings.save()
         from records.tasks import send_expiry_notifications
+
         result = send_expiry_notifications()
         self.assertIsNone(result)
 
     def test_send_expiry_notifications_no_expiring(self):
         from records.tasks import send_expiry_notifications
+
         result = send_expiry_notifications()
         self.assertIsNone(result)
 
@@ -1160,5 +1192,6 @@ class TasksTest(TestCase):
         self.user.settings.enable_push_notifications = False
         self.user.settings.save()
         from records.tasks import send_expiry_notifications
+
         result = send_expiry_notifications()
         self.assertIsNone(result)

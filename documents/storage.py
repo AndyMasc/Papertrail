@@ -53,7 +53,7 @@ def generate_upload_key(user_id: int, extension: str) -> str:
     return f"users/{user_id}/{uuid.uuid4()}.{safe_ext}"
 
 
-def generate_presigned_post(user_id: int, key: str, content_type: str) -> str:
+def generate_presigned_post(user_id: int, key: str, content_type: str) -> str:  # noqa: ARG001
     return s3.generate_presigned_url(
         "put_object",
         Params={

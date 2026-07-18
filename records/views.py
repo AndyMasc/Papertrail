@@ -1,29 +1,30 @@
+import json
 import logging
+from typing import Any
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.db import transaction
-from django.http import Http404, HttpResponseBadRequest
+from django.db.models import Count, Q
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils.functional import cached_property
+from django.views.generic import ListView
 from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
-from django.views.generic import ListView
 from django_filters.views import FilterView
-from django.http import HttpResponse
-import json
-from django.db.models import Count, Q
 
-from django.contrib import messages
 from documents.models import DocumentData, DocumentStatus
 from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
 
 from .filters import RecordFilter
-from .forms import AddRecordForm, RecordUpdateForm, FolderForm
-from .models import Record, Folder
+from .forms import AddRecordForm, FolderForm, RecordUpdateForm
+from .models import Folder, Record, RecordQuerySet
+from .services import archive_record, unarchive_record
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +60,14 @@ class RecordListView(LoginRequiredMixin, FilterView):
     filterset_class = RecordFilter
     paginate_by = settings.PAGINATE_BY
 
-    def get_queryset(self):
+    def get_queryset(self) -> RecordQuerySet:
         qs = Record.objects.for_user(self.request.user)
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             return qs.smart_search(search_query)
         return qs.only(*LIST_FIELDS).order_by("-last_edited")
 
-    def get_template_names(self):
+    def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Target") == "query-results-container":
             return ["records/partials/record_list_partial.html"]
         return [self.template_name]
@@ -79,16 +80,16 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
     pk_url_kwarg = "pk"
     context_object_name = "record"
 
-    def get_template_names(self):
+    def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Request") == "true":
             return ["records/partials/record_form_partial.html"]
         return [self.template_name]
 
-    def get_queryset(self):
+    def get_queryset(self) -> RecordQuerySet:
         return Record.objects.for_user(self.request.user).with_documents()
 
     @transaction.atomic
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         messages.success(self.request, "Record updated successfully.")
         self.object = form.save()
 
@@ -104,7 +105,9 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
             )
             return response
 
-    def form_invalid(self, form):
+        return redirect("records:record_detail", pk=self.object.pk)
+
+    def form_invalid(self, form) -> HttpResponse:
         messages.error(self.request, "An error was left in a record")
 
         return render(
@@ -131,13 +134,11 @@ class AddRecordView(LoginRequiredMixin, CreateView):
             user=self.request.user,
         )
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args: Any, **kwargs: Any) -> HttpResponse:
         document = self.document
         if document:
             if document.associated_record:
-                return HttpResponseBadRequest(
-                    "This document is already associated with a record."
-                )
+                return HttpResponseBadRequest("This document is already associated with a record.")
 
             if document.status in (
                 DocumentStatus.UPLOADED,
@@ -151,12 +152,12 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
         return super().get(request, *args, **kwargs)
 
-    def get_form_kwargs(self):
+    def get_form_kwargs(self) -> dict[str, Any]:
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         document = self.document
 
@@ -181,9 +182,7 @@ class AddRecordView(LoginRequiredMixin, CreateView):
                     context["error_message"] = error_data["error"]
                 form = AddRecordForm(user=self.request.user)
 
-            elif document.status == DocumentStatus.COMPLETED and isinstance(
-                cached_status, dict
-            ):
+            elif document.status == DocumentStatus.COMPLETED and isinstance(cached_status, dict):
                 is_waiting = False
                 initial = ocr_data_to_form_initial(cached_status)
                 _resolve_suggested_folder(self.request.user, initial)
@@ -200,13 +199,11 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         return context
 
     @transaction.atomic
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         document = self.document
 
         if document and document.associated_record:
-            return HttpResponseBadRequest(
-                "This document is already associated with a record."
-            )
+            return HttpResponseBadRequest("This document is already associated with a record.")
 
         self.object = form.save(commit=False)
         self.object.user = self.request.user
@@ -222,10 +219,8 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
 
 class CheckOCRStatus(LoginRequiredMixin, View):
-    def get(self, request, document_id):
-        document = DocumentData.objects.filter(
-            id=document_id, user=request.user
-        ).first()
+    def get(self, request: HttpRequest, document_id: int) -> HttpResponse:
+        document = DocumentData.objects.filter(id=document_id, user=request.user).first()
         if not document:
             raise Http404("Document not found.")
 
@@ -286,28 +281,18 @@ class CheckOCRStatus(LoginRequiredMixin, View):
 
 
 class ArchiveRecord(LoginRequiredMixin, View):
-    def post(self, request, record_id):
-        record = get_object_or_404(
-            Record, id=record_id, user=request.user, is_active=True
-        )
-        record.is_active = False
-        record.save(update_fields=["is_active"])
-
-        if request.headers.get("HX-Request") == "true":
-            response = HttpResponse(status=200)
-            response["HX-Trigger"] = "recordChanged"
+    def post(self, request: HttpRequest, record_id: int) -> HttpResponse:
+        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=True)
+        response = archive_record(record, request)
+        if response:
             return response
-
         return redirect("records:view_all_records")
 
 
 class UnarchiveRecord(LoginRequiredMixin, View):
-    def post(self, request, record_id):
-        record = get_object_or_404(
-            Record, id=record_id, user=request.user, is_active=False
-        )
-        record.is_active = True
-        record.save(update_fields=["is_active"])
+    def post(self, request: HttpRequest, record_id: int) -> HttpResponse:
+        record = get_object_or_404(Record, id=record_id, user=request.user, is_active=False)
+        unarchive_record(record)
         return redirect("records:view_all_records")
 
 
@@ -315,7 +300,7 @@ class DeleteRecord(LoginRequiredMixin, DeleteView):
     model = Record
     success_url = reverse_lazy("records:view_all_records")
 
-    def get_queryset(self):
+    def get_queryset(self) -> RecordQuerySet:
         return Record.objects.for_user(self.request.user)
 
 
@@ -326,7 +311,7 @@ class FolderListView(LoginRequiredMixin, ListView):
     ordering = ["-created_at"]
     paginate_by = 12
 
-    def get_template_names(self):
+    def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Request"):
             return ["records/partials/folder_list_partial.html"]
         return [self.template_name]
@@ -342,7 +327,7 @@ class FolderListView(LoginRequiredMixin, ListView):
             active_records_count=Count("records", filter=Q(records__is_active=True))
         ).order_by("-created_at")
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
 
         context["unfiled_count"] = self.request.user.records.filter(
@@ -357,7 +342,7 @@ class CreateFolder(LoginRequiredMixin, CreateView):
     form_class = FolderForm
     template_name = "records/partials/create_folder_modal.html"
 
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         form.instance.user = self.request.user
         self.object = form.save()
 
@@ -378,10 +363,10 @@ class CreateFolder(LoginRequiredMixin, CreateView):
 
         return super().form_valid(form)
 
-    def form_invalid(self, form):
+    def form_invalid(self, form) -> HttpResponse:
         response = super().form_invalid(form)
         if self.request.headers.get("HX-Request"):
-            response.status_code = 422  # Unprocessable Entity status for UI processing
+            response.status_code = 422
         return response
 
 
@@ -396,11 +381,10 @@ class FolderUpdateView(LoginRequiredMixin, UpdateView):
             active_records_count=Count("records", filter=Q(records__is_active=True))
         )
 
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         self.object = form.save()
 
         if self.request.headers.get("HX-Request"):
-            # Return the updated folder item for the list
             response = render(
                 self.request,
                 "records/partials/folder_item_partial.html",
@@ -410,7 +394,7 @@ class FolderUpdateView(LoginRequiredMixin, UpdateView):
 
         return super().form_valid(form)
 
-    def form_invalid(self, form):
+    def form_invalid(self, form) -> HttpResponse:
         response = super().form_invalid(form)
         if self.request.headers.get("HX-Request"):
             response.status_code = 422
@@ -425,7 +409,7 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return Folder.objects.filter(user=self.request.user)
 
-    def delete(self, request, *args, **kwargs):
+    def delete(self, request, *args: Any, **kwargs: Any) -> HttpResponse:  # noqa: ARG002
         folder = self.get_object()
 
         folder.records.update(folder=None)
@@ -435,9 +419,7 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
             folders = Folder.objects.filter(user=self.request.user).annotate(
                 active_records_count=Count("records", filter=Q(records__is_active=True))
             )
-            unfiled_count = request.user.records.filter(
-                folder__isnull=True, is_active=True
-            ).count()
+            unfiled_count = request.user.records.filter(folder__isnull=True, is_active=True).count()
             return render(
                 request,
                 "records/partials/folder_list_partial.html",

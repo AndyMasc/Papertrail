@@ -1,15 +1,14 @@
 import logging
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.sites.models import Site
-from webpush import send_user_notification
 from django.templatetags.static import static
+from webpush import send_user_notification
 
-from core.tasks import send_background_email, fire_single_webpush
+from core.tasks import fire_single_webpush, send_background_email
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class NotificationContext:
     subject: str
     text_body: str
     html_body: str
-    webpush_payload: Optional[dict] = None
+    webpush_payload: dict | None = None
     webpush_ttl: int = 1000
 
 
@@ -34,7 +33,7 @@ def build_site_context() -> dict:
     try:
         current_site = Site.objects.get_current()
         site_info = {"domain": current_site.domain, "name": current_site.name}
-    except Exception:
+    except Site.DoesNotExist:
         site_info = {"domain": site_domain, "name": "Papertrail"}
 
     return {
@@ -108,12 +107,12 @@ def _user_can_receive_push(user: User) -> bool:
         return False
     if not user.settings.enable_push_notifications:
         return False
-    # Check if user has any push subscriptions
     try:
         from webpush.models import PushInformation
 
         return PushInformation.objects.filter(user=user).exists()
-    except Exception:
+    except ImportError:
+        logger.error("webpush module not available for push notification check")
         return False
 
 
@@ -131,17 +130,15 @@ def send_multi_channel_notification(
     subject: str,
     text_body: str,
     html_body: str,
-    webpush_payload: Optional[dict] = None,
+    webpush_payload: dict | None = None,
     webpush_ttl: int = 1000,
     send_push: bool = True,
     send_email: bool = True,
     send_db: bool = False,
-    db_message: Optional[str] = None,
+    db_message: str | None = None,
 ) -> None:
     if send_push and webpush_payload and _user_can_receive_push(user):
-        fire_single_webpush.delay(
-            user_id=user.id, payload=webpush_payload, ttl=webpush_ttl
-        )
+        fire_single_webpush.delay(user_id=user.id, payload=webpush_payload, ttl=webpush_ttl)
 
     if send_email and _user_can_receive_email(user):
         send_email_notification(

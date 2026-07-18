@@ -81,10 +81,7 @@ class RecordQuerySet(models.QuerySet):
         lower = search_query.lower()
         conditions = reduce(
             or_,
-            (
-                Q(**{f"{field}__icontains": search_query})
-                for field in _TEXT_SEARCH_FIELDS
-            ),
+            (Q(**{f"{field}__icontains": search_query}) for field in _TEXT_SEARCH_FIELDS),
         )
 
         matching_choices = [
@@ -121,7 +118,7 @@ class RecordQuerySet(models.QuerySet):
             try:
                 start = end = datetime.date.fromisoformat(search_query)
             except ValueError:
-                pass
+                start = end = None
 
         if start is not None and end is not None:
             conditions |= reduce(
@@ -223,9 +220,7 @@ class Record(models.Model):
         ordering = ["-last_edited"]
         indexes = [
             models.Index(fields=["user", "is_active"], name="idx_record_user_active"),
-            models.Index(
-                fields=["user", "-last_edited"], name="idx_record_user_edited"
-            ),
+            models.Index(fields=["user", "-last_edited"], name="idx_record_user_edited"),
             models.Index(fields=["user", "record_type"], name="idx_record_user_type"),
             models.Index(
                 fields=["user", "is_active", "-last_edited"],
@@ -235,9 +230,7 @@ class Record(models.Model):
                 fields=["user", "is_active", "record_type"],
                 name="idx_record_type_filter",
             ),
-            models.Index(
-                fields=["expiry_date", "is_active"], name="idx_record_expiry_active"
-            ),
+            models.Index(fields=["expiry_date", "is_active"], name="idx_record_expiry_active"),
             models.Index(
                 fields=["expiry_date", "is_active", "user"],
                 name="idx_record_expiry_active_user",
@@ -255,9 +248,7 @@ class Record(models.Model):
 
     @property
     def badge_classes(self) -> str:
-        return self.COLOR_MAP.get(
-            self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value]
-        )
+        return self.COLOR_MAP.get(self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value])
 
     @property
     def is_expired(self) -> bool:
@@ -268,7 +259,5 @@ class Record(models.Model):
     @property
     def is_expiring_soon(self, days: int = 30) -> bool:
         if self.expiry_date:
-            return self.expiry_date <= (
-                timezone.now().date() + datetime.timedelta(days=days)
-            )
+            return self.expiry_date <= (timezone.now().date() + datetime.timedelta(days=days))
         return False

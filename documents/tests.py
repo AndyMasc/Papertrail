@@ -252,12 +252,8 @@ class DocumentDataModelTest(TestCase):
     def test_unique_constraint_different_user(self):
         user2 = User.objects.create_user(username="user2", password="pass")
         h = _make_hash()
-        DocumentData.objects.create(
-            user=self.user, filepath="users/1/a.pdf", file_hash=h
-        )
-        doc = DocumentData.objects.create(
-            user=user2, filepath="users/2/a.pdf", file_hash=h
-        )
+        DocumentData.objects.create(user=self.user, filepath="users/1/a.pdf", file_hash=h)
+        doc = DocumentData.objects.create(user=user2, filepath="users/2/a.pdf", file_hash=h)
         self.assertIsNotNone(doc.pk)
 
 
@@ -325,9 +321,7 @@ class R2UploadFormTest(TestCase):
         self.assertFalse(form.is_valid())
 
     def test_empty_filename(self):
-        form = R2UploadForm(
-            data={"filename": "", "content_type": "application/pdf"}
-        )
+        form = R2UploadForm(data={"filename": "", "content_type": "application/pdf"})
         self.assertFalse(form.is_valid())
 
     def test_missing_content_type(self):
@@ -335,7 +329,14 @@ class R2UploadFormTest(TestCase):
         self.assertFalse(form.is_valid())
 
     def test_allowed_content_types(self):
-        for ct in ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]:
+        for ct in [
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/heic",
+            "image/heif",
+        ]:
             with self.subTest(ct=ct):
                 form = R2UploadForm(
                     data={
@@ -386,9 +387,7 @@ class DocumentUpdateFormTest(TestCase):
 
     def test_associated_record_queryset_active_only(self):
         user = User.objects.create_user(username="formuser", password="pass")
-        active = Record.objects.create(
-            user=user, title="Active", record_type="expense_receipt"
-        )
+        active = Record.objects.create(user=user, title="Active", record_type="expense_receipt")
         inactive = Record.objects.create(
             user=user, title="Inactive", record_type="voucher", is_active=False
         )
@@ -400,6 +399,7 @@ class DocumentUpdateFormTest(TestCase):
 
 def _make_doc_filter_request(user):
     from django.http import HttpRequest
+
     req = HttpRequest()
     req.user = user
     return req
@@ -428,7 +428,8 @@ class DocumentFilterTest(TestCase):
         )
         qs = DocumentData.objects.filter(user=self.user)
         f = DocumentFilter(
-            {"status": "orphaned"}, queryset=qs,
+            {"status": "orphaned"},
+            queryset=qs,
             request=_make_doc_filter_request(self.user),
         )
         self.assertEqual(f.qs.count(), 1)
@@ -447,7 +448,8 @@ class DocumentFilterTest(TestCase):
         )
         qs = DocumentData.objects.filter(user=self.user)
         f = DocumentFilter(
-            {"status": "linked"}, queryset=qs,
+            {"status": "linked"},
+            queryset=qs,
             request=_make_doc_filter_request(self.user),
         )
         self.assertEqual(f.qs.count(), 1)
@@ -626,9 +628,7 @@ class ConfirmUploadViewTest(TestCase):
 
     def test_confirm_not_found(self):
         self.client.force_login(self.user)
-        response = self.client.post(
-            self.url, {"document_id": 99999, "key": "nonexistent"}
-        )
+        response = self.client.post(self.url, {"document_id": 99999, "key": "nonexistent"})
         self.assertEqual(response.status_code, 404)
 
     def test_confirm_no_id(self):
@@ -711,9 +711,7 @@ class AddSupportDocumentsViewTest(TestCase):
             title="Support Record",
             transaction_date=timezone.now().date(),
         )
-        self.url = reverse(
-            "documents:add_support_docs", args=[self.record.id]
-        )
+        self.url = reverse("documents:add_support_docs", args=[self.record.id])
 
     def test_login_required(self):
         response = self.client.get(self.url)
@@ -733,9 +731,7 @@ class AddSupportDocumentsViewTest(TestCase):
 
     def test_nonexistent_record(self):
         self.client.force_login(self.user)
-        response = self.client.get(
-            reverse("documents:add_support_docs", args=[99999])
-        )
+        response = self.client.get(reverse("documents:add_support_docs", args=[99999]))
         self.assertEqual(response.status_code, 404)
 
 
@@ -754,19 +750,73 @@ class DocumentListViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "documents/document_list.html")
 
+    def test_pagination_first_page(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            DocumentData.objects.create(
+                user=self.user,
+                title=f"Doc {i}",
+                filepath=f"users/1/doc_{i}.pdf",
+                file_hash=f"hash{i:04d}",
+            )
+        response = self.client.get(self.url)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(len(response.context["documents"]), 25)
+
+    def test_pagination_second_page(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            DocumentData.objects.create(
+                user=self.user,
+                title=f"Doc {i}",
+                filepath=f"users/1/doc_{i}.pdf",
+                file_hash=f"hash{i:04d}",
+            )
+        response = self.client.get(self.url, {"page": 2})
+        self.assertEqual(len(response.context["documents"]), 5)
+
+    def test_pagination_invalid_page_returns_404(self):
+        self.client.force_login(self.user)
+        DocumentData.objects.create(
+            user=self.user,
+            title="Test",
+            filepath="users/1/test.pdf",
+            file_hash="hash0000",
+        )
+        response = self.client.get(self.url, {"page": "abc"})
+        self.assertEqual(response.status_code, 404)
+
+    def test_pagination_out_of_range_page_returns_404(self):
+        self.client.force_login(self.user)
+        for i in range(30):
+            DocumentData.objects.create(
+                user=self.user,
+                title=f"Doc {i}",
+                filepath=f"users/1/doc_{i}.pdf",
+                file_hash=f"hash{i:04d}",
+            )
+        response = self.client.get(self.url, {"page": 999})
+        self.assertEqual(response.status_code, 404)
+
+    def test_pagination_empty_page(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertFalse(response.context["is_paginated"])
+        self.assertEqual(len(response.context["documents"]), 0)
+
 
 class ValidatorsTest(TestCase):
     def test_validate_file_upload_ok(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
-        file = SimpleUploadedFile(
-            "test.pdf", b"%PDF-1.4 content", content_type="application/pdf"
-        )
+
+        file = SimpleUploadedFile("test.pdf", b"%PDF-1.4 content", content_type="application/pdf")
         result = validate_file_upload(file)
         self.assertEqual(result.mime_type, "application/pdf")
 
     def test_validate_file_upload_invalid_mime(self):
         from django.core.exceptions import ValidationError
         from django.core.files.uploadedfile import SimpleUploadedFile
+
         file = SimpleUploadedFile(
             "test.exe", b"binary content", content_type="application/x-msdownload"
         )
@@ -776,6 +826,7 @@ class ValidatorsTest(TestCase):
     def test_validate_file_upload_size_limit(self):
         from django.core.exceptions import ValidationError
         from django.core.files.uploadedfile import SimpleUploadedFile
+
         file = SimpleUploadedFile(
             "large.pdf", b"x" * (51 * 1024 * 1024), content_type="application/pdf"
         )
@@ -824,16 +875,19 @@ class ValidatorsTest(TestCase):
 
     def test_validate_file_bytes_too_large(self):
         from django.core.exceptions import ValidationError
+
         with self.assertRaises(ValidationError):
             validate_file_bytes(b"test", 51 * 1024 * 1024)
 
     def test_validate_file_bytes_empty(self):
         from django.core.exceptions import ValidationError
+
         with self.assertRaises(ValidationError):
             validate_file_bytes(b"", 0)
 
     def test_validate_file_bytes_unknown_type(self):
         from django.core.exceptions import ValidationError
+
         with self.assertRaises(ValidationError):
             validate_file_bytes(b"\x00\x01\x02\x03", 100)
 
@@ -871,6 +925,7 @@ class StorageUtilsTest(TestCase):
     @patch("documents.storage.s3.head_object")
     def test_verify_r2_object_not_found(self, mock_head):
         from botocore.exceptions import ClientError
+
         mock_head.side_effect = ClientError(
             {"Error": {"Code": "NoSuchKey", "Message": "Not Found"}},
             "HeadObject",

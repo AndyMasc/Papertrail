@@ -45,9 +45,9 @@ class DocumentFilter(django_filters.FilterSet):
             cache_key = f"de_v2_{self.request.user.id}"
             extensions = cache.get(cache_key)
             if extensions is None:
-                raw = DocumentData.objects.filter(
-                    user=self.request.user
-                ).values_list("file_extension", flat=True)
+                raw = DocumentData.objects.filter(user=self.request.user).values_list(
+                    "file_extension", flat=True
+                )
                 seen = set()
                 result = []
                 for ext in raw:
@@ -62,7 +62,7 @@ class DocumentFilter(django_filters.FilterSet):
             return extensions
         return []
 
-    def filter_by_status(self, queryset, name, value):
+    def filter_by_status(self, queryset, name, value):  # noqa: ARG002
         if value == "orphaned":
             return queryset.filter(associated_record__isnull=True)
         elif value == "linked":

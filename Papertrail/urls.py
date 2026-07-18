@@ -2,10 +2,11 @@ from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponseForbidden
 from django.urls import include, path
+
 from core.views import safe_webpush_save_info
 
 
-def forbidden_view(request, *args, **kwargs):
+def forbidden_view(request, *args, **kwargs):  # noqa: ARG001
     return HttpResponseForbidden("Password features are disabled.")
 
 

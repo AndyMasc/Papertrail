@@ -1,14 +1,10 @@
+from typing import Any
+
 from pythonjsonlogger.json import JsonFormatter
 
-from .base import (
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    STORAGES,
-)
+ALLOWED_HOSTS: list[str] = []
 
-ALLOWED_HOSTS = []
-
-CSRF_TRUSTED_ORIGINS = []
+CSRF_TRUSTED_ORIGINS: list[str] = []
 CORS_ALLOW_ALL_ORIGINS = False
 
 SECURE_SSL_REDIRECT = True
@@ -26,8 +22,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Production logging with JSON output
-LOGGING = {
+LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {

@@ -1,7 +1,8 @@
 import logging
+
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives, get_connection
-from django_qstash import stashed_task
+from django_qstash import shared_task
 from webpush import send_user_notification
 
 logger = logging.getLogger(__name__)
@@ -9,10 +10,8 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-@stashed_task
-def send_background_email(
-    subject, message, from_email, recipient_list, html_message=None
-):
+@shared_task
+def send_background_email(subject, message, from_email, recipient_list, html_message=None):
     resend_connection = get_connection(backend="anymail.backends.resend.EmailBackend")
 
     email = EmailMultiAlternatives(
@@ -29,7 +28,7 @@ def send_background_email(
     email.send()
 
 
-@stashed_task
+@shared_task
 def fire_single_webpush(user_id: int, payload: dict, ttl: int = 1000) -> None:
     """Async worker task wrapper around the webpush service execution."""
     try:

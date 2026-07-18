@@ -7,6 +7,6 @@ from .models import DocumentData
 
 
 @receiver(post_delete, sender=DocumentData)
-def post_delete_document(sender, instance, **kwargs):
+def post_delete_document(sender, instance, **kwargs):  # noqa: ARG001
     if instance.filepath:
         transaction.on_commit(lambda: tasks.delete_document.delay(instance.filepath))

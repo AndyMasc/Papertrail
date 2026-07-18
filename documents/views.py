@@ -1,20 +1,23 @@
 import hashlib
+import json
 import logging
 import os
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.db import DatabaseError, transaction
+from django.db.models import ProtectedError
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DeleteView, UpdateView
 from django_filters.views import FilterView
-from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django_ratelimit.decorators import ratelimit
 
 from records.models import Record
@@ -63,22 +66,20 @@ class DocumentListView(LoginRequiredMixin, FilterView):
             return qs.search(search_query)
         return qs
 
-    def get_template_names(self):
+    def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Target") == "query-results-container":
             return ["documents/partials/document_list_partial.html"]
         return [self.template_name]
 
 
 class BaseR2UploadView(LoginRequiredMixin, View):
-    @method_decorator(
-        ratelimit(key="user", rate="30/h", method="POST", block=True)
-    )
-    def dispatch(self, *args, **kwargs):
+    @method_decorator(ratelimit(key="user", rate="30/h", method="POST", block=True))
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
-    def _handle_presign_request(self, request, record_id=None):
-        import json
-
+    def _handle_presign_request(
+        self, request: HttpRequest, record_id: int | None = None
+    ) -> JsonResponse:
         if request.content_type == "application/json":
             try:
                 data = json.loads(request.body)
@@ -96,9 +97,7 @@ class BaseR2UploadView(LoginRequiredMixin, View):
         if not file_hash or not filename:
             return JsonResponse({"error": "Missing file_hash or filename."}, status=400)
 
-        form = R2UploadForm(
-            {"filename": filename, "content_type": content_type, "notes": notes}
-        )
+        form = R2UploadForm({"filename": filename, "content_type": content_type, "notes": notes})
         if not form.is_valid():
             return JsonResponse(
                 {"error": "Invalid file parameters.", "details": form.errors},
@@ -138,9 +137,7 @@ class BaseR2UploadView(LoginRequiredMixin, View):
         effective_hash = file_hash
         if force_upload:
             salt = f"-forced-{uuid.uuid4().hex}"
-            effective_hash = hashlib.sha256(
-                (file_hash + salt).encode("utf-8")
-            ).hexdigest()
+            effective_hash = hashlib.sha256((file_hash + salt).encode("utf-8")).hexdigest()
 
         ext = os.path.splitext(filename)[1].lower() or ".bin"
         safe_title = os.path.splitext(filename)[0]
@@ -173,30 +170,26 @@ class BaseR2UploadView(LoginRequiredMixin, View):
 
 
 class UploadView(BaseR2UploadView):
-    def get(self, request):
+    def get(self, request: HttpRequest) -> HttpResponse:
         context = {
             "page_title": "Upload a financial record.",
             "page_subtitle": "We'll extract and organize the details automatically.",
             "api_url": reverse("documents:upload_document"),
-            "redirect_url_template": reverse(
-                "records:add_record", kwargs={"document_id": "0"}
-            ),
+            "redirect_url_template": reverse("records:add_record", kwargs={"document_id": "0"}),
             "is_supporting_flow": False,
         }
         return render(request, "documents/upload_file.html", context)
 
-    def post(self, request):
+    def post(self, request: HttpRequest) -> JsonResponse:
         return self._handle_presign_request(request)
 
 
 class ConfirmUploadView(LoginRequiredMixin, View):
-    @method_decorator(
-        ratelimit(key="user", rate="60/h", method="POST", block=True)
-    )
-    def dispatch(self, *args, **kwargs):
+    @method_decorator(ratelimit(key="user", rate="60/h", method="POST", block=True))
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
         return super().dispatch(*args, **kwargs)
 
-    def post(self, request):
+    def post(self, request: HttpRequest) -> JsonResponse:
         document_id = request.POST.get("document_id")
         key = request.POST.get("key", "").strip()
 
@@ -239,9 +232,7 @@ class ConfirmUploadView(LoginRequiredMixin, View):
                     (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
                 ).strip()
                 document.save(update_fields=["status", "notes"])
-                logger.warning(
-                    "Gatekeeper rejected doc %s: %s", document_id, validation["error"]
-                )
+                logger.warning("Gatekeeper rejected doc %s: %s", document_id, validation["error"])
                 return JsonResponse({"error": validation["error"]}, status=422)
 
             document.status = DocumentStatus.UPLOADED
@@ -256,7 +247,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
     template_name = "documents/view_document.html"
     context_object_name = "document"
 
-    def get_template_names(self):
+    def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Target") in [
             "search-results",
             "query-results-container",
@@ -274,7 +265,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
     def get_queryset(self):
         return DocumentData.objects.for_user(self.request.user)
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
 
@@ -296,9 +287,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return context
 
     def search_records(self):
-        queryset = (
-            Record.objects.for_user(self.request.user).active().only("id", "title")
-        )
+        queryset = Record.objects.for_user(self.request.user).active().only("id", "title")
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             queryset = queryset.smart_search(search_query)
@@ -306,7 +295,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return queryset
 
     @transaction.atomic
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         if "associated_record" in self.request.POST:
             record_id = self.request.POST.get("associated_record", "").strip()
             if not record_id:
@@ -320,9 +309,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
 
         if self.request.headers.get("HX-Request") == "true":
             if "associated_record" in self.request.POST:
-                redirect_url = reverse(
-                    "documents:view_document", kwargs={"pk": self.object.pk}
-                )
+                redirect_url = reverse("documents:view_document", kwargs={"pk": self.object.pk})
                 response = HttpResponse(status=204)
                 response["HX-Redirect"] = redirect_url
                 return response
@@ -331,7 +318,7 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
 
         return redirect("documents:view_document", pk=self.object.pk)
 
-    def form_invalid(self, form):
+    def form_invalid(self, form) -> HttpResponse:
         messages.error(self.request, "An error occured.")
         if self.request.headers.get("HX-Request") == "true":
             return self.render_to_response(self.get_context_data(form=form), status=422)
@@ -344,21 +331,21 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return self.model.objects.for_user(self.request.user).with_record()
 
-    def get_success_url(self):
+    def get_success_url(self) -> str:
         associated_record = self.object.associated_record
         if associated_record:
             return reverse("records:record_detail", kwargs={"pk": associated_record.id})
         return reverse("records:view_all_records")
 
     @transaction.atomic
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         try:
             return super().form_valid(form)
-        except Exception as e:
+        except (ProtectedError, DatabaseError) as e:
             logger.error(
                 "Failed to delete document %s for user %s: %s",
                 self.object.pk,
-                self.request.user.id,
+                self.request.user.pk,
                 e,
                 exc_info=True,
             )
@@ -372,20 +359,18 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
 
 
 class AddSupportDocuments(BaseR2UploadView):
-    def get(self, request, record_id):
+    def get(self, request: HttpRequest, record_id: int) -> HttpResponse:
         record = get_object_or_404(Record, pk=record_id, user=request.user)
         context = {
             "record": record,
             "page_title": "Add supporting documents.",
             "page_subtitle": f"Attach additional records directly to {record.title}.",
-            "api_url": reverse(
-                "documents:add_support_docs", kwargs={"record_id": record_id}
-            ),
+            "api_url": reverse("documents:add_support_docs", kwargs={"record_id": record_id}),
             "redirect_url_template": f"/records/record_detail/{record_id}",
             "is_supporting_flow": True,
         }
         return render(request, "documents/upload_supporting_files.html", context)
 
-    def post(self, request, record_id):
+    def post(self, request: HttpRequest, record_id: int) -> JsonResponse:
         get_object_or_404(Record, pk=record_id, user=request.user)
         return self._handle_presign_request(request, record_id=record_id)

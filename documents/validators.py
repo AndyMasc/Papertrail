@@ -1,8 +1,8 @@
 import logging
 from dataclasses import dataclass
-from django.core.exceptions import ValidationError
 
 import filetype
+from django.core.exceptions import ValidationError
 
 try:
     import magic as python_magic
@@ -81,7 +81,7 @@ def _validate_file(size: int, detected_mime: str | None) -> ValidationResult:
     return ValidationResult(file_size=size, mime_type=detected_mime)
 
 
-def validate_file_upload(file_obj, declared_mime_type=None) -> ValidationResult:
+def validate_file_upload(file_obj, declared_mime_type=None) -> ValidationResult:  # noqa: ARG001
     file_obj.seek(0, 2)
     file_size = file_obj.tell()
     file_obj.seek(0)

@@ -1,10 +1,10 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.forms.utils import flatatt
 from django.utils import timezone
 from django.utils.html import format_html
-from django.forms.utils import flatatt
 
-from .models import Record, Folder
+from .models import Folder, Record
 
 
 class FolderForm(forms.ModelForm):
@@ -22,7 +22,7 @@ class FolderForm(forms.ModelForm):
 
 
 class TrimmedTextarea(forms.Textarea):
-    def render(self, name, value, attrs=None, renderer=None):
+    def render(self, name, value, attrs=None, renderer=None):  # noqa: ARG002
         if value is None:
             value = ""
         attrs = self.build_attrs(self.attrs, attrs)
@@ -38,9 +38,7 @@ class BaseRecordForm(forms.ModelForm):
     transaction_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}), required=False
     )
-    expiry_date = forms.DateField(
-        widget=forms.DateInput(attrs={"type": "date"}), required=False
-    )
+    expiry_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     record_type = forms.ChoiceField(
         choices=Record.RecordTypes.choices,
         required=True,
@@ -87,9 +85,7 @@ class BaseRecordForm(forms.ModelForm):
         expiry_date = cleaned_data.get("expiry_date")
         transaction_date = cleaned_data.get("transaction_date")
         if expiry_date and transaction_date and expiry_date < transaction_date:
-            raise ValidationError(
-                {"expiry_date": "Expiry date cannot be before transaction date."}
-            )
+            raise ValidationError({"expiry_date": "Expiry date cannot be before transaction date."})
         return cleaned_data
 
 

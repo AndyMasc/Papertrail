@@ -7,11 +7,11 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db.models import F
 from django.utils import timezone
-from django_qstash import stashed_task
+from django_qstash import shared_task
 
 from .models import DocumentData, DocumentStatus
 from .ocr_helpers import prepare_image_for_gemini
-from .storage import s3, BUCKET
+from .storage import BUCKET, s3
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ try:
     from google.genai import types
     from pydantic import BaseModel, Field
 
-    # Delayed imports or verifying structure
     from records.models import Record
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -45,12 +44,8 @@ try:
             default_factory=list,
             description="List of items. Standardize typos, expand abbreviations, use Title Case. If no products are listed, use an empty list.",
         )
-        transaction_date: str | None = Field(
-            default=None, description="Date in YYYY-MM-DD format."
-        )
-        expiry_date: str | None = Field(
-            default=None, description="Date in YYYY-MM-DD format."
-        )
+        transaction_date: str | None = Field(default=None, description="Date in YYYY-MM-DD format.")
+        expiry_date: str | None = Field(default=None, description="Date in YYYY-MM-DD format.")
         record_type: Record.RecordTypes = Field(
             description="Strictly classify the document type. If no clear type can be found, default to EXPENSE_RECEIPT"
         )
@@ -136,7 +131,7 @@ def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, A
     return OCRResult.model_validate_json(clean_json).model_dump(mode="json")
 
 
-@stashed_task(retries=MAX_OCR_RETRIES, backoff_factor=2)
+@shared_task(retries=MAX_OCR_RETRIES, backoff_factor=2)
 def extract_document(document_id: int) -> dict[str, Any]:
     cache_key = _get_cache_key(document_id)
 
@@ -167,31 +162,23 @@ def extract_document(document_id: int) -> dict[str, Any]:
         final_data = _call_gemini(part, folder_names)
 
         cache.set(cache_key, final_data, timeout=OCR_CACHE_TTL)
-        _set_document_status(
-            document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True
-        )
+        _set_document_status(document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True)
         return final_data
 
     except Exception as exc:
-        logger.warning(
-            "OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True
-        )
+        logger.warning("OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True)
         retries = _increment_ocr_retries(document_id)
 
         if retries >= MAX_OCR_RETRIES:
-            error_payload = {
-                "error": "Failed to automatically extract document details."
-            }
+            error_payload = {"error": "Failed to automatically extract document details."}
             cache.set(cache_key, error_payload, timeout=OCR_CACHE_TTL)
             _set_document_status(document_id, DocumentStatus.ERROR, ocr_error=str(exc))
-            raise GeminiOCRError(
-                f"OCR execution hard-failed for document {document_id}"
-            ) from exc
+            raise GeminiOCRError(f"OCR execution hard-failed for document {document_id}") from exc
 
         raise
 
 
-@stashed_task
+@shared_task
 def delete_document(filepath: str) -> None:
     if filepath:
         try:
@@ -200,7 +187,7 @@ def delete_document(filepath: str) -> None:
             logger.error("Failed to delete R2 object %s: %s", filepath, e)
 
 
-@stashed_task
+@shared_task
 def delete_orphaned_documents() -> None:
     grace_period = timezone.now() - timedelta(days=1)
     orphaned_files = DocumentData.objects.filter(
@@ -235,7 +222,7 @@ def delete_orphaned_documents() -> None:
     logger.info("Orphaned documents cleanup completed.")
 
 
-@stashed_task
+@shared_task
 def reconcile_documents() -> None:
     stale_cutoff = timezone.now() - timedelta(minutes=30)
     abandoned_uploads = DocumentData.objects.filter(
@@ -252,16 +239,12 @@ def reconcile_documents() -> None:
             s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(doc.filepath))
             deleted_ids.append(doc.id)
         except Exception as e:
-            logger.error(
-                "Failed cleanup of object storage for upload %s: %s", doc.id, e
-            )
+            logger.error("Failed cleanup of object storage for upload %s: %s", doc.id, e)
             continue
 
     if deleted_ids:
         DocumentData.objects.filter(id__in=deleted_ids).delete()
-        logger.info(
-            "Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids)
-        )
+        logger.info("Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids))
 
     dangling_r2_keys = DocumentData.objects.filter(
         status=DocumentStatus.ERROR,
@@ -270,6 +253,4 @@ def reconcile_documents() -> None:
     dangling_count = dangling_r2_keys.count()
     if dangling_count:
         dangling_r2_keys.delete()
-        logger.info(
-            "Reconciliation: removed %d dangling error records.", dangling_count
-        )
+        logger.info("Reconciliation: removed %d dangling error records.", dangling_count)

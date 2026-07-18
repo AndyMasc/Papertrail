@@ -6,6 +6,6 @@ from .models import UserSettings
 
 
 @receiver(post_save, sender=User)
-def create_user_settings(sender, instance, created, **kwargs):
+def create_user_settings(sender, instance, created, **kwargs):  # noqa: ARG001
     if created:
         UserSettings.objects.create(user=instance)

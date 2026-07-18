@@ -15,10 +15,7 @@ def active_link(context, view_name, base_classes, active_classes):
     except NoReverseMatch:
         target_url = view_name
 
-    if request.path == target_url:
-        return active_classes
-
-    elif request.path.startswith(target_url) and target_url != "/":
+    if request.path == target_url or request.path.startswith(target_url) and target_url != "/":
         return active_classes
 
     return base_classes

@@ -9,8 +9,6 @@ env_file = BASE_DIR / ".env"
 
 if env_file.exists():
     env.read_env(str(env_file))
-else:
-    print(f"Warning: .env file not found at {env_file}")
 
 # Core
 SECRET_KEY = env("SECRET_KEY")
@@ -162,9 +160,7 @@ AUTHENTICATION_BACKENDS = [
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -214,9 +210,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
 # Email
 EMAIL_BACKEND = "core.backends.QStashEmailBackend"  # Use custom backend to queue emails sending, and use anymail
 ANYMAIL = {"RESEND_API_KEY": env("RESEND_API_KEY")}
-DEFAULT_FROM_EMAIL = env(
-    "DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>"
-)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Papertrail <onboarding@resend.dev>")
 
 # Storage (S3/R2) - Uploads use signed urls in Cloudflare R2
 R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID")

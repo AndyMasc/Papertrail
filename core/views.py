@@ -1,18 +1,23 @@
+import json
+import logging
 from datetime import datetime, time, timedelta
+from typing import Any
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import connection
+from django.db import DatabaseError, connection
 from django.db.models import Sum
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.utils.timezone import make_aware
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
-from django.contrib import messages
-from django.shortcuts import redirect
-from webpush.models import PushInformation
+from webpush.models import PushInformation, SubscriptionInfo
+from webpush.views import save_info
 
 from documents.models import DocumentData
 from records.models import Record
@@ -20,29 +25,25 @@ from records.models import Record
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
 
-import json
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from webpush.views import save_info
-from webpush.models import SubscriptionInfo
+logger = logging.getLogger(__name__)
 
 
-def index(request):
+def index(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
-        return redirect('core:dashboard')
+        return redirect("core:dashboard")
     return render(request, "core/landing_page.html")
 
 
-def privacy_policy(request):
+def privacy_policy(request: HttpRequest) -> HttpResponse:
     return render(request, "core/privacy_policy.html")
 
 
-def health_check(request):
+def health_check(request: HttpRequest) -> JsonResponse:  # noqa: ARG001
     db_ok = True
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
-    except Exception:
+    except DatabaseError:
         db_ok = False
 
     status = 200 if db_ok else 503
@@ -57,7 +58,7 @@ def health_check(request):
 
 @csrf_exempt
 @require_POST
-def safe_webpush_save_info(request):
+def safe_webpush_save_info(request: HttpRequest) -> HttpResponse:
     try:
         post_data = json.loads(request.body.decode("utf-8"))
         endpoint = post_data.get("subscription", {}).get("endpoint")
@@ -67,8 +68,8 @@ def safe_webpush_save_info(request):
 
             if existing_subs.exists():
                 existing_subs.delete()
-    except Exception:
-        pass
+    except (json.JSONDecodeError, SubscriptionInfo.DoesNotExist):
+        logger.warning("Failed to process webpush subscription info", exc_info=True)
 
     return save_info(request)
 
@@ -76,7 +77,7 @@ def safe_webpush_save_info(request):
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         user = get_user_model().objects.select_related("settings").get(pk=request.user.pk)
         webpush_enabled = PushInformation.objects.filter(user=user).exists()
         if not webpush_enabled and user.settings.enable_push_notifications:
@@ -92,7 +93,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         return super().get(request, *args, **kwargs)
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         user = self.request.user
         now = timezone.now()
@@ -146,15 +147,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             )
         )
 
-        # Context assignment
         context["active_records_count"] = active_count
         context["records"] = recent_records
         context["expiring_soon"] = expiring_soon
         context["expiring_soon_count"] = len(expiring_soon)
         context["monthly_expenses"] = monthly_expenses
-        context["orphaned_document_count"] = (
-            DocumentData.objects.for_user(user).orphaned().count()
-        )
+        context["orphaned_document_count"] = DocumentData.objects.for_user(user).orphaned().count()
 
         return context
 
@@ -166,11 +164,11 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
     form_class = UpdateUserSettingsForm
     success_url = reverse_lazy("core:profile_page")
 
-    def get_object(self, queryset=None):
+    def get_object(self, queryset=None) -> UserSettings:  # noqa: ARG002
         user_settings, _ = UserSettings.objects.get_or_create(user=self.request.user)
         return user_settings
 
-    def form_valid(self, form):
+    def form_valid(self, form) -> HttpResponse:
         user_settings = form.save(commit=False)
         user_settings.user = self.request.user
         user_settings.save()
@@ -180,16 +178,12 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
         if self.request.headers.get("HX-Request"):
             response = HttpResponse(status=204)
             response["HX-Trigger"] = json.dumps(
-                {
-                    "djangoMessages": [
-                        {"message": "Settings saved successfully.", "level": 25}
-                    ]
-                }
+                {"djangoMessages": [{"message": "Settings saved successfully.", "level": 25}]}
             )
             return response
         return super().form_valid(form)
 
-    def form_invalid(self, form):
+    def form_invalid(self, form) -> HttpResponse:
         messages.error(self.request, "An unresolved error exists.")
 
         if self.request.headers.get("HX-Request"):
@@ -198,11 +192,7 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
             )
             response.status_code = 422
             response["HX-Trigger"] = json.dumps(
-                {
-                    "djangoMessages": [
-                        {"message": "An unresolved error exists.", "level": 40}
-                    ]
-                }
+                {"djangoMessages": [{"message": "An unresolved error exists.", "level": 40}]}
             )
             return response
         return super().form_invalid(form)

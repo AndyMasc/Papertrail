@@ -1,7 +1,7 @@
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import json
-from django.contrib.messages import get_messages
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from django.contrib.messages import get_messages
 from django.utils import timezone
 
 
@@ -41,9 +41,7 @@ class HtmxMessageMiddleware:
             messages_list = []
 
             for message in storage:
-                messages_list.append(
-                    {"message": str(message.message), "level": message.level}
-                )
+                messages_list.append({"message": str(message.message), "level": message.level})
 
             if messages_list:
                 hx_trigger = response.get("HX-Trigger")
