@@ -110,6 +110,7 @@ mypy==2.3.0
 mypy_extensions==1.1.0
 networkx==3.6.1
 ninja==1.13.0
+nulltype==2.3.1
 numpy==2.5.0
 oauthlib==3.3.1
 opencv-python==5.0.0.93
@@ -126,6 +127,7 @@ pip-check-reqs==2.5.6
 pip-requirements-parser==32.0.1
 pip_audit==2.10.1
 pipreqs==0.4.13
+plaid-python==40.1.0
 platformdirs==4.10.0
 pluggy==1.6.0
 propcache==0.5.2
