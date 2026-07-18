@@ -132,7 +132,9 @@ class DocumentData(models.Model):
     def save(self, *args, **kwargs):
         if self.filepath and not self.file_extension:
             _, ext = os.path.splitext(self.filepath)
-            self.file_extension = ext.replace(".", "").strip().lower()[:10]
+            normalized = ext.replace(".", "").strip().lower()[:10]
+            if normalized:
+                self.file_extension = normalized
         super().save(*args, **kwargs)
 
     def __str__(self):

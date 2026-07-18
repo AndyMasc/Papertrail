@@ -75,10 +75,6 @@ def send_expiry_notifications() -> None:
                 expiry_date__lte=today + timedelta(days=7),
             )
             | Q(
-                user__settings__expiring_notifications_advance_time="14",
-                expiry_date__lte=today + timedelta(days=14),
-            )
-            | Q(
                 user__settings__expiring_notifications_advance_time="30",
                 expiry_date__lte=today + timedelta(days=30),
             )

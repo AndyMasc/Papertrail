@@ -60,7 +60,7 @@ class RecordListView(LoginRequiredMixin, FilterView):
     paginate_by = settings.PAGINATE_BY
 
     def get_queryset(self):
-        qs = Record.objects.for_user(self.request.user).order_by("-last_edited")
+        qs = Record.objects.for_user(self.request.user)
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
             return qs.smart_search(search_query)
@@ -85,7 +85,7 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         return [self.template_name]
 
     def get_queryset(self):
-        return Record.objects.for_user(self.request.user)
+        return Record.objects.for_user(self.request.user).with_documents()
 
     @transaction.atomic
     def form_valid(self, form):

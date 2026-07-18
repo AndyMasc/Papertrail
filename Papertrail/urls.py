@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponseForbidden
 from django.urls import include, path
@@ -13,7 +14,6 @@ urlpatterns = [
     path("", include("core.urls")),
     # Admin URLs
     path("admin/", admin.site.urls),
-    path("__reload__/", include("django_browser_reload.urls")),  # NOT FOR PRODUCTION
     path("qstash/webhook/", include("django_qstash.urls")),
     # Block password management paths completely
     path("accounts/password/change/", forbidden_view),
@@ -29,3 +29,6 @@ urlpatterns = [
     ),  # Custom URL to catch webpush POST before sent to fix webpush MultipleObjectsReturned error.
     path("webpush/", include("webpush.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns.insert(3, path("__reload__/", include("django_browser_reload.urls")))

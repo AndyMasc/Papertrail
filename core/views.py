@@ -1,5 +1,6 @@
 from datetime import datetime, time, timedelta
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Sum
@@ -73,7 +74,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
     def get(self, request, *args, **kwargs):
-        user = request.user
+        user = get_user_model().objects.select_related("settings").get(pk=request.user.pk)
         webpush_enabled = PushInformation.objects.filter(user=user).exists()
         if not webpush_enabled and user.settings.enable_push_notifications:
             messages.warning(

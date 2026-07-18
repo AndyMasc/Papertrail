@@ -16,7 +16,6 @@ else:
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
-SITE_ID = 1
 ROOT_URLCONF = "Papertrail.urls"
 WSGI_APPLICATION = "Papertrail.wsgi.application"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -36,7 +35,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
-    "django.contrib.sitemaps",
     # Security
     "csp",
     "corsheaders",
@@ -100,12 +98,11 @@ if not DEBUG:
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"),
+        "script-src": ("'self'", "'unsafe-inline'"),
         "style-src": (
             "'self'",
             "'unsafe-inline'",
             "https://fonts.googleapis.com",
-            "https://cdn.tailwindcss.com",
         ),
         "font-src": ("'self'", "https://fonts.gstatic.com", "data:"),
         "img-src": ("'self'", "data:", "blob:", "https:"),
@@ -129,7 +126,6 @@ ACCOUNT_MAX_EMAIL_ADDRESSES = 3
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 LOGIN_REDIRECT_URL = "core:dashboard"
 ACCOUNT_SIGNUP_REDIRECT_URL = "core:dashboard"
-ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_SESSION_REMEMBER = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = False
@@ -258,7 +254,6 @@ STORAGES = {
     },
 }
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 
 # AI / OCR
 GEMINI_API_KEY = env("GEMINI_API_KEY")

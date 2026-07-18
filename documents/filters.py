@@ -10,6 +10,7 @@ FILTER_CHOICES_CACHE_TTL = 300
 class DocumentFilter(django_filters.FilterSet):
     file_type = django_filters.ChoiceFilter(
         field_name="file_extension",
+        lookup_expr="iexact",
         choices=(),
         widget=forms.Select(),
         label="File Type",
@@ -41,16 +42,22 @@ class DocumentFilter(django_filters.FilterSet):
 
     def _get_cached_extensions(self):
         if self.request and self.request.user.is_authenticated:
-            cache_key = f"de_{self.request.user.id}"
+            cache_key = f"de_v2_{self.request.user.id}"
             extensions = cache.get(cache_key)
             if extensions is None:
-                extensions = list(
-                    DocumentData.objects.filter(user=self.request.user)
-                    .exclude(file_extension="")
-                    .exclude(file_extension__isnull=True)
-                    .values_list("file_extension", flat=True)
-                    .distinct()
-                )
+                raw = DocumentData.objects.filter(
+                    user=self.request.user
+                ).values_list("file_extension", flat=True)
+                seen = set()
+                result = []
+                for ext in raw:
+                    if not ext:
+                        continue
+                    normalized = ext.strip().lower()[:10]
+                    if normalized and normalized not in seen:
+                        seen.add(normalized)
+                        result.append(normalized)
+                extensions = sorted(result)
                 cache.set(cache_key, extensions, FILTER_CHOICES_CACHE_TTL)
             return extensions
         return []

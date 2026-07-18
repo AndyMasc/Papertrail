@@ -65,48 +65,34 @@ class ValidationResult:
     mime_type: str
 
 
+def _validate_file(size: int, detected_mime: str | None) -> ValidationResult:
+    if size == 0:
+        raise ValidationError("File is empty.")
+    if size > MAX_FILE_SIZE:
+        raise ValidationError(
+            f"File size ({size / 1024 / 1024:.2f}MB) exceeds maximum of {MAX_FILE_SIZE / 1024 / 1024}MB."
+        )
+    if not detected_mime:
+        raise ValidationError("Unable to validate file type.")
+    if detected_mime not in ALLOWED_MIME_TYPES:
+        raise ValidationError(
+            f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
+        )
+    return ValidationResult(file_size=size, mime_type=detected_mime)
+
+
 def validate_file_upload(file_obj, declared_mime_type=None) -> ValidationResult:
     file_obj.seek(0, 2)
     file_size = file_obj.tell()
     file_obj.seek(0)
 
-    if file_size == 0:
-        raise ValidationError("File is empty.")
-    if file_size > MAX_FILE_SIZE:
-        raise ValidationError(
-            f"File size ({file_size / 1024 / 1024:.2f}MB) exceeds maximum of {MAX_FILE_SIZE / 1024 / 1024}MB."
-        )
-
     header = file_obj.read(2048)
     file_obj.seek(0)
 
     detected_mime = _detect_mime_from_bytes(header)
-    if not detected_mime:
-        raise ValidationError("Unable to validate file type.")
-
-    if detected_mime not in ALLOWED_MIME_TYPES:
-        raise ValidationError(
-            f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
-        )
-
-    return ValidationResult(file_size=file_size, mime_type=detected_mime)
+    return _validate_file(file_size, detected_mime)
 
 
 def validate_file_bytes(header_bytes: bytes, content_length: int) -> ValidationResult:
-    if content_length == 0:
-        raise ValidationError("File is empty.")
-    if content_length > MAX_FILE_SIZE:
-        raise ValidationError(
-            f"File size ({content_length / 1024 / 1024:.2f}MB) exceeds maximum of {MAX_FILE_SIZE / 1024 / 1024}MB."
-        )
-
     detected_mime = _detect_mime_from_bytes(header_bytes)
-    if not detected_mime:
-        raise ValidationError("Unable to validate file type.")
-
-    if detected_mime not in ALLOWED_MIME_TYPES:
-        raise ValidationError(
-            f"File type '{detected_mime}' is not allowed. Allowed: {', '.join(sorted(ALLOWED_MIME_TYPES))}"
-        )
-
-    return ValidationResult(file_size=content_length, mime_type=detected_mime)
+    return _validate_file(content_length, detected_mime)

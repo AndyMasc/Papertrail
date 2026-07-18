@@ -22,7 +22,7 @@ urlpatterns = [
         views.ArchiveRecord.as_view(),
         name="archive_record",
     ),
-    path("archive/", views.ArchiveRecord.as_view(), name="archive_view"),
+    path("archive/<int:record_id>/", views.ArchiveRecord.as_view(), name="archive_view"),
     path(
         "unarchive/<int:record_id>/",
         views.UnarchiveRecord.as_view(),

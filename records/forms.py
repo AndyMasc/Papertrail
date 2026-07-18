@@ -58,13 +58,16 @@ class BaseRecordForm(forms.ModelForm):
 
     class Meta:
         model = Record
-        fields = "__all__"
-        exclude = [
-            "user",
-            "date_added",
-            "last_edited",
-            "is_active",
-            "expiry_notification_sent",
+        fields = [
+            "title",
+            "products",
+            "merchant",
+            "balance",
+            "transaction_date",
+            "expiry_date",
+            "record_type",
+            "notes",
+            "folder",
         ]
 
     def clean_transaction_date(self):
@@ -97,7 +100,7 @@ class AddRecordForm(BaseRecordForm):
         if "folder" in self.fields:
             self.fields["folder"].queryset = Folder.objects.none()
             self.fields["folder"].required = False
-            self.fields["folder"].empty_label = "Unfiled (Inbox)"
+            self.fields["folder"].empty_label = "Unfiled"
             if user is not None:
                 self.fields["folder"].queryset = Folder.objects.filter(user=user)
 
