@@ -33,25 +33,16 @@ urlpatterns = [
         views.CheckOCRStatus.as_view(),
         name="check_ocr_status",
     ),
-    
-    path(
-        "folders/",
-        views.FolderListView.as_view(),
-        name="view_folders"
-    ),
-    path(
-        "create_folder/",
-        views.CreateFolder.as_view(),
-        name="create_folder"
-    ),
+    path("folders/", views.FolderListView.as_view(), name="view_folders"),
+    path("create_folder/", views.CreateFolder.as_view(), name="create_folder"),
     path(
         "folders/<int:folder_id>/edit/",
         views.FolderUpdateView.as_view(),
-        name="edit_folder"
+        name="edit_folder",
     ),
     path(
         "folders/<int:folder_id>/delete/",
         views.FolderDeleteView.as_view(),
-        name="delete_folder"
+        name="delete_folder",
     ),
 ]

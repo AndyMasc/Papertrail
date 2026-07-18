@@ -132,7 +132,6 @@ class RecordQuerySet(models.QuerySet):
         return self.filter(conditions)
 
 
-
 class Folder(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="folders")
     name = models.CharField(max_length=255)
@@ -140,7 +139,7 @@ class Folder(models.Model):
 
     def __str__(self):
         return self.name
-    
+
 
 class RecordManager(models.Manager.from_queryset(RecordQuerySet)):
     pass
@@ -212,7 +211,7 @@ class Record(models.Model):
         Folder,
         on_delete=models.CASCADE,
         related_name="records",
-        null= True,
+        null=True,
         blank=True,
     )
 
@@ -273,4 +272,3 @@ class Record(models.Model):
                 timezone.now().date() + datetime.timedelta(days=days)
             )
         return False
-        

@@ -49,9 +49,11 @@ class BaseRecordForm(forms.ModelForm):
     folder = forms.ModelChoiceField(
         queryset=Folder.objects.none(),
         required=False,
-        widget=forms.Select(attrs={
-            "class": "w-full text-xs font-semibold bg-transparent border-transparent focus:outline-hidden cursor-pointer",
-        }),
+        widget=forms.Select(
+            attrs={
+                "class": "w-full text-xs font-semibold bg-transparent border-transparent focus:outline-hidden cursor-pointer",
+            }
+        ),
     )
 
     class Meta:

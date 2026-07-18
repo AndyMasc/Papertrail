@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("records", "0018_record_expiry_notification_sent"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),

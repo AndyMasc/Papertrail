@@ -3,7 +3,7 @@
         <div class="flex items-start justify-between">
             <div class="flex size-10 items-center justify-center rounded-xl border border-zinc-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-zinc-700 dark:text-zinc-300 transition-colors duration-300 group-hover:border-zinc-300 dark:group-hover:border-zinc-700">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776" />
                 </svg>
             </div>
 
@@ -34,7 +34,7 @@
         <span class="text-[10px] font-mono font-medium text-zinc-400 dark:text-zinc-500">
             {{ folder.active_records_count }} elements
         </span>
-        <a href="{% url 'records:view_all_records' %}?folder={{ folder.id }}" 
+        <a href="{% url 'records:view_all_records' %}?folder={{ folder.id }}"
            class="text-[11px] font-medium text-zinc-900 dark:text-zinc-100 hover:underline underline-offset-4">
             Enter Workspace
         </a>

@@ -60,10 +60,16 @@ class RecordFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
-            folder_filter = self.filters.get("folder") or self.base_filters.get("folder")
+            folder_filter = self.filters.get("folder") or self.base_filters.get(
+                "folder"
+            )
             if folder_filter:
-                user_folders = Folder.objects.filter(user=self.request.user).values_list("id", "name")
-                folder_filter.extra["choices"] = [("none", "All folders")] + list(user_folders)
+                user_folders = Folder.objects.filter(
+                    user=self.request.user
+                ).values_list("id", "name")
+                folder_filter.extra["choices"] = [("none", "All folders")] + list(
+                    user_folders
+                )
 
             cache_key = f"rt_{self.request.user.id}"
             user_record_types = cache.get(cache_key)
@@ -85,17 +91,19 @@ class RecordFilter(django_filters.FilterSet):
             else:
                 filtered = list(all_choices)
 
-            type_filter = self.filters.get("record_type") or self.base_filters.get("record_type")
+            type_filter = self.filters.get("record_type") or self.base_filters.get(
+                "record_type"
+            )
             if type_filter:
                 type_filter.extra["choices"] = [("", "All Types")] + filtered
 
     def filter_by_folder(self, queryset, name, value):
         if not value:
             return queryset
-        
+
         if value == "none":
             return queryset.filter(folder__isnull=True)
-            
+
         return queryset.filter(folder_id=value)
 
     def filter_is_current(self, queryset, name, value):

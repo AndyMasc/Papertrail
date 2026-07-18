@@ -1,28 +1,28 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-xs" 
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-xs"
      id="create-folder-modal"
      hx-on:click="if(event.target === this) this.remove()">
-    
+
     <div class="w-full max-w-md overflow-hidden bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 rounded-2xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
-        
+
         <div class="p-6 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between">
             <div>
                 <h2 class="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Create New Folders</h2>
                 <p class="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">Group related records in a searchable workspace.</p>
             </div>
-            <button type="button" 
-                    onclick="document.getElementById('create-folder-modal').remove()" 
+            <button type="button"
+                    onclick="document.getElementById('create-folder-modal').remove()"
                     class="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
             </button>
         </div>
 
-        <form hx-post="{% url 'records:create_folder' %}" 
-              hx-target="#directory-results-container" 
+        <form hx-post="{% url 'records:create_folder' %}"
+              hx-target="#directory-results-container"
               hx-target-error="#modal-container"
-              hx-swap="innerHTML" 
+              hx-swap="innerHTML"
               class="p-6 space-y-4">
             {% csrf_token %}
-            
+
             <div class="space-y-1.5">
                 <label for="{{ form.name.id_for_label }}" class="text-[11px] font-medium text-zinc-600 dark:text-zinc-400">
                     Workspace Name
@@ -36,14 +36,14 @@
             </div>
 
             <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-end gap-2">
-                <button type="button" 
+                <button type="button"
                         onclick="document.getElementById('create-folder-modal').remove()"
                         class="px-3.5 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl border border-zinc-200/50 dark:border-zinc-700/40 transition-colors duration-150 cursor-pointer">
                     Cancel
                 </button>
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white rounded-xl transition-all duration-150 shadow-xs active:scale-[0.98] cursor-pointer">
-                            Create
+                    Create
                 </button>
             </div>
         </form>

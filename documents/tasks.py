@@ -1,11 +1,10 @@
 import logging
 import re
 from datetime import timedelta
-from typing import Any, Literal
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from django_qstash import stashed_task
@@ -114,12 +113,12 @@ def _process_image(image_bytes: bytes, filepath: str) -> types.Part:
 
 def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, Any]:
     contents = []
-    
+
     folder_context = (
         f"User's available folders: {', '.join(folder_names) if folder_names else 'None'}. "
         f"If the document context logically fits one of these folders, populate 'suggested_folder' with the exact name string. Otherwise null."
     )
-    
+
     contents.append(folder_context)
     contents.append(image_part)
 
@@ -128,13 +127,14 @@ def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, A
         contents=contents,
         config=CONFIG,
     )
-    
+
     if result.parsed is not None:
         return result.parsed.model_dump(mode="json")
 
     raw_text = result.text.strip()
     clean_json = re.sub(r"^```json\s*|```$", "", raw_text, flags=re.MULTILINE).strip()
     return OCRResult.model_validate_json(clean_json).model_dump(mode="json")
+
 
 @stashed_task(retries=MAX_OCR_RETRIES, backoff_factor=2)
 def extract_document(document_id: int) -> dict[str, Any]:
@@ -153,28 +153,40 @@ def extract_document(document_id: int) -> dict[str, Any]:
     _set_document_status(document_id, DocumentStatus.PROCESSING)
 
     try:
-        document = DocumentData.objects.select_related("user").prefetch_related("user__folders").get(id=document_id)
-        
+        document = (
+            DocumentData.objects.select_related("user")
+            .prefetch_related("user__folders")
+            .get(id=document_id)
+        )
+
         folder_names = list(document.user.folders.values_list("name", flat=True))
-        
+
         image_content = _fetch_from_r2(document.filepath)
         part = _process_image(image_content, document.filepath)
-        
+
         final_data = _call_gemini(part, folder_names)
 
         cache.set(cache_key, final_data, timeout=OCR_CACHE_TTL)
-        _set_document_status(document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True)
+        _set_document_status(
+            document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True
+        )
         return final_data
 
     except Exception as exc:
-        logger.warning("OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True)
+        logger.warning(
+            "OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True
+        )
         retries = _increment_ocr_retries(document_id)
-        
+
         if retries >= MAX_OCR_RETRIES:
-            error_payload = {"error": "Failed to automatically extract document details."}
+            error_payload = {
+                "error": "Failed to automatically extract document details."
+            }
             cache.set(cache_key, error_payload, timeout=OCR_CACHE_TTL)
             _set_document_status(document_id, DocumentStatus.ERROR, ocr_error=str(exc))
-            raise GeminiOCRError(f"OCR execution hard-failed for document {document_id}") from exc
+            raise GeminiOCRError(
+                f"OCR execution hard-failed for document {document_id}"
+            ) from exc
 
         raise
 
@@ -240,12 +252,16 @@ def reconcile_documents() -> None:
             s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(doc.filepath))
             deleted_ids.append(doc.id)
         except Exception as e:
-            logger.error("Failed cleanup of object storage for upload %s: %s", doc.id, e)
+            logger.error(
+                "Failed cleanup of object storage for upload %s: %s", doc.id, e
+            )
             continue
 
     if deleted_ids:
         DocumentData.objects.filter(id__in=deleted_ids).delete()
-        logger.info("Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids))
+        logger.info(
+            "Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids)
+        )
 
     dangling_r2_keys = DocumentData.objects.filter(
         status=DocumentStatus.ERROR,
@@ -254,4 +270,6 @@ def reconcile_documents() -> None:
     dangling_count = dangling_r2_keys.count()
     if dangling_count:
         dangling_r2_keys.delete()
-        logger.info("Reconciliation: removed %d dangling error records.", dangling_count)
+        logger.info(
+            "Reconciliation: removed %d dangling error records.", dangling_count
+        )
