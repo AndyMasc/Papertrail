@@ -10,10 +10,12 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DeleteView, UpdateView
 from django_filters.views import FilterView
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django_ratelimit.decorators import ratelimit
 
 from records.models import Record
 
@@ -68,6 +70,12 @@ class DocumentListView(LoginRequiredMixin, FilterView):
 
 
 class BaseR2UploadView(LoginRequiredMixin, View):
+    @method_decorator(
+        ratelimit(key="user", rate="30/h", method="POST", block=True)
+    )
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def _handle_presign_request(self, request, record_id=None):
         import json
 
@@ -182,6 +190,12 @@ class UploadView(BaseR2UploadView):
 
 
 class ConfirmUploadView(LoginRequiredMixin, View):
+    @method_decorator(
+        ratelimit(key="user", rate="60/h", method="POST", block=True)
+    )
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def post(self, request):
         document_id = request.POST.get("document_id")
         key = request.POST.get("key", "").strip()

@@ -31,15 +31,16 @@ def build_site_context() -> dict:
     parsed_url = urlparse(site_url)
     site_domain = parsed_url.netloc
 
-    current_site = Site.objects.get_current()
+    try:
+        current_site = Site.objects.get_current()
+        site_info = {"domain": current_site.domain, "name": current_site.name}
+    except Exception:
+        site_info = {"domain": site_domain, "name": "Papertrail"}
 
     return {
         "site_url": site_url,
         "site_domain": site_domain,
-        "current_site": {
-            "domain": current_site.domain,
-            "name": current_site.name,
-        },
+        "current_site": site_info,
     }
 
 
@@ -119,7 +120,7 @@ def _user_can_receive_push(user: User) -> bool:
 def _user_can_receive_email(user: User) -> bool:
     """Check if user has email notifications enabled."""
     if not hasattr(user, "settings"):
-        return True  # Default to True if no settings
+        return False
     # Refresh from DB to avoid stale cached value
     user.settings.refresh_from_db()
     return user.settings.enable_email_notifications

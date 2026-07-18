@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from django.views.generic import TemplateView, UpdateView
 from django.contrib import messages
+from django.shortcuts import redirect
 from webpush.models import PushInformation
 
 from documents.models import DocumentData
@@ -27,6 +28,8 @@ from webpush.models import SubscriptionInfo
 
 
 def index(request):
+    if request.user.is_authenticated:
+        return redirect('core:dashboard')
     return render(request, "core/landing_page.html")
 
 
