@@ -1,12 +1,14 @@
 import logging
+import re
 from datetime import timedelta
-from typing import Any
+from typing import Any, Literal
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 from django_qstash import stashed_task
-from records.models import Record
 
 from .models import DocumentData, DocumentStatus
 from .ocr_helpers import prepare_image_for_gemini
@@ -23,6 +25,7 @@ try:
     from google.genai import types
     from pydantic import BaseModel, Field
 
+    # Delayed imports or verifying structure
     from records.models import Record
 
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -52,13 +55,17 @@ try:
         record_type: Record.RecordTypes = Field(
             description="Strictly classify the document type. If no clear type can be found, default to EXPENSE_RECEIPT"
         )
+        suggested_folder: str | None = Field(
+            default=None,
+            description="Choose from the user's available folders provided in the prompt. If the document clearly belongs in one, return that folder name exactly. If none fit, return null.",
+        )
 
     CONFIG = types.GenerateContentConfig(
         response_mime_type="application/json",
         response_schema=OCRResult,
-        system_instruction="Extract data exactly as it appears from the image. Never hallucinate or invent information. No preamble.",
+        system_instruction="Extract data exactly as it appears from the image. Never hallucinate or invent information. No preamble. The user's available folders are provided in the context — match them exactly if applicable.",
         temperature=0.0,
-        max_output_tokens=400,
+        max_output_tokens=700,
     )
 except ImportError:
     client = None
@@ -74,29 +81,23 @@ def _get_cache_key(document_id: int) -> str:
     return f"ocr_status_{document_id}"
 
 
-def _set_document_status(document_id: int, status: str) -> None:
-    DocumentData.objects.filter(id=document_id).update(status=status)
+def _normalize_s3_key(filepath: str) -> str:
+    return filepath.lstrip("/") if filepath else ""
 
 
-def _get_document_status(document_id: int) -> str | None:
-    return (
-        DocumentData.objects.filter(id=document_id)
-        .values_list("status", flat=True)
-        .first()
-    )
+def _set_document_status(document_id: int, status: str, **kwargs) -> None:
+    DocumentData.objects.filter(id=document_id).update(status=status, **kwargs)
 
 
 def _increment_ocr_retries(document_id: int) -> int:
-    doc = DocumentData.objects.filter(id=document_id).first()
-    if doc:
-        doc.ocr_retries += 1
-        doc.save(update_fields=["ocr_retries"])
-        return doc.ocr_retries
-    return 0
+    DocumentData.objects.filter(id=document_id).update(ocr_retries=F("ocr_retries") + 1)
+    doc = DocumentData.objects.filter(id=document_id).values("ocr_retries").first()
+    return doc["ocr_retries"] if doc else 0
 
 
 def _fetch_from_r2(filepath: str) -> bytes:
-    response = s3.get_object(Bucket=BUCKET, Key=filepath)
+    key = _normalize_s3_key(filepath)
+    response = s3.get_object(Bucket=BUCKET, Key=key)
     body = response["Body"]
     if hasattr(body, "read"):
         return body.read()
@@ -111,69 +112,69 @@ def _process_image(image_bytes: bytes, filepath: str) -> types.Part:
     return types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
 
 
-def _call_gemini(part: types.Part) -> dict[str, Any]:
+def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, Any]:
+    contents = []
+    
+    folder_context = (
+        f"User's available folders: {', '.join(folder_names) if folder_names else 'None'}. "
+        f"If the document context logically fits one of these folders, populate 'suggested_folder' with the exact name string. Otherwise null."
+    )
+    
+    contents.append(folder_context)
+    contents.append(image_part)
+
     result = client.models.generate_content(
         model="gemini-3.1-flash-lite",
-        contents=[part],
+        contents=contents,
         config=CONFIG,
     )
+    
     if result.parsed is not None:
         return result.parsed.model_dump(mode="json")
 
     raw_text = result.text.strip()
-    import re
-
     clean_json = re.sub(r"^```json\s*|```$", "", raw_text, flags=re.MULTILINE).strip()
     return OCRResult.model_validate_json(clean_json).model_dump(mode="json")
-
 
 @stashed_task(retries=MAX_OCR_RETRIES, backoff_factor=2)
 def extract_document(document_id: int) -> dict[str, Any]:
     cache_key = _get_cache_key(document_id)
 
-    current_status = _get_document_status(document_id)
-    if current_status == DocumentStatus.COMPLETED:
+    doc_lookup = DocumentData.objects.filter(id=document_id).values("status").first()
+    if not doc_lookup:
+        logger.error("Document %s does not exist.", document_id)
+        return {"error": "Document not found."}
+
+    if doc_lookup["status"] == DocumentStatus.COMPLETED:
         cached = cache.get(cache_key)
         if isinstance(cached, dict) and "error" not in cached:
             return cached
 
-    try:
-        document = DocumentData.objects.get(id=document_id)
-    except DocumentData.DoesNotExist:
-        logger.error("Document %s does not exist.", document_id)
-        return {"error": "Document not found."}
-
     _set_document_status(document_id, DocumentStatus.PROCESSING)
 
     try:
+        document = DocumentData.objects.select_related("user").prefetch_related("user__folders").get(id=document_id)
+        
+        folder_names = list(document.user.folders.values_list("name", flat=True))
+        
         image_content = _fetch_from_r2(document.filepath)
         part = _process_image(image_content, document.filepath)
-        final_data = _call_gemini(part)
+        
+        final_data = _call_gemini(part, folder_names)
 
         cache.set(cache_key, final_data, timeout=OCR_CACHE_TTL)
-        _set_document_status(document_id, DocumentStatus.COMPLETED)
-        DocumentData.objects.filter(id=document_id).update(
-            ocr_error="",
-            did_ocr=True,
-        )
+        _set_document_status(document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True)
         return final_data
 
     except Exception as exc:
-        logger.warning(
-            "OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True
-        )
-
+        logger.warning("OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True)
         retries = _increment_ocr_retries(document_id)
+        
         if retries >= MAX_OCR_RETRIES:
-            error_payload = {
-                "error": "Failed to automatically extract document details."
-            }
+            error_payload = {"error": "Failed to automatically extract document details."}
             cache.set(cache_key, error_payload, timeout=OCR_CACHE_TTL)
-            _set_document_status(document_id, DocumentStatus.ERROR)
-            DocumentData.objects.filter(id=document_id).update(
-                ocr_error=str(exc),
-            )
-            raise GeminiOCRError(f"OCR failed for document {document_id}") from exc
+            _set_document_status(document_id, DocumentStatus.ERROR, ocr_error=str(exc))
+            raise GeminiOCRError(f"OCR execution hard-failed for document {document_id}") from exc
 
         raise
 
@@ -182,13 +183,11 @@ def extract_document(document_id: int) -> dict[str, Any]:
 def delete_document(filepath: str) -> None:
     if filepath:
         try:
-            s3.delete_object(Bucket=BUCKET, Key=filepath)
+            s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(filepath))
         except Exception as e:
             logger.error("Failed to delete R2 object %s: %s", filepath, e)
 
 
-# Scheduled tasks
-#
 @stashed_task
 def delete_orphaned_documents() -> None:
     grace_period = timezone.now() - timedelta(days=1)
@@ -206,7 +205,7 @@ def delete_orphaned_documents() -> None:
     for i in range(0, len(file_data), CHUNK_SIZE):
         chunk = file_data[i : i + CHUNK_SIZE]
         chunk_ids = [item[0] for item in chunk]
-        chunk_paths = [item[1] for item in chunk if item[1]]
+        chunk_paths = [_normalize_s3_key(item[1]) for item in chunk if item[1]]
 
         if not chunk_paths:
             continue
@@ -214,19 +213,11 @@ def delete_orphaned_documents() -> None:
         try:
             s3.delete_objects(
                 Bucket=BUCKET,
-                Delete={
-                    "Objects": [
-                        {"Key": filepath.lstrip("/")} for filepath in chunk_paths
-                    ]
-                },
+                Delete={"Objects": [{"Key": path} for path in chunk_paths]},
             )
             DocumentData.objects.filter(id__in=chunk_ids).delete()
         except Exception as e:
-            logger.error(
-                "Failed to delete bulk chunk of orphaned documents: %s",
-                e,
-                exc_info=True,
-            )
+            logger.error("Failed bulk deletion of orphaned chunk: %s", e, exc_info=True)
             continue
 
     logger.info("Orphaned documents cleanup completed.")
@@ -235,30 +226,26 @@ def delete_orphaned_documents() -> None:
 @stashed_task
 def reconcile_documents() -> None:
     stale_cutoff = timezone.now() - timedelta(minutes=30)
-
     abandoned_uploads = DocumentData.objects.filter(
         filepath__isnull=False,
         status=DocumentStatus.PENDING_UPLOAD,
         date_added__lt=stale_cutoff,
     )
 
-    deleted_count = 0
+    deleted_ids = []
     for doc in abandoned_uploads.iterator(chunk_size=200):
         if not doc.filepath:
             continue
         try:
-            s3.delete_object(Bucket=BUCKET, Key=doc.filepath)
-            doc.delete()
-            deleted_count += 1
+            s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(doc.filepath))
+            deleted_ids.append(doc.id)
         except Exception as e:
-            logger.error("Failed to cleanup abandoned upload %s: %s", doc.id, e)
+            logger.error("Failed cleanup of object storage for upload %s: %s", doc.id, e)
             continue
 
-    if deleted_count:
-        logger.info(
-            "Reconciliation: cleaned up %d stale pending uploads.",
-            deleted_count,
-        )
+    if deleted_ids:
+        DocumentData.objects.filter(id__in=deleted_ids).delete()
+        logger.info("Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids))
 
     dangling_r2_keys = DocumentData.objects.filter(
         status=DocumentStatus.ERROR,
@@ -267,6 +254,4 @@ def reconcile_documents() -> None:
     dangling_count = dangling_r2_keys.count()
     if dangling_count:
         dangling_r2_keys.delete()
-        logger.info(
-            "Reconciliation: removed %d dangling error records.", dangling_count
-        )
+        logger.info("Reconciliation: removed %d dangling error records.", dangling_count)

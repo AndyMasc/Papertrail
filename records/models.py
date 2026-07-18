@@ -132,6 +132,16 @@ class RecordQuerySet(models.QuerySet):
         return self.filter(conditions)
 
 
+
+class Folder(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="folders")
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+    
+
 class RecordManager(models.Manager.from_queryset(RecordQuerySet)):
     pass
 
@@ -198,6 +208,14 @@ class Record(models.Model):
         db_index=True,
     )
 
+    folder = models.ForeignKey(
+        Folder,
+        on_delete=models.CASCADE,
+        related_name="records",
+        null= True,
+        blank=True,
+    )
+
     expiry_notification_sent = models.BooleanField(default=False, db_index=True)
 
     objects = RecordManager()
@@ -255,3 +273,4 @@ class Record(models.Model):
                 timezone.now().date() + datetime.timedelta(days=days)
             )
         return False
+        

@@ -10,9 +10,11 @@ from django.urls import reverse_lazy
 from django.utils.functional import cached_property
 from django.views.generic.base import View
 from django.views.generic.edit import CreateView, DeleteView, UpdateView
+from django.views.generic import ListView
 from django_filters.views import FilterView
 from django.http import HttpResponse
 import json
+from django.db.models import Count, Q
 
 from django.contrib import messages
 from documents.models import DocumentData, DocumentStatus
@@ -20,10 +22,19 @@ from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
 
 from .filters import RecordFilter
-from .forms import AddRecordForm, RecordUpdateForm
-from .models import Record
+from .forms import AddRecordForm, RecordUpdateForm, FolderForm
+from .models import Record, Folder
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_suggested_folder(user, initial: dict) -> dict:
+    suggested = initial.pop("suggested_folder", None)
+    if suggested:
+        folder = Folder.objects.filter(user=user, name__iexact=suggested).first()
+        if folder:
+            initial["folder"] = folder.pk
+    return initial
 
 LIST_FIELDS = (
     "pk",
@@ -139,6 +150,11 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
         return super().get(request, *args, **kwargs)
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         document = self.document
@@ -162,13 +178,15 @@ class AddRecordView(LoginRequiredMixin, CreateView):
                 error_data = cached_status if isinstance(cached_status, dict) else {}
                 if isinstance(error_data, dict) and "error" in error_data:
                     context["error_message"] = error_data["error"]
-                form = self.form_class()
+                form = AddRecordForm(user=self.request.user)
 
             elif document.status == DocumentStatus.COMPLETED and isinstance(
                 cached_status, dict
             ):
                 is_waiting = False
-                form = self.form_class(initial=ocr_data_to_form_initial(cached_status))
+                initial = ocr_data_to_form_initial(cached_status)
+                _resolve_suggested_folder(self.request.user, initial)
+                form = AddRecordForm(initial=initial, user=self.request.user)
 
         context.update(
             {
@@ -229,12 +247,14 @@ class CheckOCRStatus(LoginRequiredMixin, View):
                     {
                         "is_waiting": False,
                         "error_message": error_msg,
-                        "form": AddRecordForm(),
+                        "form": AddRecordForm(user=request.user),
                     },
                 )
 
             if isinstance(data, dict) and "error" not in data:
-                form = AddRecordForm(initial=ocr_data_to_form_initial(data))
+                initial = ocr_data_to_form_initial(data)
+                _resolve_suggested_folder(request.user, initial)
+                form = AddRecordForm(initial=initial, user=request.user)
                 return render(
                     request,
                     "records/partials/form_card.html",
@@ -250,7 +270,7 @@ class CheckOCRStatus(LoginRequiredMixin, View):
                 {
                     "is_waiting": False,
                     "error_message": "Extraction produced no data. Please enter details manually.",
-                    "form": AddRecordForm(),
+                    "form": AddRecordForm(user=request.user),
                 },
             )
 
@@ -296,3 +316,156 @@ class DeleteRecord(LoginRequiredMixin, DeleteView):
 
     def get_queryset(self):
         return Record.objects.for_user(self.request.user)
+
+
+class FolderListView(LoginRequiredMixin, ListView):
+    model = Folder
+    template_name = "records/folders.html"  # Path to your template
+    context_object_name = "folders"
+    ordering = ["-created_at"]
+    paginate_by = 12
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Request"):
+            return ["records/partials/folder_list_partial.html"]
+        return [self.template_name]
+
+    def get_queryset(self):
+        """
+        Return only the folders belonging to the logged-in user.
+        Annotate each folder with the count of active records inside it.
+        Support search by folder name.
+        """
+        qs = Folder.objects.filter(user=self.request.user)
+        
+        search_query = self.request.GET.get("search", "").strip()
+        if search_query:
+            qs = qs.filter(name__icontains=search_query)
+        
+        return qs.annotate(
+            active_records_count=Count(
+                'records', 
+                filter=Q(records__is_active=True)
+            )
+        ).order_by("-created_at")
+
+    def get_context_data(self, **kwargs):
+        """
+        Add extra context, like the count of records that don't belong 
+        to any folder (Unfiled).
+        """
+        context = super().get_context_data(**kwargs)
+        
+        # Pull records that are in the "Unfiled" (no folder assigned)
+        context["unfiled_count"] = self.request.user.records.filter(
+            folder__isnull=True, 
+            is_active=True
+        ).count()
+        
+        return context
+
+
+class CreateFolder(LoginRequiredMixin, CreateView):
+    model = Folder
+    form_class = FolderForm
+    template_name = "records/partials/create_folder_modal.html"
+
+    def form_valid(self, form):
+        """
+        Bind the newly created folder to the logged-in user.
+        """
+        form.instance.user = self.request.user
+        self.object = form.save()
+        
+        # If the request comes via HTMX, return the updated folder list and close modal
+        if self.request.headers.get("HX-Request"):
+            folders = Folder.objects.filter(user=self.request.user).annotate(
+                active_records_count=Count('records', filter=Q(records__is_active=True))
+            )
+            unfiled_count = self.request.user.records.filter(folder__isnull=True, is_active=True).count()
+            response = render(self.request, "records/partials/folder_list_partial.html", {
+                "folders": folders,
+                "unfiled_count": unfiled_count,
+                "page_obj": None
+            })
+            response["HX-Trigger"] = json.dumps({"closeModal": True})
+            return response
+            
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        """
+        If the form is invalid (e.g., missing name), re-render the modal content 
+        with errors inline using HTMX.
+        """
+        response = super().form_invalid(form)
+        if self.request.headers.get("HX-Request"):
+            response.status_code = 422  # Unprocessable Entity status for UI processing
+        return response
+
+
+class FolderUpdateView(LoginRequiredMixin, UpdateView):
+    model = Folder
+    form_class = FolderForm
+    template_name = "records/partials/edit_folder_inline.html"
+    pk_url_kwarg = "folder_id"
+
+    def get_queryset(self):
+        return (
+            Folder.objects.filter(user=self.request.user)
+            .annotate(
+                active_records_count=Count(
+                    'records',
+                    filter=Q(records__is_active=True)
+                )
+            )
+        )
+
+    def form_valid(self, form):
+        self.object = form.save()
+
+        if self.request.headers.get("HX-Request"):
+            # Return the updated folder item for the list
+            response = render(
+                self.request,
+                "records/partials/folder_item_partial.html",
+                {"folder": self.object}
+            )
+            return response
+
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        response = super().form_invalid(form)
+        if self.request.headers.get("HX-Request"):
+            response.status_code = 422
+        return response
+
+
+class FolderDeleteView(LoginRequiredMixin, DeleteView):
+    model = Folder
+    pk_url_kwarg = "folder_id"
+    success_url = reverse_lazy("records:view_folders")
+
+    def get_queryset(self):
+        return Folder.objects.filter(user=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        folder = self.get_object()
+        
+        folder.records.update(folder=None)
+        folder.delete()
+        
+        if request.headers.get("HX-Request"):
+            folders = Folder.objects.filter(user=self.request.user).annotate(
+                active_records_count=Count('records', filter=Q(records__is_active=True))
+            )
+            unfiled_count = request.user.records.filter(folder__isnull=True, is_active=True).count()
+            return render(request, "records/partials/folder_list_partial.html", {
+                "folders": folders,
+                "unfiled_count": unfiled_count,
+                "page_obj": None
+            })
+            
+        messages.info(request, "Folder deleted. Records unfiled.")
+        return redirect(self.success_url)

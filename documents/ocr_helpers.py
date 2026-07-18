@@ -39,6 +39,7 @@ def ocr_data_to_form_initial(data: dict | None) -> dict:
         "transaction_date": data.get("transaction_date"),
         "expiry_date": data.get("expiry_date"),
         "record_type": data.get("record_type"),
+        "suggested_folder": data.get("suggested_folder"),
     }
 
 

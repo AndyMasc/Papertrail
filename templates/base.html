@@ -28,7 +28,7 @@
             })();
         </script>
 
-        <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true}'>
+        <meta name="htmx-config" content='{"historyCacheSize": 0, "refreshOnHistoryMiss": true, "csrfHeaderName": "X-CSRFToken", "csrfTokenSelector": "meta[name=csrf-token]"}'>
         <meta name="csrf-token" content="{{ csrf_token }}">
 
         <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>

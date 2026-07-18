@@ -3,7 +3,7 @@ from django import forms
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import Record
+from .models import Record, Folder
 
 FILTER_CHOICES_CACHE_TTL = 300
 
@@ -27,6 +27,12 @@ class RecordFilter(django_filters.FilterSet):
 
     record_type = django_filters.ChoiceFilter(
         field_name="record_type",
+        widget=forms.Select(),
+    )
+
+    folder = django_filters.ChoiceFilter(
+        method="filter_by_folder",
+        empty_label="All Folders",
         widget=forms.Select(),
     )
 
@@ -54,6 +60,11 @@ class RecordFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
 
         if self.request and self.request.user.is_authenticated:
+            folder_filter = self.filters.get("folder") or self.base_filters.get("folder")
+            if folder_filter:
+                user_folders = Folder.objects.filter(user=self.request.user).values_list("id", "name")
+                folder_filter.extra["choices"] = [("none", "All folders")] + list(user_folders)
+
             cache_key = f"rt_{self.request.user.id}"
             user_record_types = cache.get(cache_key)
             if user_record_types is None:
@@ -74,9 +85,18 @@ class RecordFilter(django_filters.FilterSet):
             else:
                 filtered = list(all_choices)
 
-            self.filters["record_type"].extra["choices"] = [
-                ("", "All Types")
-            ] + filtered
+            type_filter = self.filters.get("record_type") or self.base_filters.get("record_type")
+            if type_filter:
+                type_filter.extra["choices"] = [("", "All Types")] + filtered
+
+    def filter_by_folder(self, queryset, name, value):
+        if not value:
+            return queryset
+        
+        if value == "none":
+            return queryset.filter(folder__isnull=True)
+            
+        return queryset.filter(folder_id=value)
 
     def filter_is_current(self, queryset, name, value):
         if value:

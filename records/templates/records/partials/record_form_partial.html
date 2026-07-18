@@ -71,6 +71,10 @@
                 {% if form.expiry_date.errors %}<p class="text-[11px] text-rose-500">{{ form.expiry_date.errors|striptags }}</p>{% endif %}
             </div>
             <div class="pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
+                <label for="{{ form.folder.id_for_label }}" class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Folder</label>
+                {% render_field form.folder class="w-full text-xs font-semibold bg-transparent border-transparent focus:outline-hidden cursor-pointer pt-1 text-zinc-800 dark:text-zinc-200" %}
+            </div>
+            <div class="pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60">
                 <p class="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Date Added</p>
                 <p class="text-xs font-semibold text-zinc-400">{{ record.date_added|date:"M d, Y" }}</p>
             </div>
