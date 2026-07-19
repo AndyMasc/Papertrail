@@ -178,13 +178,10 @@ def extract_document(document_id: int) -> dict[str, Any]:
         raise
 
 
-@shared_task
+@shared_task(retries=3, backoff_factor=2)
 def delete_document(filepath: str) -> None:
     if filepath:
-        try:
-            s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(filepath))
-        except Exception as e:
-            logger.error("Failed to delete R2 object %s: %s", filepath, e)
+        s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(filepath))
 
 
 @shared_task
@@ -246,11 +243,17 @@ def reconcile_documents() -> None:
         DocumentData.objects.filter(id__in=deleted_ids).delete()
         logger.info("Reconciliation: cleaned up %d stale pending uploads.", len(deleted_ids))
 
-    dangling_r2_keys = DocumentData.objects.filter(
+    dangling_records = DocumentData.objects.filter(
         status=DocumentStatus.ERROR,
         date_added__lt=timezone.now() - timedelta(days=2),
     )
-    dangling_count = dangling_r2_keys.count()
-    if dangling_count:
-        dangling_r2_keys.delete()
-        logger.info("Reconciliation: removed %d dangling error records.", dangling_count)
+    dangling_ids = list(dangling_records.values_list("id", "filepath"))
+    if dangling_ids:
+        for doc_id, path in dangling_ids:
+            if path:
+                try:
+                    s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(path))
+                except Exception as e:
+                    logger.error("Failed to clean up R2 object for dangling error doc %s: %s", doc_id, e)
+        DocumentData.objects.filter(id__in=[d[0] for d in dangling_ids]).delete()
+        logger.info("Reconciliation: removed %d dangling error records.", len(dangling_ids))

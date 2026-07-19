@@ -39,6 +39,9 @@ def archive_expired_records() -> None:
 
 @shared_task
 def delete_2month_archived_records() -> None:
+    from documents.models import DocumentData
+    from documents.tasks import delete_document as delete_s3_object
+
     two_months_ago = timezone.now() - timedelta(days=60)
     two_month_expired_records = Record.objects.filter(
         last_edited__lt=two_months_ago,
@@ -46,9 +49,20 @@ def delete_2month_archived_records() -> None:
         is_active=False,
         user__settings__auto_delete_archived_records=True,
     )
+
+    document_paths = list(
+        DocumentData.objects.filter(
+            associated_record__in=two_month_expired_records
+        ).values_list("filepath", flat=True)
+    )
+
     deleted_count, _ = two_month_expired_records.delete()
     if deleted_count:
         logger.info("Deleted %d archived records older than 60 days.", deleted_count)
+
+    for path in document_paths:
+        if path:
+            delete_s3_object.delay(path)
 
 
 @shared_task
