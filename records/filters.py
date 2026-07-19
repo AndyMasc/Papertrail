@@ -41,13 +41,6 @@ class RecordFilter(django_filters.FilterSet):
         widget=forms.Select(choices=[(False, "All Time"), (True, "This Month")]),
     )
 
-    is_current = django_filters.BooleanFilter(
-        method="filter_is_current",
-        label="Current Records",
-        field_name="is_current",
-        widget=forms.Select(choices=[(None, "All"), (True, "Current"), (False, "Past")]),
-    )
-
     class Meta:
         model = Record
         fields = []
@@ -93,11 +86,6 @@ class RecordFilter(django_filters.FilterSet):
             return queryset.filter(folder__isnull=True)
 
         return queryset.filter(folder_id=value)
-
-    def filter_is_current(self, queryset, name, value):  # noqa: ARG002
-        if value:
-            return queryset.filter(expiry_date__gt=timezone.now().date())
-        return queryset
 
     def filter_expiring_soon(self, queryset, name, value):  # noqa: ARG002
         if value:

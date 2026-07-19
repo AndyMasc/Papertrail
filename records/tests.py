@@ -614,28 +614,6 @@ class RecordFilterTest(TestCase):
         self.assertIn(self.active, result)
         self.assertNotIn(self.inactive, result)
 
-    def test_filter_is_current_via_method(self):
-        future_expiry = Record.objects.create(
-            user=self.user,
-            title="Future",
-            record_type="expense_receipt",
-            expiry_date=timezone.now().date() + timedelta(days=30),
-        )
-        expired = Record.objects.create(
-            user=self.user,
-            title="Expired",
-            record_type="expense_receipt",
-            expiry_date=timezone.now().date() - timedelta(days=1),
-        )
-        f = RecordFilter(
-            {"is_current": True},
-            queryset=Record.objects.for_user(self.user),
-            request=_make_filter_request(self.user),
-        )
-        result = f.filter_is_current(Record.objects.for_user(self.user), "is_current", True)
-        self.assertIn(future_expiry, result)
-        self.assertNotIn(expired, result)
-
 
 @override_settings(
     CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}},
