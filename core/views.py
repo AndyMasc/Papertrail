@@ -5,7 +5,6 @@ from datetime import datetime, time, timedelta
 from typing import Any
 
 from asgiref.sync import async_to_sync
-
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -95,7 +94,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         return async_to_sync(self._context_data_async)(**kwargs)
 
-    async def _get_async(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+    async def _get_async(self, request: HttpRequest) -> HttpResponse:
         user = await get_user_model().objects.select_related("settings").aget(pk=request.user.pk)
         webpush_enabled = await PushInformation.objects.filter(user=user).aexists()
         if not webpush_enabled and user.settings.enable_push_notifications:
@@ -142,20 +141,32 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
 
         recent_records = [
-            r async for r in
-            active_records_qs.order_by("-last_edited").only(
-                "id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited",
+            r
+            async for r in active_records_qs.order_by("-last_edited").only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
             )[:5]
         ]
 
         expiring_soon = [
-            r async for r in
-            active_records_qs.filter(
+            r
+            async for r in active_records_qs.filter(
                 expiry_date__gte=now.date(), expiry_date__lte=expiring_cutoff.date()
             )
             .order_by("expiry_date")
             .only(
-                "id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited",
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
             )
         ]
 

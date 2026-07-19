@@ -51,9 +51,9 @@ def delete_2month_archived_records() -> None:
     )
 
     document_paths = list(
-        DocumentData.objects.filter(
-            associated_record__in=two_month_expired_records
-        ).values_list("filepath", flat=True)
+        DocumentData.objects.filter(associated_record__in=two_month_expired_records).values_list(
+            "filepath", flat=True
+        )
     )
 
     deleted_count, _ = two_month_expired_records.delete()

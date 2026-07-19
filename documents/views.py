@@ -82,12 +82,12 @@ class DocumentListView(LoginRequiredMixin, FilterView):
             if page == "last":
                 page_number = paginator.num_pages
             else:
-                raise Http404
+                raise Http404 from None
         try:
             page = paginator.page(page_number)
             return (paginator, page, page.object_list, page.has_other_pages())
         except InvalidPage:
-            raise Http404
+            raise Http404 from None
 
 
 class BaseR2UploadView(LoginRequiredMixin, View):

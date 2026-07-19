@@ -21,7 +21,6 @@ from django_filters.views import FilterView
 from documents.models import DocumentData, DocumentStatus
 from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
-
 from Papertrail.utils import CachedPaginator
 
 from .filters import RecordFilter
@@ -85,12 +84,12 @@ class RecordListView(LoginRequiredMixin, FilterView):
             if page == "last":
                 page_number = paginator.num_pages
             else:
-                raise Http404
+                raise Http404 from None
         try:
             page = paginator.page(page_number)
             return (paginator, page, page.object_list, page.has_other_pages())
         except InvalidPage:
-            raise Http404
+            raise Http404 from None
 
 
 class RecordDetailView(LoginRequiredMixin, UpdateView):

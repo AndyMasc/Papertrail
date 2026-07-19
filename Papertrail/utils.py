@@ -8,7 +8,6 @@ PAGINATOR_COUNT_CACHE_TTL = 60
 
 
 class CachedPaginator(Paginator):
-
     @cached_property
     def count(self):
         if not hasattr(self.object_list, "query"):

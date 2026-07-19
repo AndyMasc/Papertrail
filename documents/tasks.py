@@ -254,6 +254,8 @@ def reconcile_documents() -> None:
                 try:
                     s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(path))
                 except Exception as e:
-                    logger.error("Failed to clean up R2 object for dangling error doc %s: %s", doc_id, e)
+                    logger.error(
+                        "Failed to clean up R2 object for dangling error doc %s: %s", doc_id, e
+                    )
         DocumentData.objects.filter(id__in=[d[0] for d in dangling_ids]).delete()
         logger.info("Reconciliation: removed %d dangling error records.", len(dangling_ids))

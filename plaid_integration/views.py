@@ -1,7 +1,7 @@
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import jwt
@@ -44,7 +44,7 @@ _jwks_fetched_at: float | None = None
 
 def _get_plaid_jwk(kid: str, max_age: int = 3600) -> dict[str, Any] | None:
     global _jwks_cache, _jwks_fetched_at
-    now = datetime.now(timezone.utc).timestamp()
+    now = datetime.now(UTC).timestamp()
     if not _jwks_fetched_at or (now - _jwks_fetched_at) > max_age:
         try:
             resp = requests.get(PLAID_JWKS_URL, timeout=10)
@@ -210,7 +210,9 @@ class PlaidStatusView(APIView):
                         "accounts_data": item.accounts_data,
                         "last_error_code": item.last_error_code,
                         "last_error_message": item.last_error_message,
-                        "last_error_at": item.last_error_at.isoformat() if item.last_error_at else None,
+                        "last_error_at": item.last_error_at.isoformat()
+                        if item.last_error_at
+                        else None,
                     }
                     for item in plaid_items
                 ],
@@ -274,9 +276,7 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
     webhook_code: str = payload.get("webhook_code", "")
     item_id: str = payload.get("item_id", "")
 
-    logger.info(
-        "Plaid webhook received: %s / %s for item %s", webhook_type, webhook_code, item_id
-    )
+    logger.info("Plaid webhook received: %s / %s for item %s", webhook_type, webhook_code, item_id)
 
     try:
         plaid_item = PlaidItem.objects.get(item_id=item_id)
