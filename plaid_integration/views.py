@@ -9,7 +9,7 @@ import plaid
 import requests
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render
 from django.utils import timezone as tz
 from django.views.decorators.csrf import csrf_exempt
@@ -268,6 +268,7 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
 
     if not verify_plaid_webhook(request.body, request.headers.get("Plaid-Verification")):
         logger.warning("Plaid webhook verification failed for %s", payload.get("item_id"))
+        return HttpResponseForbidden("Invalid webhook signature")
 
     webhook_type: str = payload.get("webhook_type", "")
     webhook_code: str = payload.get("webhook_code", "")

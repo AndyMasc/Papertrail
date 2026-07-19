@@ -1,18 +1,24 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, time, timedelta
 from typing import Any
 
+from asgiref.sync import async_to_sync
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.cache import cache
 from django.db import DatabaseError, connection
 from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.utils.timezone import make_aware
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView, UpdateView
@@ -24,6 +30,8 @@ from records.models import Record
 
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
+
+DASHBOARD_CACHE_TTL = 30
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +85,19 @@ def safe_webpush_save_info(request: HttpRequest) -> HttpResponse:
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 
+    @method_decorator(never_cache)
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
+
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        user = get_user_model().objects.select_related("settings").get(pk=request.user.pk)
-        webpush_enabled = PushInformation.objects.filter(user=user).exists()
+        return async_to_sync(self._get_async)(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        return async_to_sync(self._context_data_async)(**kwargs)
+
+    async def _get_async(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        user = await get_user_model().objects.select_related("settings").aget(pk=request.user.pk)
+        webpush_enabled = await PushInformation.objects.filter(user=user).aexists()
         if not webpush_enabled and user.settings.enable_push_notifications:
             messages.warning(
                 self.request,
@@ -91,11 +109,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "Enable push messages in settings to recieve push notifications.",
             )
 
-        return super().get(request, *args, **kwargs)
+        context = await self._context_data_async()
+        return self.render_to_response(context)
 
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        context = super().get_context_data(**kwargs)
+    async def _context_data_async(self) -> dict[str, Any]:
         user = self.request.user
+        cache_key = f"dashboard:{user.id}"
+        cached = await cache.aget(cache_key)
+        if cached is not None:
+            return cached
+
         now = timezone.now()
 
         local_date = timezone.localdate(now)
@@ -108,52 +131,44 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         all_user_records = Record.objects.for_user(user)
         active_records_qs = all_user_records.active()
 
-        active_count = active_records_qs.count()
-
-        monthly_expenses = (
+        active_count, monthly_expenses, orphaned_count = await asyncio.gather(
+            active_records_qs.acount(),
             all_user_records.filter(
                 transaction_date__gte=start_of_month,
                 transaction_date__lte=now,
                 balance__isnull=False,
-            ).aggregate(total=Sum("balance"))["total"]
-            or 0
+            ).aaggregate(total=Sum("balance")),
+            DocumentData.objects.for_user(user).orphaned().acount(),
         )
 
-        recent_records = list(
+        recent_records = [
+            r async for r in
             active_records_qs.order_by("-last_edited").only(
-                "id",
-                "title",
-                "merchant",
-                "balance",
-                "expiry_date",
-                "date_added",
-                "last_edited",
+                "id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited",
             )[:5]
-        )
+        ]
 
-        expiring_soon = list(
+        expiring_soon = [
+            r async for r in
             active_records_qs.filter(
                 expiry_date__gte=now.date(), expiry_date__lte=expiring_cutoff.date()
             )
             .order_by("expiry_date")
             .only(
-                "id",
-                "title",
-                "merchant",
-                "balance",
-                "expiry_date",
-                "date_added",
-                "last_edited",
+                "id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited",
             )
-        )
+        ]
 
-        context["active_records_count"] = active_count
-        context["records"] = recent_records
-        context["expiring_soon"] = expiring_soon
-        context["expiring_soon_count"] = len(expiring_soon)
-        context["monthly_expenses"] = monthly_expenses
-        context["orphaned_document_count"] = DocumentData.objects.for_user(user).orphaned().count()
+        context = {
+            "active_records_count": active_count,
+            "records": recent_records,
+            "expiring_soon": expiring_soon,
+            "expiring_soon_count": len(expiring_soon),
+            "monthly_expenses": monthly_expenses.get("total") or 0,
+            "orphaned_document_count": orphaned_count,
+        }
 
+        await cache.aset(cache_key, context, timeout=DASHBOARD_CACHE_TTL)
         return context
 
 

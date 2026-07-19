@@ -2,13 +2,14 @@ from .base import (
     INSTALLED_APPS,
     MIDDLEWARE,
     STORAGES,
+    env,
 )
 
 INSTALLED_APPS.append("django_browser_reload")
 MIDDLEWARE.insert(-1, "django_browser_reload.middleware.BrowserReloadMiddleware")
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://underfoot-related-grafted.ngrok-free.dev",
+    env("NGROK_HTTPS_TUNNEL_URL")
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 ALLOWED_HOSTS = ["*"]

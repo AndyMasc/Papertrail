@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -735,6 +735,10 @@ class AddSupportDocumentsViewTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}},
+    SESSION_ENGINE="django.contrib.sessions.backends.db",
+)
 class DocumentListViewTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="listuser", password="pass")

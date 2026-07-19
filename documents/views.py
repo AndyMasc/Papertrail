@@ -8,10 +8,10 @@ from typing import Any
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from django.core.paginator import EmptyPage, InvalidPage, PageNotAnInteger, Paginator
 from django.db import DatabaseError, transaction
 from django.db.models import ProtectedError
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -20,6 +20,7 @@ from django.views.generic import DeleteView, UpdateView
 from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
+from Papertrail.utils import CachedPaginator
 from records.models import Record
 
 from .filters import DocumentFilter
@@ -70,6 +71,23 @@ class DocumentListView(LoginRequiredMixin, FilterView):
         if self.request.headers.get("HX-Target") == "query-results-container":
             return ["documents/partials/document_list_partial.html"]
         return [self.template_name]
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator = CachedPaginator(queryset, page_size)
+        page_kwarg = self.page_kwarg
+        page = self.kwargs.get(page_kwarg) or self.request.GET.get(page_kwarg) or 1
+        try:
+            page_number = int(page)
+        except ValueError:
+            if page == "last":
+                page_number = paginator.num_pages
+            else:
+                raise Http404
+        try:
+            page = paginator.page(page_number)
+            return (paginator, page, page.object_list, page.has_other_pages())
+        except InvalidPage:
+            raise Http404
 
 
 class BaseR2UploadView(LoginRequiredMixin, View):
