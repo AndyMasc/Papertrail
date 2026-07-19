@@ -30,11 +30,11 @@ try:
 
     class OCRResult(BaseModel):
         title: str = Field(
-            description="2-5 word title: 'Merchant + Item'. Shorten product names; preserve identity. Default to shortest identifier for warranties/loans. No invoice numbers/dates. If no clear title exists, use a generic description like 'Financial Document', 'Receipt', or 'Untitled'"
+            description="2-5 word title: 'Merchant + Item'. Shorten product names; preserve identity. Default to shortest identifier for warranties/loans. No invoice numbers/dates. If no clear title exists, use a generic description like 'Financial Document', 'Receipt', or 'Untitled'. Absolute Max length 255 chars."
         )
         merchant: str | None = Field(
             default=None,
-            description="The business name. Infer from logos if clear. Default to null if ambiguous.",
+            description="The business name. Infer from logos if clear. Default to null if ambiguous. Absolute max length 255 chars.",
         )
         balance: float | None = Field(
             default=None,

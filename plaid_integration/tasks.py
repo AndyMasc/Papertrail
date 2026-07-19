@@ -8,7 +8,6 @@ from django.db.models import Q
 from django_qstash import shared_task
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
-from core.models import UserSettings
 from records.models import Folder, Record
 
 from .models import PlaidItem
@@ -18,9 +17,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 
 def choose_folder(
-    user: User, 
-    category: str | None, 
-    folder_cache: dict[str, Folder] | None = None
+    user: User, category: str | None, folder_cache: dict[str, Folder] | None = None
 ) -> Folder | None:
     if not category:
         return None
@@ -33,7 +30,7 @@ def choose_folder(
     key_words = [word.strip().lower() for word in category_clean.split() if len(word.strip()) > 0]
     if not key_words:
         return None
-        
+
     query = Q()
     for word in key_words:
         query |= Q(name__icontains=word)
@@ -58,9 +55,9 @@ def _txn_to_record_defaults(
     categories = txn.get("category") or []
     primary_category = categories[0] if categories else ""
     user = plaid_item.user
-    
-    auto_create_enabled = getattr(user.settings, 'auto_create_and_organize_folders', True)
-    
+
+    auto_create_enabled = getattr(user.settings, "auto_create_and_organize_folders", True)
+
     matched_folder = None
     if auto_create_enabled:
         matched_folder = choose_folder(user, primary_category, folder_cache=folder_cache)
@@ -136,17 +133,3 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
             plaid_item.save(update_fields=["next_cursor"])
 
     return {"status": "synced", **stats}
-
-
-@shared_task
-def sync_all_plaid_items() -> dict[str, int]:
-    count: int = 0
-
-    plaid_item_ids = list(PlaidItem.objects.values_list("id", flat=True))
-
-    for item_id in plaid_item_ids:
-        sync_and_convert_for_item_task.delay(item_id)
-        count += 1
-
-    logger.info("Enqueued %d Plaid sync tasks.", count)
-    return {"enqueued_tasks": count}

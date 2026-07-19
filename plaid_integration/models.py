@@ -8,3 +8,8 @@ class PlaidItem(models.Model):
     next_cursor = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_error_code = models.CharField(max_length=255, null=True, blank=True)
+    last_error_message = models.TextField(null=True, blank=True)
+    last_error_at = models.DateTimeField(null=True, blank=True)
+    institution_name = models.CharField(max_length=255, null=True, blank=True)
+    accounts_data = models.JSONField(null=True, blank=True)

@@ -11,6 +11,15 @@ class R2UploadForm(forms.Form):
     content_type = forms.CharField(max_length=100, required=True)
     notes = forms.CharField(required=False)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for fname, limit in (("filename", 255), ("content_type", 100)):
+            if fname in self.fields:
+                self.fields[fname].widget.attrs["maxlength"] = str(limit)
+                self.fields[fname].widget.attrs["data-maxlength"] = str(limit)
+                cls = self.fields[fname].widget.attrs.get("class", "")
+                self.fields[fname].widget.attrs["class"] = f"{cls} char-limit"
+
     def clean_filename(self):
         filename = Path(self.cleaned_data["filename"]).name
         if not filename or filename in {".", ".."}:
@@ -36,6 +45,9 @@ class DocumentUpdateForm(forms.ModelForm):
     class Meta:
         model = DocumentData
         fields = ["title", "notes", "associated_record"]
+        widgets = {
+            "title": forms.TextInput(attrs={"maxlength": "200", "data-maxlength": "200"}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

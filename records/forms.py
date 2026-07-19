@@ -14,8 +14,10 @@ class FolderForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(
                 attrs={
-                    "class": "w-full bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-zinc-800/50 py-2.5 px-3.5 text-xs rounded-xl dark:text-zinc-100 text-zinc-900 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all duration-150",
+                    "class": "w-full bg-white dark:bg-zinc-950 border border-zinc-200/50 dark:border-zinc-800/50 py-2.5 px-3.5 text-xs rounded-xl dark:text-zinc-100 text-zinc-900 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-all duration-150 char-limit",
                     "placeholder": "e.g., General expenses, Vacation...",
+                    "maxlength": "255",
+                    "data-maxlength": "255",
                 }
             )
         }
@@ -30,9 +32,26 @@ class TrimmedTextarea(forms.Textarea):
         return format_html("<textarea{}>{}</textarea>", flatatt(attrs), value)
 
 
+_MAXLENGTH_HELP = {
+    "title": 255,
+    "merchant": 255,
+    "notes": 500,
+}
+
+
+def _with_maxlength(field: forms.Field, limit: int, widget_cls: type | None = None) -> None:
+    existing = field.widget.attrs.get("class", "")
+    field.widget.attrs["maxlength"] = str(limit)
+    field.widget.attrs["data-maxlength"] = str(limit)
+    if widget_cls and isinstance(field.widget, widget_cls):
+        field.widget.attrs["class"] = f"{existing} char-limit"
+    else:
+        field.widget.attrs["class"] = f"{existing} char-limit"
+
+
 class BaseRecordForm(forms.ModelForm):
     title = forms.CharField(max_length=255, required=True)
-    products = forms.CharField(widget=TrimmedTextarea, max_length=500, required=True)
+    products = forms.CharField(widget=TrimmedTextarea, required=False)
     merchant = forms.CharField(max_length=255, required=False)
     balance = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
     transaction_date = forms.DateField(
@@ -67,6 +86,12 @@ class BaseRecordForm(forms.ModelForm):
             "notes",
             "folder",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for fname, limit in _MAXLENGTH_HELP.items():
+            if fname in self.fields:
+                _with_maxlength(self.fields[fname], limit, TrimmedTextarea)
 
     def clean_transaction_date(self):
         transaction_date = self.cleaned_data.get("transaction_date")

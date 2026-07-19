@@ -28,21 +28,41 @@
                     <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-800/30 overflow-hidden shadow-xs" id="item-{{ item.item_id }}">
                         <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between">
                             <div class="flex items-center gap-3">
-                                <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                <div class="p-2 rounded-lg {% if item.last_error_code %}bg-amber-500/10 text-amber-600 dark:text-amber-400{% else %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400{% endif %}">
                                     <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-200">Bank Account</h3>
-                                    <p class="text-xs text-zinc-400 dark:text-zinc-500">Connected {{ item.created_at|date:"M d, Y" }}</p>
+                                    <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-200">{{ item.institution_name|default:"Bank Account" }}</h3>
+                                    <p class="text-xs text-zinc-400 dark:text-zinc-500">
+                                        {% if item.accounts_data %}
+                                            {% for acct in item.accounts_data %}
+                                                {{ acct.name }}{% if acct.mask %} (••••{{ acct.mask }}){% endif %}{% if not forloop.last %}, {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                        &middot; Connected {{ item.created_at|date:"M d, Y" }}
+                                    </p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                    <span class="size-1.5 rounded-full bg-emerald-500"></span>
-                                    Active
-                                </span>
+                                {% if item.last_error_code %}
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                        <span class="size-1.5 rounded-full bg-amber-500"></span>
+                                        Needs Update
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                        <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                        Active
+                                    </span>
+                                {% endif %}
+                                <button
+                                    class="update-btn text-xs font-medium transition-colors {% if item.last_error_code %}text-amber-500 hover:text-amber-600{% else %}text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300{% endif %}"
+                                    data-item-id="{{ item.item_id }}"
+                                    data-csrf="{{ csrf_token }}">
+                                    Update
+                                </button>
                                 <button
                                     class="disconnect-btn text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                                     data-item-id="{{ item.item_id }}"
@@ -51,6 +71,13 @@
                                 </button>
                             </div>
                         </div>
+                        {% if item.last_error_code %}
+                            <div class="px-6 py-3 bg-amber-500/5 border-b border-amber-500/10">
+                                <p class="text-xs text-amber-600 dark:text-amber-400">
+                                    <strong>{{ item.last_error_code }}:</strong> {{ item.last_error_message }}
+                                </p>
+                            </div>
+                        {% endif %}
                         <div class="px-6 py-4 space-y-2 text-xs text-zinc-500 dark:text-zinc-400">
                             <p>Records created: <strong class="text-zinc-800 dark:text-zinc-200">{{ item.records.all|length }}</strong></p>
                         </div>
@@ -100,6 +127,53 @@
                 statusEl.classList.remove('hidden');
             }
 
+            function openPlaidLink(token, isUpdate) {
+                const handler = Plaid.create({
+                    token: token,
+                    onSuccess: function(public_token, metadata) {
+                        if (isUpdate) {
+                            setStatus('Bank updated successfully! Reloading...', false);
+                            setTimeout(function() { location.reload(); }, 1000);
+                        } else {
+                            setStatus('Exchanging token...', false);
+                            var selectedAccounts = [];
+                            if (metadata && metadata.accounts) {
+                                selectedAccounts = metadata.accounts.map(function(a) {
+                                    return { name: a.name, mask: a.mask, type: a.type, subtype: a.subtype };
+                                });
+                            }
+                            fetch('{% url "plaid:exchange_token" %}', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content,
+                                },
+                                body: JSON.stringify({ public_token: public_token, accounts: selectedAccounts }),
+                            })
+                                .then(r => r.json())
+                                .then(result => {
+                                    if (result.error) {
+                                        setStatus('Error: ' + result.error, true);
+                                    } else {
+                                        setStatus('Bank linked successfully! Reloading...', false);
+                                        setTimeout(function() { location.reload(); }, 1000);
+                                    }
+                                });
+                        }
+                    },
+                    onExit: function(err) {
+                        if (err != null) {
+                            setStatus('Error: ' + (err.error_message || err.display_message || 'Could not connect bank'), true);
+                        }
+                        if (!isUpdate) {
+                            linkBtn.disabled = false;
+                            linkBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Connect Bank Account';
+                        }
+                    },
+                });
+                handler.open();
+            }
+
             if (linkBtn) {
                 linkBtn.addEventListener('click', function() {
                     linkBtn.disabled = true;
@@ -121,37 +195,7 @@
                                 return;
                             }
 
-                            const handler = Plaid.create({
-                                token: data.link_token,
-                                onSuccess: function(public_token) {
-                                    setStatus('Exchanging token...', false);
-                                    fetch('{% url "plaid:exchange_token" %}', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content,
-                                        },
-                                        body: JSON.stringify({ public_token: public_token }),
-                                    })
-                                        .then(r => r.json())
-                                        .then(result => {
-                                            if (result.error) {
-                                                setStatus('Error: ' + result.error, true);
-                                            } else {
-                                                setStatus('Bank linked successfully! Reloading...', false);
-                                                setTimeout(function() { location.reload(); }, 1000);
-                                            }
-                                        });
-                                },
-                                onExit: function(err) {
-                                    if (err != null) {
-                                        setStatus('Error: ' + (err.error_message || err.display_message || 'Could not connect bank'), true);
-                                    }
-                                    linkBtn.disabled = false;
-                                    linkBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Connect Bank Account';
-                                },
-                            });
-                            handler.open();
+                            openPlaidLink(data.link_token, false);
                         })
                         .catch(function(err) {
                             setStatus('Network error: ' + err.message, true);
@@ -160,6 +204,37 @@
                         });
                 });
             }
+
+            document.querySelectorAll('.update-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const itemId = btn.dataset.itemId;
+                    const csrf = btn.dataset.csrf;
+                    btn.disabled = true;
+                    btn.textContent = 'Loading...';
+
+                    fetch('/plaid/create-link-token/' + itemId + '/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                        },
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.error) {
+                                alert('Error: ' + data.error);
+                                btn.disabled = false;
+                                btn.textContent = 'Update';
+                                return;
+                            }
+                            openPlaidLink(data.link_token, true);
+                        })
+                        .catch(function() {
+                            alert('Network error');
+                            btn.disabled = false;
+                            btn.textContent = 'Update';
+                        });
+                });
+            });
 
             document.querySelectorAll('.disconnect-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {

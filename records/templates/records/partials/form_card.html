@@ -55,9 +55,35 @@
         {% endif %}
 
         <div class="flex items-center justify-end gap-3 p-5">
+            <div class="flex-1 text-[10px] text-zinc-400 dark:text-zinc-500" id="char-hint"></div>
             <button type="submit" class="cursor-pointer rounded-2xl bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-all duration-150 hover:bg-zinc-800 active:scale-[0.98] shadow-xs dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200">
                 Save Record
             </button>
         </div>
     </form>
+
+    <script>
+        (function() {
+            var fields = document.querySelectorAll('[data-maxlength]');
+            var hint = document.getElementById('char-hint');
+            function updateHint() {
+                var parts = [];
+                fields.forEach(function(el) {
+                    var max = parseInt(el.getAttribute('data-maxlength'), 10);
+                    if (!max) return;
+                    var label = el.closest('.group')?.querySelector('label')?.innerText?.trim() || el.name || 'Field';
+                    var len = (el.value || '').length;
+                    var remaining = max - len;
+                    if (remaining < 20) {
+                        parts.push(label + ': ' + remaining + ' left');
+                    }
+                });
+                hint.textContent = parts.join(' \u00b7 ');
+            }
+            fields.forEach(function(el) {
+                el.addEventListener('input', updateHint);
+            });
+            updateHint();
+        })();
+    </script>
 {% endif %}

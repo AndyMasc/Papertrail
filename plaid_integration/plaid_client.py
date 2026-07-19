@@ -20,4 +20,3 @@ configuration = plaid.Configuration(
     },
 )
 client = plaid_api.PlaidApi(plaid.ApiClient(configuration))
-
