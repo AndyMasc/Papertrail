@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     "records.apps.RecordsConfig",
     # Webpush
     "webpush",
+    # Plaid
+    "plaid_integration.apps.PlaidIntegrationConfig",
 ]
 
 MIDDLEWARE = [
@@ -96,7 +98,7 @@ if not DEBUG:
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'"),
+        "script-src": ("'self'", "'unsafe-inline'", "https://cdn.plaid.com", "https://*.plaid.com"),
         "style-src": (
             "'self'",
             "'unsafe-inline'",
@@ -104,7 +106,14 @@ CONTENT_SECURITY_POLICY = {
         ),
         "font-src": ("'self'", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "blob:", "https:"),
-        "connect-src": ("'self'", "https://*.upstash.io", "https://*.resend.com"),
+        "connect-src": (
+            "'self'",
+            "https://*.upstash.io",
+            "https://*.resend.com",
+            "https://*.plaid.com",
+            "https://cdn.plaid.com",
+        ),
+        "frame-src": ("'self'", "https://cdn.plaid.com", "https://*.plaid.com"),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),
@@ -332,3 +341,8 @@ WEBPUSH_SETTINGS = {
     "VAPID_PRIVATE_KEY": env("WEB_PUSH_PRIVATE_KEY"),
     "VAPID_ADMIN_EMAIL": env("WEB_PUSH_EMAIL"),
 }
+
+# Plaid
+PLAID_CLIENT_ID = env("PLAID_CLIENT_ID")
+PLAID_SECRET = env("PLAID_SECRET")
+PLAID_ENV = env("PLAID_ENV", default="sandbox")

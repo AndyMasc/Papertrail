@@ -146,6 +146,7 @@ class Record(models.Model):
     class RecordTypes(models.TextChoices):
         EXPENSE_RECEIPT = "expense_receipt", "Expense Receipt"
         VOUCHER = "voucher", "Voucher"
+        FINANCIAL_DOCUMENT = "financial_document", "Financial Document"
         WARRANTY_CERTIFICATE = "warranty_certificate", "Warranty Certificate"
         VENDOR_INVOICE = "vendor_invoice", "Vendor Invoice"
         CUSTOMER_INVOICE = "customer_invoice", "Customer Invoice"
@@ -162,6 +163,7 @@ class Record(models.Model):
 
     COLOR_MAP = {
         RecordTypes.EXPENSE_RECEIPT.value: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 backdrop-blur-md dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30",
+        RecordTypes.FINANCIAL_DOCUMENT.value: "bg-indigo-900/10 text-indigo-900 border border-indigo-500/30 backdrop-blur-md dark:bg-indigo-400/10 dark:text-indigo-300 dark:border-indigo-500/40",
         RecordTypes.VOUCHER.value: "bg-amber-500/10 text-amber-700 border border-amber-500/20 backdrop-blur-md dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30",
         RecordTypes.WARRANTY_CERTIFICATE.value: "bg-green-500/10 text-green-700 border border-green-500/20 backdrop-blur-md dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30",
         RecordTypes.VENDOR_INVOICE.value: "bg-blue-500/10 text-blue-700 border border-blue-500/20 backdrop-blur-md dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30",
@@ -206,13 +208,22 @@ class Record(models.Model):
 
     folder = models.ForeignKey(
         Folder,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="records",
         null=True,
         blank=True,
     )
 
     expiry_notification_sent = models.BooleanField(default=False, db_index=True)
+
+    plaid_transaction_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    plaid_item = models.ForeignKey(
+        "plaid_integration.PlaidItem",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="records",
+    )
 
     objects = RecordManager()
 

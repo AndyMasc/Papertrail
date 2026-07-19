@@ -32,4 +32,5 @@ class UpdateUserSettingsForm(forms.ModelForm):
             "expiring_notifications_advance_time",
             "enable_push_notifications",
             "enable_email_notifications",
+            "auto_create_and_organize_folders",
         ]

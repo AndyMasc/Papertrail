@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Connect Bank | Papertrail{% endblock %}
+
+{% block extra_head %}
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+{% endblock %}
+
+{% block content %}
+    <main class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div class="border-b border-zinc-200 dark:border-zinc-800/80 pb-6 mb-8">
+            <h1 class="text-xl font-semibold tracking-tight">Connected Banks</h1>
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Link your bank accounts to automatically sync transactions as records.<br>
+            </p>
+        </div>
+
+        {% if sync_error %}
+            <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
+                <strong>Sync Error:</strong> {{ sync_error }}
+            </div>
+        {% endif %}
+
+        <div class="space-y-6" id="bank-list">
+            {% if plaid_items %}
+                {% for item in plaid_items %}
+                    <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-800/30 overflow-hidden shadow-xs" id="item-{{ item.item_id }}">
+                        <div class="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                    <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-200">Bank Account</h3>
+                                    <p class="text-xs text-zinc-400 dark:text-zinc-500">Connected {{ item.created_at|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                    <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                    Active
+                                </span>
+                                <button
+                                    class="disconnect-btn text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                                    data-item-id="{{ item.item_id }}"
+                                    data-csrf="{{ csrf_token }}">
+                                    Disconnect
+                                </button>
+                            </div>
+                        </div>
+                        <div class="px-6 py-4 space-y-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            <p>Records created: <strong class="text-zinc-800 dark:text-zinc-200">{{ item.records.all|length }}</strong></p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-800/30 p-8 text-center shadow-xs">
+                    <div class="p-3 bg-zinc-100 dark:bg-zinc-900 rounded-2xl text-zinc-400 dark:text-zinc-500 w-fit mx-auto mb-4">
+                        <svg class="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-200 mb-2">Link Your First Bank Account</h3>
+                    <p class="text-xs text-zinc-400 dark:text-zinc-500 max-w-md mx-auto mb-6 leading-relaxed">
+                        Papertrail uses Plaid to securely connect to your bank. Your transactions will be automatically synced and turned into records.
+                    </p>
+                </div>
+            {% endif %}
+
+            <div class="rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-800/30 p-8 text-center shadow-xs">
+                <button id="plaid-link-btn" class="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    {% if plaid_items %}Connect Another Bank{% else %}Connect Bank Account{% endif %}
+                </button>
+                <p id="plaid-status" class="mt-4 text-xs text-zinc-400 hidden"></p>
+            </div>
+        </div>
+
+        <p class="text-center mt-10 text-xs text-zinc-400">
+            Papertrail is limited to the information provided by your bank. Imported transactions are initially saved as Financial Documents. If enabled, Papertrail will intelligently match transactions to existing folders or automatically create new ones when no suitable folder exists.
+        </p>
+
+    </main>
+{% endblock %}
+
+{% block head %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const linkBtn = document.getElementById('plaid-link-btn');
+            const statusEl = document.getElementById('plaid-status');
+
+            function setStatus(msg, isError) {
+                statusEl.textContent = msg;
+                statusEl.className = 'mt-4 text-xs ' + (isError ? 'text-red-500' : 'text-zinc-400');
+                statusEl.classList.remove('hidden');
+            }
+
+            if (linkBtn) {
+                linkBtn.addEventListener('click', function() {
+                    linkBtn.disabled = true;
+                    linkBtn.textContent = 'Connecting...';
+                    setStatus('Creating link token...', false);
+
+                    fetch('{% url "plaid:create_link_token" %}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content,
+                        },
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.error) {
+                                setStatus('Error: ' + data.error, true);
+                                linkBtn.disabled = false;
+                                linkBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Connect Bank Account';
+                                return;
+                            }
+
+                            const handler = Plaid.create({
+                                token: data.link_token,
+                                onSuccess: function(public_token) {
+                                    setStatus('Exchanging token...', false);
+                                    fetch('{% url "plaid:exchange_token" %}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content,
+                                        },
+                                        body: JSON.stringify({ public_token: public_token }),
+                                    })
+                                        .then(r => r.json())
+                                        .then(result => {
+                                            if (result.error) {
+                                                setStatus('Error: ' + result.error, true);
+                                            } else {
+                                                setStatus('Bank linked successfully! Reloading...', false);
+                                                setTimeout(function() { location.reload(); }, 1000);
+                                            }
+                                        });
+                                },
+                                onExit: function(err) {
+                                    if (err != null) {
+                                        setStatus('Error: ' + (err.error_message || err.display_message || 'Could not connect bank'), true);
+                                    }
+                                    linkBtn.disabled = false;
+                                    linkBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Connect Bank Account';
+                                },
+                            });
+                            handler.open();
+                        })
+                        .catch(function(err) {
+                            setStatus('Network error: ' + err.message, true);
+                            linkBtn.disabled = false;
+                            linkBtn.innerHTML = '<svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Connect Bank Account';
+                        });
+                });
+            }
+
+            document.querySelectorAll('.disconnect-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    if (!confirm('Disconnect this bank account? Transactions will stop syncing.')) return;
+
+                    const itemId = btn.dataset.itemId;
+                    const csrf = btn.dataset.csrf;
+
+                    btn.disabled = true;
+                    btn.textContent = 'Disconnecting...';
+
+                    fetch('/plaid/disconnect/' + itemId + '/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrf,
+                        },
+                    })
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.getElementById('item-' + itemId).remove();
+                            } else {
+                                alert('Failed to disconnect: ' + (data.error || 'Unknown error'));
+                                btn.disabled = false;
+                                btn.textContent = 'Disconnect';
+                            }
+                        })
+                        .catch(function() {
+                            alert('Network error');
+                            btn.disabled = false;
+                            btn.textContent = 'Disconnect';
+                        });
+                });
+            });
+        });
+    </script>
+{% endblock %}

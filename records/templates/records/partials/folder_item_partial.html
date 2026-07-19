@@ -8,7 +8,7 @@
             </div>
 
             <form hx-post="{% url 'records:delete_folder' folder.id %}"
-                  hx-confirm="Delete this folder? Records will be unfiled."
+                  hx-confirm="Delete this folder? Contained records will be unfiled, but remain in your workspace."
                   hx-target="#directory-results-container"
                   hx-swap="innerHTML"
                   hx-trigger="submit"

@@ -29,6 +29,7 @@ urlpatterns = [
         "webpush/save_information", safe_webpush_save_info, name="save_webpush_info"
     ),  # Custom URL to catch webpush POST before sent to fix webpush MultipleObjectsReturned error.
     path("webpush/", include("webpush.urls")),
+    path("plaid/", include("plaid_integration.urls")),
 ]
 
 if settings.DEBUG:

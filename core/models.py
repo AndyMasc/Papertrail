@@ -15,6 +15,7 @@ class UserSettings(models.Model):
     auto_delete_archived_records = models.BooleanField(default=True)
     enable_push_notifications = models.BooleanField(default=True)
     enable_email_notifications = models.BooleanField(default=True)
+    auto_create_and_organize_folders = models.BooleanField(default=True)
 
     class AdvanceTimeChoices(models.TextChoices):
         ONE_DAY = "1", "1 Day"
