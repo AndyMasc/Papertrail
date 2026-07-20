@@ -132,4 +132,14 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
             plaid_item.next_cursor = cursor
             plaid_item.save(update_fields=["next_cursor"])
 
+    try:
+        from records.matching import try_match_plaid_record
+
+        for plaid_record in Record.objects.filter(
+            plaid_item=plaid_item, is_active=True
+        ).only("pk", "user_id").iterator(chunk_size=500):
+            try_match_plaid_record(plaid_record)
+    except Exception:
+        logger.exception("Error matching plaid records to documents for item %s", plaid_item_id)
+
     return {"status": "synced", **stats}

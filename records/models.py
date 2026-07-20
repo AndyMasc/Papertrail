@@ -272,3 +272,25 @@ class Record(models.Model):
         if self.expiry_date:
             return self.expiry_date <= (timezone.now().date() + datetime.timedelta(days=days))
         return False
+
+
+class MergeLog(models.Model):
+    plaid_record = models.ForeignKey(
+        Record, on_delete=models.SET_NULL, null=True, related_name="merge_logs_as_plaid"
+    )
+    document_record = models.ForeignKey(
+        Record, on_delete=models.SET_NULL, null=True, related_name="merge_logs_as_document"
+    )
+    document = models.ForeignKey(
+        "documents.DocumentData", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    plaid_snapshot = models.JSONField()
+    document_snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    undone_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Merge {self.pk}: plaid={self.plaid_record_id} <- doc={self.document_record_id}"

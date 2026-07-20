@@ -8,13 +8,13 @@
 {% endblock %}
 
 {% block content %}
-    <main class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div class="border-b border-zinc-200 dark:border-zinc-800/80 pb-6 mb-8">
-            <h1 class="text-xl font-semibold tracking-tight">Connected Banks</h1>
-            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Link your bank accounts to automatically sync transactions as records.<br>
-            </p>
+<div class="max-w-7xl mx-auto py-8 space-y-6">
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-5">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Connected Banks</h1>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Link your bank accounts to automatically sync transactions as records.</p>
         </div>
+    </header>
 
         {% if sync_error %}
             <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400">
@@ -108,11 +108,7 @@
             </div>
         </div>
 
-        <p class="text-center mt-10 text-xs text-zinc-400">
-            Papertrail is limited to the information provided by your bank. Imported transactions are initially saved as Financial Documents. If enabled, Papertrail will intelligently match transactions to existing folders or automatically create new ones when no suitable folder exists.
-        </p>
-
-    </main>
+</div>
 {% endblock %}
 
 {% block head %}

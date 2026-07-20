@@ -42,13 +42,21 @@ def delete_2month_archived_records() -> None:
     from documents.models import DocumentData
     from documents.tasks import delete_document as delete_s3_object
 
+    from .models import MergeLog
+
+    merged_ids = set(
+        MergeLog.objects.filter(undone_at__isnull=True).values_list(
+            "document_record_id", flat=True
+        )
+    )
+
     two_months_ago = timezone.now() - timedelta(days=60)
     two_month_expired_records = Record.objects.filter(
         last_edited__lt=two_months_ago,
         expiry_date__gte=F("date_added"),
         is_active=False,
         user__settings__auto_delete_archived_records=True,
-    )
+    ).exclude(pk__in=merged_ids)
 
     document_paths = list(
         DocumentData.objects.filter(associated_record__in=two_month_expired_records).values_list(

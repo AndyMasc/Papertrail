@@ -25,7 +25,8 @@ from Papertrail.utils import CachedPaginator
 
 from .filters import RecordFilter
 from .forms import AddRecordForm, FolderForm, RecordUpdateForm
-from .models import Folder, Record, RecordQuerySet
+from .matching import try_match_document_record, undo_merge
+from .models import Folder, MergeLog, Record, RecordQuerySet
 from .services import archive_record, unarchive_record
 
 logger = logging.getLogger(__name__)
@@ -234,7 +235,15 @@ class AddRecordView(LoginRequiredMixin, CreateView):
 
             transaction.on_commit(lambda: cache.delete(f"ocr_status_{document.id}"))
 
-        return redirect("documents:add_support_docs", record_id=self.object.id)
+        merged = try_match_document_record(self.object, document)
+        if merged:
+            messages.success(
+                self.request,
+                "Receipt matched with bank transaction and merged.",
+            )
+            return redirect("records:record_detail", pk=merged.pk)
+
+        return redirect("documents:add_support_docs", record_id=self.object.pk)
 
 
 class CheckOCRStatus(LoginRequiredMixin, View):
@@ -447,3 +456,43 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
 
         messages.info(request, "Folder deleted. Records unfiled.")
         return redirect(self.success_url)
+
+
+class MergeListView(LoginRequiredMixin, ListView):
+    model = MergeLog
+    template_name = "records/merge_list.html"
+    context_object_name = "merges"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return MergeLog.objects.filter(
+            plaid_record__user=self.request.user,
+            undone_at__isnull=True,
+        ).select_related("plaid_record", "document_record", "document")
+
+    def get_template_names(self):
+        if self.request.headers.get("HX-Target") == "merge-list-container":
+            return ["records/partials/merge_list_partial.html"]
+        return [self.template_name]
+
+
+class UndoMergeView(LoginRequiredMixin, View):
+    def post(self, request, merge_id: int) -> HttpResponse:
+        merge_log = get_object_or_404(
+            MergeLog.objects.select_related("plaid_record", "document_record", "document"),
+            pk=merge_id,
+            plaid_record__user=request.user,
+        )
+
+        restored = undo_merge(merge_log)
+        if restored is None:
+            messages.info(request, "This merge was already undone.")
+        else:
+            messages.success(request, "Merge undone. Records and document restored.")
+
+        if request.headers.get("HX-Request"):
+            response = HttpResponse(status=204)
+            response["HX-Trigger"] = json.dumps({"showToast": {"text": "Merge undone.", "tags": "success"}})
+            return response
+
+        return redirect("records:merge_list")

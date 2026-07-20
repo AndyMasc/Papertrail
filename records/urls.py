@@ -45,4 +45,6 @@ urlpatterns = [
         views.FolderDeleteView.as_view(),
         name="delete_folder",
     ),
+    path("merges/", views.MergeListView.as_view(), name="merge_list"),
+    path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
 ]
