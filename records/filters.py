@@ -1,7 +1,6 @@
 import django_filters
 from django import forms
 from django.core.cache import cache
-from django.db.models import Q
 from django.utils import timezone
 
 from .models import Folder, MergeLog, Record
@@ -52,10 +51,14 @@ class RecordFilter(django_filters.FilterSet):
         if self.request and self.request.user.is_authenticated:
             folder_filter = self.filters.get("folder") or self.base_filters.get("folder")
             if folder_filter:
-                user_folders = Folder.objects.filter(user=self.request.user).values_list(
-                    "id", "name"
-                )
-                folder_filter.extra["choices"] = [("none", "All folders")] + list(user_folders)
+                cache_key = f"folder_choices_{self.request.user.id}"
+                user_folders = cache.get(cache_key)
+                if user_folders is None:
+                    user_folders = list(
+                        Folder.objects.filter(user=self.request.user).values_list("id", "name")
+                    )
+                    cache.set(cache_key, user_folders, FILTER_CHOICES_CACHE_TTL)
+                folder_filter.extra["choices"] = [("none", "All folders")] + user_folders
 
             cache_key = f"rt_{self.request.user.id}"
             user_record_types = cache.get(cache_key)
@@ -117,9 +120,4 @@ class MergeLogFilter(django_filters.FilterSet):
     def filter_search(self, queryset, name, value):  # noqa: ARG002
         if not value:
             return queryset
-        return queryset.filter(
-            Q(plaid_record__title__icontains=value)
-            | Q(plaid_record__merchant__icontains=value)
-            | Q(document_record__title__icontains=value)
-            | Q(document_record__merchant__icontains=value)
-        )
+        return queryset.filter(search_text__icontains=value)

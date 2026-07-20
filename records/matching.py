@@ -1,9 +1,9 @@
-import difflib
 import logging
 from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
+import rapidfuzz
 from django.db import transaction as db_transaction
 from django.db.models.query import QuerySet
 from django.utils import timezone
@@ -26,7 +26,14 @@ def _normalize(text: str) -> str:
 def _similarity(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
-    return difflib.SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
+    a = _normalize(a)
+    b = _normalize(b)
+    if len(a) < 3 or len(b) < 3:
+        return float(a == b)
+    max_len = max(len(a), len(b))
+    if max_len > 0 and abs(len(a) - len(b)) / max_len > 0.6:
+        return 0.0
+    return rapidfuzz.fuzz.ratio(a, b) / 100.0
 
 
 def _balance_diff(a: Decimal | None, b: Decimal | None) -> Decimal | None:
@@ -90,11 +97,15 @@ def _apply_date_window(qs: QuerySet[Record], record: Record) -> QuerySet[Record]
 
 
 def find_best_plaid_match(record: Record) -> Record | None:
-    qs = Record.objects.filter(
-        user=record.user,
-        plaid_transaction_id__isnull=False,
-        is_active=True,
-    ).exclude(pk=record.pk)
+    qs = (
+        Record.objects.filter(
+            user=record.user,
+            plaid_transaction_id__isnull=False,
+            is_active=True,
+        )
+        .exclude(pk=record.pk)
+        .select_related("folder", "user")
+    )
     candidates = _apply_date_window(qs, record)
 
     best_score = 0
@@ -121,11 +132,15 @@ def find_best_plaid_match(record: Record) -> Record | None:
 
 
 def find_document_matches_for_plaid(plaid_record: Record) -> list[tuple[Record, int]]:
-    qs = Record.objects.filter(
-        user=plaid_record.user,
-        plaid_transaction_id__isnull=True,
-        is_active=True,
-    ).exclude(pk=plaid_record.pk)
+    qs = (
+        Record.objects.filter(
+            user=plaid_record.user,
+            plaid_transaction_id__isnull=True,
+            is_active=True,
+        )
+        .exclude(pk=plaid_record.pk)
+        .select_related("folder", "user")
+    )
     doc_records = _apply_date_window(qs, plaid_record)
 
     results: list[tuple[Record, int]] = []
@@ -163,8 +178,7 @@ def merge_document_into_plaid(
     document: DocumentData | None = None,
 ) -> Record | None:
     locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
-
-    fresh_doc = Record.objects.get(pk=document_record.pk)
+    fresh_doc = Record.objects.select_for_update().get(pk=document_record.pk)
     if not fresh_doc.is_active or fresh_doc.plaid_transaction_id is not None:
         logger.warning(
             "Document record %s is no longer mergable (is_active=%s, plaid_id=%r), skipping",
@@ -195,7 +209,7 @@ def merge_document_into_plaid(
     if fresh_doc.folder_id:
         locked_plaid.folder_id = fresh_doc.folder_id
 
-    locked_plaid.save()
+    locked_plaid.save(update_fields=["products", "notes", "record_type", "folder_id"])
 
     fresh_doc.is_active = False
     fresh_doc.save(update_fields=["is_active"])
@@ -226,6 +240,12 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
     document_record = merge_log.document_record
     document = merge_log.document
 
+    if document_record is None:
+        logger.warning(
+            "Cannot restore document record for merge %s — document_record was deleted",
+            merge_log.pk,
+        )
+
     if plaid_record and plaid_record.is_active:
         plaid_record._skip_auto_match = True
         snap = merge_log.plaid_snapshot
@@ -233,7 +253,7 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
         plaid_record.notes = snap.get("notes", "")
         plaid_record.record_type = snap.get("record_type", Record.RecordTypes.FINANCIAL_DOCUMENT)
         plaid_record.folder_id = snap.get("folder_id")
-        plaid_record.save()
+        plaid_record.save(update_fields=["products", "notes", "record_type", "folder_id"])
 
     if document_record:
         document_record._skip_auto_match = True

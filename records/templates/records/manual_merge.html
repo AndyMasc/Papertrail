@@ -2,16 +2,6 @@
 
 {% block content %}
     <div x-data="mergeForm"
-         @select-record="
-                         if ($event.detail.mode === 'plaid') {
-                         selectedPlaid = $event.detail.id;
-                         plaidTitle = $event.detail.title || 'Transaction Linked';
-                         } else {
-                         selectedDoc = $event.detail.id;
-                         docTitle = $event.detail.title || 'Receipt Linked';
-                         }
-                         showModal = false;
-                        "
          class="w-full min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center py-10 px-4 sm:px-6 lg:px-8 bg-zinc-50/50 dark:bg-zinc-950/20">
 
         <div class="w-full max-w-3xl mx-auto flex flex-col items-center">
@@ -21,83 +11,19 @@
             </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full">
-
-                {% with mode="plaid" label="Bank Transaction" %}
-                    <div id="{{ mode }}-slot"
-                         :class="selectedPlaid ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900/[0.02] dark:bg-white/[0.02]' : 'border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40'"
-                         class="relative group rounded-2xl border border-dashed p-8 text-center transition-all duration-300 hover:border-zinc-400 dark:hover:border-zinc-600 shadow-xs flex flex-col items-center justify-between min-h-[200px]">
-
-                        <button type="button"
-                                class="flex flex-col items-center justify-center gap-4 mx-auto text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors cursor-pointer w-full h-full flex-1"
-                                hx-get="{% url 'records:manual_merge_modal' mode %}"
-                                hx-target="#modal-inner"
-                                @click="showModal = true">
-
-                            <div :class="selectedPlaid ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 scale-105' : 'bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800'"
-                                 class="p-4 rounded-xl transition-all duration-300 shadow-2xs">
-                                <svg class="size-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                                </svg>
-                            </div>
-
-                            <div class="space-y-1">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{{ label }}</span>
-                                <span x-text="selectedPlaid ? plaidTitle : 'Click to bind record'"
-                                      :class="selectedPlaid ? 'text-zinc-950 dark:text-zinc-50 font-medium' : 'text-zinc-400 dark:text-zinc-500 font-normal'"
-                                      class="text-sm block truncate max-w-[220px]"></span>
-                            </div>
-                        </button>
-
-                        <button x-show="selectedPlaid" x-cloak @click="selectedPlaid = null; plaidTitle = ''" type="button" class="absolute top-3 right-3 p-1 rounded-md text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                {% endwith %}
-
-                {% with mode="doc" label="Uploaded Receipt" %}
-                    <div id="{{ mode }}-slot"
-                         :class="selectedDoc ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900/[0.02] dark:bg-white/[0.02]' : 'border-zinc-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40'"
-                         class="relative group rounded-2xl border border-dashed p-8 text-center transition-all duration-300 hover:border-zinc-400 dark:hover:border-zinc-600 shadow-xs flex flex-col items-center justify-between min-h-[200px]">
-
-                        <button type="button"
-                                class="flex flex-col items-center justify-center gap-4 mx-auto text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors cursor-pointer w-full h-full flex-1"
-                                hx-get="{% url 'records:manual_merge_modal' mode %}"
-                                hx-target="#modal-inner"
-                                @click="showModal = true">
-
-                            <div :class="selectedDoc ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 scale-105' : 'bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800'"
-                                 class="p-4 rounded-xl transition-all duration-300 shadow-2xs">
-                                <svg class="size-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                </svg>
-                            </div>
-
-                            <div class="space-y-1">
-                                <span class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{{ label }}</span>
-                                <span x-text="selectedDoc ? docTitle : 'Click to bind record'"
-                                      :class="selectedDoc ? 'text-zinc-950 dark:text-zinc-50 font-medium' : 'text-zinc-400 dark:text-zinc-500 font-normal'"
-                                      class="text-sm block truncate max-w-[220px]"></span>
-                            </div>
-                        </button>
-
-                        <button x-show="selectedDoc" x-cloak @click="selectedDoc = null; docTitle = ''" type="button" class="absolute top-3 right-3 p-1 rounded-md text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-                {% endwith %}
+                {% include 'records/partials/merge_slot.html' with mode="plaid" label="Bank Transaction" icon="bank" selectedState="selectedPlaid" selectedTitle="plaidTitle" %}
+                {% include 'records/partials/merge_slot.html' with mode="doc" label="Uploaded Receipt" icon="receipt" selectedState="selectedDoc" selectedTitle="docTitle" %}
             </div>
 
             <form method="POST" class="w-full mt-6">
                 {% csrf_token %}
-                {{ form.plaid_record_id }}
-                {{ form.document_record_id }}
                 <input type="hidden" name="plaid_record_id" x-bind:value="selectedPlaid">
                 <input type="hidden" name="document_record_id" x-bind:value="selectedDoc">
 
                 <button type="submit"
                         x-bind:disabled="!canMerge"
                         x-bind:class="canMerge ? 'bg-zinc-950 hover:bg-zinc-900 dark:bg-zinc-50 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_20px_rgba(255,255,255,0.08)] cursor-pointer active:scale-[0.99]' : 'bg-zinc-200 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-600 cursor-not-allowed'"
-                        class="w-full py-3 px-4 rounded-2xl text-xs font-bold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 border border-transparent dark:border-zinc-800/80">
+                        class="w-full py-2 px-4 rounded-2xl text-xs font-bold tracking-wide uppercase transition-all duration-300 flex items-center justify-center gap-2 border border-transparent dark:border-zinc-800/80">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-4 shrink-0">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
                     </svg>

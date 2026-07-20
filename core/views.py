@@ -171,7 +171,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ]
 
         context = {
-            "active_records_count": merge_count,
+            "merged_records_count": merge_count,
             "records": recent_records,
             "expiring_soon": expiring_soon,
             "expiring_soon_count": len(expiring_soon),

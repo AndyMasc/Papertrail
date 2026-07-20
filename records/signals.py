@@ -18,25 +18,10 @@ def auto_match_on_record_save(sender, instance, created, **kwargs):  # noqa: ARG
     if getattr(instance, "_skip_auto_match", False):
         return
 
-    transaction.on_commit(lambda: _run_auto_match(instance))
+    transaction.on_commit(lambda: _enqueue_auto_match(instance))
 
 
-def _run_auto_match(instance: Record) -> None:
-    from records.matching import try_match_document_record, try_match_plaid_record
+def _enqueue_auto_match(instance: Record) -> None:
+    from records.tasks import run_auto_match
 
-    if instance.plaid_transaction_id:
-        matched = try_match_plaid_record(instance)
-        if matched:
-            logger.info(
-                "Auto-matched %d document(s) to updated plaid record %s",
-                len(matched),
-                instance.pk,
-            )
-    else:
-        result = try_match_document_record(instance)
-        if result:
-            logger.info(
-                "Auto-matched updated document record %s to plaid record %s",
-                instance.pk,
-                result.pk,
-            )
+    run_auto_match.delay(instance.pk, has_plaid=bool(instance.plaid_transaction_id))

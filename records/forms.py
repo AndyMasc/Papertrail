@@ -39,14 +39,11 @@ _MAXLENGTH_HELP = {
 }
 
 
-def _with_maxlength(field: forms.Field, limit: int, widget_cls: type | None = None) -> None:
+def _with_maxlength(field: forms.Field, limit: int) -> None:
     existing = field.widget.attrs.get("class", "")
     field.widget.attrs["maxlength"] = str(limit)
     field.widget.attrs["data-maxlength"] = str(limit)
-    if widget_cls and isinstance(field.widget, widget_cls):
-        field.widget.attrs["class"] = f"{existing} char-limit"
-    else:
-        field.widget.attrs["class"] = f"{existing} char-limit"
+    field.widget.attrs["class"] = f"{existing} char-limit"
 
 
 class BaseRecordForm(forms.ModelForm):
@@ -91,7 +88,7 @@ class BaseRecordForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for fname, limit in _MAXLENGTH_HELP.items():
             if fname in self.fields:
-                _with_maxlength(self.fields[fname], limit, TrimmedTextarea)
+                _with_maxlength(self.fields[fname], limit)
 
     def clean_transaction_date(self):
         transaction_date = self.cleaned_data.get("transaction_date")

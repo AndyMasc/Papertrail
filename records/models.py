@@ -286,11 +286,43 @@ class MergeLog(models.Model):
     )
     plaid_snapshot = models.JSONField()
     document_snapshot = models.JSONField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    undone_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    undone_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    search_text = models.TextField(blank=True, db_index=False)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["search_text"], name="idx_mergelog_search"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["plaid_record", "document_record"],
+                name="unique_active_merge",
+                condition=models.Q(undone_at__isnull=True),
+                violation_error_message="An active merge already exists for this pair.",
+            ),
+        ]
+
+    def save(  # noqa: PLR0913
+        self,
+        force_insert=False,
+        force_update=False,
+        using=None,
+        update_fields=None,
+    ):
+        parts = []
+        if self.plaid_record_id and self.plaid_record:
+            parts.extend([self.plaid_record.title or "", self.plaid_record.merchant or ""])
+        if self.document_record_id and self.document_record:
+            parts.extend([self.document_record.title or "", self.document_record.merchant or ""])
+        self.search_text = " ".join(p for p in parts if p)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     def __str__(self) -> str:
         return f"Merge {self.pk}: plaid={self.plaid_record_id} <- doc={self.document_record_id}"

@@ -24,6 +24,34 @@ User = get_user_model()
 
 
 @shared_task
+def run_auto_match(record_pk: int, has_plaid: bool) -> None:
+    try:
+        record = Record.objects.get(pk=record_pk)
+    except Record.DoesNotExist:
+        logger.warning("Auto-match skipped: record %s not found", record_pk)
+        return
+
+    from records.matching import try_match_document_record, try_match_plaid_record
+
+    if has_plaid:
+        matched = try_match_plaid_record(record)
+        if matched:
+            logger.info(
+                "Auto-matched %d document(s) to plaid record %s",
+                len(matched),
+                record_pk,
+            )
+    else:
+        result = try_match_document_record(record)
+        if result:
+            logger.info(
+                "Auto-matched document record %s to plaid record %s",
+                record_pk,
+                result.pk,
+            )
+
+
+@shared_task
 def archive_expired_records() -> None:
     today = timezone.now().date()
     active_expired_records = Record.objects.filter(
