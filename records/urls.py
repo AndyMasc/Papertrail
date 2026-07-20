@@ -46,5 +46,21 @@ urlpatterns = [
         name="delete_folder",
     ),
     path("merges/", views.MergeListView.as_view(), name="merge_list"),
+    path("merges/manual/", views.ManualMergeView.as_view(), name="manual_merge"),
+    path(
+        "merges/manual/search/<str:mode>/",
+        views.ManualMergeSearchView.as_view(),
+        name="manual_merge_search",
+    ),
+    path(
+        "merges/manual/modal/<str:mode>/",
+        views.ManualMergeModalView.as_view(),
+        name="manual_merge_modal",
+    ),
+    path(
+        "merges/manual/select/<str:mode>/<int:pk>/",
+        views.ManualMergeSelectView.as_view(),
+        name="manual_merge_select",
+    ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
 ]

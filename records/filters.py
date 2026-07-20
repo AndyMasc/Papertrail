@@ -1,9 +1,10 @@
 import django_filters
 from django import forms
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils import timezone
 
-from .models import Folder, Record
+from .models import Folder, MergeLog, Record
 
 FILTER_CHOICES_CACHE_TTL = 300
 
@@ -104,3 +105,21 @@ class RecordFilter(django_filters.FilterSet):
                 transaction_date__year=now.year,
             )
         return queryset
+
+
+class MergeLogFilter(django_filters.FilterSet):
+    search = django_filters.CharFilter(method="filter_search", label="Search")
+
+    class Meta:
+        model = MergeLog
+        fields = []
+
+    def filter_search(self, queryset, name, value):  # noqa: ARG002
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(plaid_record__title__icontains=value)
+            | Q(plaid_record__merchant__icontains=value)
+            | Q(document_record__title__icontains=value)
+            | Q(document_record__merchant__icontains=value)
+        )

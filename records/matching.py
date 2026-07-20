@@ -1,9 +1,11 @@
 import difflib
 import logging
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
 from django.db import transaction as db_transaction
+from django.db.models.query import QuerySet
 from django.utils import timezone
 
 from documents.models import DocumentData
@@ -13,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 BALANCE_TOLERANCE = Decimal("1.00")
 DATE_TOLERANCE_DAYS = 3
+MATCH_LOOKAHEAD_DAYS = 14
 MERGE_SCORE_THRESHOLD = 55
 
 
@@ -78,12 +81,21 @@ def calculate_match_score(record_a: Record, record_b: Record) -> int:
     return score
 
 
+def _apply_date_window(qs: QuerySet[Record], record: Record) -> QuerySet[Record]:
+    if record.transaction_date:
+        window_start = record.transaction_date - timedelta(days=MATCH_LOOKAHEAD_DAYS)
+        window_end = record.transaction_date + timedelta(days=MATCH_LOOKAHEAD_DAYS)
+        return qs.filter(transaction_date__range=(window_start, window_end))
+    return qs
+
+
 def find_best_plaid_match(record: Record) -> Record | None:
-    candidates = Record.objects.filter(
+    qs = Record.objects.filter(
         user=record.user,
         plaid_transaction_id__isnull=False,
         is_active=True,
     ).exclude(pk=record.pk)
+    candidates = _apply_date_window(qs, record)
 
     best_score = 0
     best_match: Record | None = None
@@ -93,6 +105,8 @@ def find_best_plaid_match(record: Record) -> Record | None:
         if score > best_score:
             best_score = score
             best_match = candidate
+            if best_score >= 95:
+                break
 
     if best_score >= MERGE_SCORE_THRESHOLD:
         logger.info(
@@ -107,11 +121,12 @@ def find_best_plaid_match(record: Record) -> Record | None:
 
 
 def find_document_matches_for_plaid(plaid_record: Record) -> list[tuple[Record, int]]:
-    doc_records = Record.objects.filter(
+    qs = Record.objects.filter(
         user=plaid_record.user,
         plaid_transaction_id__isnull=True,
         is_active=True,
     ).exclude(pk=plaid_record.pk)
+    doc_records = _apply_date_window(qs, plaid_record)
 
     results: list[tuple[Record, int]] = []
 
@@ -165,6 +180,12 @@ def merge_document_into_plaid(
     locked_plaid._skip_auto_match = True
     fresh_doc._skip_auto_match = True
 
+    doc_document_ids = list(
+        DocumentData.objects.filter(associated_record=fresh_doc).values_list("pk", flat=True)
+    )
+    DocumentData.objects.filter(associated_record=fresh_doc).update(associated_record=locked_plaid)
+    document_snapshot["document_ids"] = doc_document_ids
+
     if fresh_doc.products:
         locked_plaid.products = fresh_doc.products
     if fresh_doc.notes:
@@ -175,10 +196,6 @@ def merge_document_into_plaid(
         locked_plaid.folder_id = fresh_doc.folder_id
 
     locked_plaid.save()
-
-    if document:
-        document.associated_record = locked_plaid
-        document.save(update_fields=["associated_record"])
 
     fresh_doc.is_active = False
     fresh_doc.save(update_fields=["is_active"])
@@ -224,7 +241,10 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
         document_record.plaid_transaction_id = None
         document_record.save(update_fields=["is_active", "plaid_transaction_id"])
 
-    if document and document_record:
+    doc_ids: list[int] | None = merge_log.document_snapshot.get("document_ids")
+    if doc_ids and plaid_record and document_record:
+        DocumentData.objects.filter(pk__in=doc_ids).update(associated_record=document_record)
+    elif document and document_record:
         document.associated_record = document_record
         document.save(update_fields=["associated_record"])
 

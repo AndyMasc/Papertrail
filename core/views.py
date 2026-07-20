@@ -25,7 +25,7 @@ from webpush.models import PushInformation, SubscriptionInfo
 from webpush.views import save_info
 
 from documents.models import DocumentData
-from records.models import Record
+from records.models import MergeLog, Record
 
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
@@ -130,8 +130,8 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         all_user_records = Record.objects.for_user(user)
         active_records_qs = all_user_records.active()
 
-        active_count, monthly_expenses, orphaned_count = await asyncio.gather(
-            active_records_qs.acount(),
+        merge_count, monthly_expenses, orphaned_count = await asyncio.gather(
+            MergeLog.objects.filter(plaid_record__user=user, undone_at__isnull=True).acount(),
             all_user_records.filter(
                 transaction_date__gte=start_of_month,
                 transaction_date__lte=now,
@@ -171,7 +171,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ]
 
         context = {
-            "active_records_count": active_count,
+            "active_records_count": merge_count,
             "records": recent_records,
             "expiring_soon": expiring_soon,
             "expiring_soon_count": len(expiring_soon),

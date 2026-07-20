@@ -6,16 +6,17 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
-from django.core.paginator import InvalidPage
+from django.core.paginator import InvalidPage, Paginator
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse_lazy
 from django.utils.functional import cached_property
 from django.views.generic import ListView
 from django.views.generic.base import View
-from django.views.generic.edit import CreateView, DeleteView, UpdateView
+from django.views.generic.edit import CreateView, DeleteView, FormView, UpdateView
 from django_filters.views import FilterView
 
 from documents.models import DocumentData, DocumentStatus
@@ -23,9 +24,9 @@ from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
 from Papertrail.utils import CachedPaginator
 
-from .filters import RecordFilter
-from .forms import AddRecordForm, FolderForm, RecordUpdateForm
-from .matching import try_match_document_record, undo_merge
+from .filters import MergeLogFilter, RecordFilter
+from .forms import AddRecordForm, FolderForm, ManualMergeForm, RecordUpdateForm
+from .matching import merge_document_into_plaid, try_match_document_record, undo_merge
 from .models import Folder, MergeLog, Record, RecordQuerySet
 from .services import archive_record, unarchive_record
 
@@ -458,10 +459,134 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
         return redirect(self.success_url)
 
 
-class MergeListView(LoginRequiredMixin, ListView):
+class ManualMergeView(LoginRequiredMixin, FormView):
+    template_name = "records/manual_merge.html"
+    form_class = ManualMergeForm
+    success_url = reverse_lazy("records:merge_list")
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        return super().get_context_data(**kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        plaid_record = get_object_or_404(
+            Record,
+            pk=form.cleaned_data["plaid_record_id"],
+            user=self.request.user,
+            plaid_transaction_id__isnull=False,
+            is_active=True,
+        )
+        document_record = get_object_or_404(
+            Record,
+            pk=form.cleaned_data["document_record_id"],
+            user=self.request.user,
+            plaid_transaction_id__isnull=True,
+            is_active=True,
+        )
+        document = DocumentData.objects.filter(associated_record=document_record).first()
+        result = merge_document_into_plaid(plaid_record, document_record, document)
+        if result is None:
+            messages.error(
+                self.request, "Could not merge — the receipt may have already been merged."
+            )
+        else:
+            messages.success(self.request, "Records merged successfully.")
+        return redirect(self.success_url)
+
+
+class ManualMergeSearchView(LoginRequiredMixin, View):
+    def get(self, request: HttpRequest, mode: str) -> HttpResponse:
+        if mode not in ("plaid", "doc"):
+            return HttpResponseBadRequest("Invalid mode")
+
+        qs = Record.objects.for_user(request.user).filter(is_active=True)
+        if mode == "plaid":
+            qs = qs.filter(plaid_transaction_id__isnull=False)
+        else:
+            qs = qs.filter(plaid_transaction_id__isnull=True)
+
+        search_query = request.GET.get("search", "").strip()
+        if search_query:
+            qs = qs.smart_search(search_query)
+
+        filterset = RecordFilter(request.GET, queryset=qs, request=request)
+        qs = filterset.qs
+
+        paginator = Paginator(qs, 10)
+        page_number = request.GET.get("page", 1)
+        page_obj = paginator.get_page(page_number)
+
+        return render(
+            request,
+            "records/partials/merge_search_panel.html",
+            {
+                "records": page_obj.object_list,
+                "mode": mode,
+                "target_prefix": f"modal-{mode}",
+                "page_obj": page_obj,
+                "is_paginated": page_obj.has_other_pages(),
+            },
+        )
+
+
+class ManualMergeModalView(LoginRequiredMixin, View):
+    def get(self, request: HttpRequest, mode: str) -> HttpResponse:
+        if mode not in ("plaid", "doc"):
+            return HttpResponseBadRequest("Invalid mode")
+
+        qs = Record.objects.for_user(request.user).filter(is_active=True)
+        if mode == "plaid":
+            qs = qs.filter(plaid_transaction_id__isnull=False)
+        else:
+            qs = qs.filter(plaid_transaction_id__isnull=True)
+
+        records = qs.order_by("-transaction_date")[:10]
+
+        filter_instance = RecordFilter(request=request, data=None, queryset=Record.objects.none())
+
+        return render(
+            request,
+            "records/partials/merge_modal_content.html",
+            {
+                "records": records,
+                "mode": mode,
+                "label": "Bank Transaction" if mode == "plaid" else "Uploaded Receipt",
+                "filter": filter_instance,
+                "page_obj": None,
+                "is_paginated": False,
+            },
+        )
+
+
+class ManualMergeSelectView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, mode: str, pk: int) -> HttpResponse:
+        if mode not in ("plaid", "doc"):
+            return HttpResponseBadRequest("Invalid mode")
+
+        record = get_object_or_404(Record, pk=pk, user=request.user, is_active=True)
+        if mode == "plaid" and record.plaid_transaction_id is None:
+            return HttpResponseBadRequest("Not a plaid record")
+        if mode == "doc" and record.plaid_transaction_id is not None:
+            return HttpResponseBadRequest("Not a document record")
+
+        html = render_to_string(
+            "records/partials/merge_selected_slot.html",
+            {"record": record, "mode": mode},
+        )
+        response = HttpResponse(html)
+        response["HX-Trigger"] = json.dumps({"selectRecord": {"mode": mode, "id": str(pk)}})
+        return response
+
+
+class MergeListView(LoginRequiredMixin, FilterView):
     model = MergeLog
     template_name = "records/merge_list.html"
     context_object_name = "merges"
+    filterset_class = MergeLogFilter
     paginate_by = 25
 
     def get_queryset(self):
@@ -492,7 +617,9 @@ class UndoMergeView(LoginRequiredMixin, View):
 
         if request.headers.get("HX-Request"):
             response = HttpResponse(status=204)
-            response["HX-Trigger"] = json.dumps({"showToast": {"text": "Merge undone.", "tags": "success"}})
+            response["HX-Trigger"] = json.dumps(
+                {"showToast": {"text": "Merge undone.", "tags": "success"}}
+            )
             return response
 
         return redirect("records:merge_list")

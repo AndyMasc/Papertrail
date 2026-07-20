@@ -134,3 +134,16 @@ class RecordUpdateForm(BaseRecordForm):
             self.fields["folder"].queryset = Folder.objects.filter(user=user)
             self.fields["folder"].required = False
             self.fields["folder"].empty_label = "Unfiled"
+
+
+class ManualMergeForm(forms.Form):
+    plaid_record_id = forms.IntegerField(
+        widget=forms.HiddenInput(attrs={"id": "id_plaid_record_id"})
+    )
+    document_record_id = forms.IntegerField(
+        widget=forms.HiddenInput(attrs={"id": "id_document_record_id"})
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user")
+        super().__init__(*args, **kwargs)

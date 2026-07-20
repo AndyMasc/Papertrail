@@ -1454,7 +1454,32 @@ class MergeDocumentIntoPlaidTest(TestCase):
         self.assertEqual(log.plaid_record, self.plaid)
         self.assertIsNone(log.undone_at)
 
-    def test_merge_with_document_reference(self):
+    def test_merge_moves_all_documents(self):
+        import hashlib
+        from documents.models import DocumentData
+
+        doc_data1 = DocumentData.objects.create(
+            user=self.user,
+            associated_record=self.doc_with_docref,
+            filepath="users/1/test.pdf",
+            file_hash=hashlib.sha256(b"test1").hexdigest(),
+        )
+        doc_data2 = DocumentData.objects.create(
+            user=self.user,
+            associated_record=self.doc_with_docref,
+            filepath="users/2/other.pdf",
+            file_hash=hashlib.sha256(b"test2").hexdigest(),
+        )
+        merge_document_into_plaid(self.plaid, self.doc_with_docref, doc_data1)
+        doc_data1.refresh_from_db()
+        doc_data2.refresh_from_db()
+        self.assertEqual(doc_data1.associated_record, self.plaid)
+        self.assertEqual(doc_data2.associated_record, self.plaid)
+        self.assertFalse(
+            DocumentData.objects.filter(associated_record=self.doc_with_docref).exists()
+        )
+
+    def test_merge_snapshot_tracks_document_ids(self):
         import hashlib
         from documents.models import DocumentData
 
@@ -1462,11 +1487,11 @@ class MergeDocumentIntoPlaidTest(TestCase):
             user=self.user,
             associated_record=self.doc_with_docref,
             filepath="users/1/test.pdf",
-            file_hash=hashlib.sha256(b"test").hexdigest(),
+            file_hash=hashlib.sha256(b"test3").hexdigest(),
         )
         merge_document_into_plaid(self.plaid, self.doc_with_docref, doc_data)
-        doc_data.refresh_from_db()
-        self.assertEqual(doc_data.associated_record, self.plaid)
+        log = MergeLog.objects.filter(document_record=self.doc_with_docref).first()
+        self.assertIn(doc_data.pk, log.document_snapshot.get("document_ids", []))
 
     def test_merge_concurrency_guard_doc_inactive(self):
         self.doc.is_active = False
@@ -1546,6 +1571,32 @@ class UndoMergeTest(TestCase):
         undo_merge(self.merge_log)
         result = undo_merge(self.merge_log)
         self.assertIsNone(result)
+
+    def test_undo_restores_all_documents(self):
+        import hashlib
+        from documents.models import DocumentData
+
+        doc1 = _make_doc_record(self.user, "Doc With Files", products="Items", notes="Important")
+        doc_data1 = DocumentData.objects.create(
+            user=self.user,
+            associated_record=doc1,
+            filepath="users/1/file1.pdf",
+            file_hash=hashlib.sha256(b"doc1").hexdigest(),
+        )
+        doc_data2 = DocumentData.objects.create(
+            user=self.user,
+            associated_record=doc1,
+            filepath="users/1/file2.pdf",
+            file_hash=hashlib.sha256(b"doc2").hexdigest(),
+        )
+        plaid = _make_plaid_record(self.user, "Doc Restore")
+        merge_document_into_plaid(plaid, doc1, doc_data1)
+        log = MergeLog.objects.filter(document_record=doc1).first()
+        undo_merge(log)
+        doc_data1.refresh_from_db()
+        doc_data2.refresh_from_db()
+        self.assertEqual(doc_data1.associated_record, doc1)
+        self.assertEqual(doc_data2.associated_record, doc1)
 
 
 class TryMatchTest(TestCase):
