@@ -33,7 +33,7 @@ def choose_folder(
 
     query = Q()
     for word in key_words:
-        query |= Q(name__icontains=word)
+        query |= Q(name__iregex=rf"\y{word}\y")
 
     folder = Folder.objects.filter(query, user=user).first()
 

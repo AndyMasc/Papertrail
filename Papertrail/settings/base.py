@@ -212,7 +212,7 @@ CACHES = {
         "KEY_PREFIX": "papertrail",
     }
 }
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 days
 

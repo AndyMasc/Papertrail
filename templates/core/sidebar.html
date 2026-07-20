@@ -13,13 +13,13 @@
             x-transition:leave="ease-in duration-200"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            class="fixed inset-0 z-40 bg-zinc-900/15 dark:bg-zinc-900/40 backdrop-blur-sm sm:hidden"
+            class="fixed inset-0 bg-zinc-900/15 dark:bg-zinc-900/40 backdrop-blur-sm sm:hidden"
             @click="open = false"
             aria-hidden="true">
         </div>
 
         <div
-            class="fixed top-0 left-0 z-50 w-64 h-screen transition-all duration-300 ease-out"
+            class="fixed top-0 left-0 w-64 h-screen transition-all duration-300 ease-out"
             :class="open ? 'translate-x-0 shadow-2xl shadow-zinc-950/10' : '-translate-x-full'"
             x-cloak
             :aria-hidden="!open">
@@ -27,7 +27,7 @@
             <button
                 id="sidebar-toggle"
                 type="button"
-                class="absolute top-7 right-0 translate-x-full z-50 flex size-8 items-center justify-center rounded-r-xl border border-l-0 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all duration-150 shadow-xs cursor-pointer focus:outline-none active:scale-[0.97]"
+                class="absolute top-7 right-0 translate-x-full flex size-8 items-center justify-center rounded-r-xl border border-l-0 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-all duration-150 shadow-xs cursor-pointer focus:outline-none active:scale-[0.97]"
                 @click="open = !open"
                 :aria-expanded="open"
                 x-transition:enter="ease-out duration-300"
