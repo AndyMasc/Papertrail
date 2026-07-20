@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("documents", "0025_documentdata_ocr_error"),
         ("records", "0021_alter_record_folder_alter_record_record_type"),

@@ -45,9 +45,7 @@ def delete_2month_archived_records() -> None:
     from .models import MergeLog
 
     merged_ids = set(
-        MergeLog.objects.filter(undone_at__isnull=True).values_list(
-            "document_record_id", flat=True
-        )
+        MergeLog.objects.filter(undone_at__isnull=True).values_list("document_record_id", flat=True)
     )
 
     two_months_ago = timezone.now() - timedelta(days=60)

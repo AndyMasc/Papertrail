@@ -33,9 +33,9 @@
           class="flex items-center gap-2 overflow-x-auto scrollbar-none">
         {% for field in filter.form %}
             {% if field.name == 'record_type' or field.name == 'folder' or field.name == 'this_month' %}
-            <div class="bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all duration-150 flex items-center shrink-0">
-                {% render_field field class="appearance-none outline-none bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-3 text-xs font-medium border-none p-0 focus:ring-0" %}
-            </div>
+                <div class="bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2.5 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all duration-150 flex items-center shrink-0">
+                    {% render_field field class="appearance-none outline-none bg-transparent cursor-pointer text-zinc-700 dark:text-zinc-300 pr-3 text-xs font-medium border-none p-0 focus:ring-0" %}
+                </div>
             {% endif %}
         {% endfor %}
         <button type="button"
@@ -54,7 +54,7 @@
             </div>
         </div>
         {% with tp="modal-"|add:mode %}
-        {% include 'records/partials/merge_search_panel.html' with records=records mode=mode target_prefix=tp page_obj=page_obj is_paginated=is_paginated %}
+            {% include 'records/partials/merge_search_panel.html' with records=records mode=mode target_prefix=tp page_obj=page_obj is_paginated=is_paginated %}
         {% endwith %}
     </div>
 </div>
