@@ -26,8 +26,8 @@
                             <span class="font-semibold text-zinc-900 dark:text-zinc-100 text-[15px] sm:text-[16px] lg:text-[14px] truncate max-w-full">
                                 {% if merge.plaid_record %}{{ merge.plaid_record.title }}{% else %}(deleted){% endif %}
                             </span>
-                            <svg class="size-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 7.5 21 3m0 0-4.5 7.5M21 3l-7.5 4.5" />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25" />
                             </svg>
                             <span class="text-xs text-zinc-400 dark:text-zinc-500 truncate">
                                 {{ merge.document_record.title|default:"(deleted)" }}
