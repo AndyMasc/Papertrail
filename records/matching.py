@@ -9,7 +9,7 @@ from django.db.models.query import QuerySet
 from django.utils import timezone
 
 from documents.models import DocumentData
-from records.models import MergeLog, Record, RecordEvent
+from records.models import MergeLog, Record
 
 logger = logging.getLogger(__name__)
 
@@ -209,10 +209,7 @@ def merge_document_into_plaid(
     if fresh_doc.folder_id:
         locked_plaid.folder_id = fresh_doc.folder_id
 
-    locked_plaid.source_type = Record.SourceType.MERGED
-    locked_plaid.save(
-        update_fields=["products", "notes", "record_type", "folder_id", "source_type"]
-    )
+    locked_plaid.save(update_fields=["products", "notes", "record_type", "folder_id"])
 
     fresh_doc.is_active = False
     fresh_doc.save(update_fields=["is_active"])
@@ -223,16 +220,6 @@ def merge_document_into_plaid(
         document=document,
         plaid_snapshot=plaid_snapshot,
         document_snapshot=document_snapshot,
-    )
-
-    RecordEvent.objects.create(
-        record=locked_plaid,
-        user=None,
-        event=RecordEvent.Event.MERGED,
-        metadata={
-            "document_record_id": fresh_doc.pk,
-            "document_record_title": fresh_doc.title,
-        },
     )
 
     logger.info(
@@ -283,31 +270,6 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
 
     merge_log.undone_at = timezone.now()
     merge_log.save(update_fields=["undone_at"])
-
-    if plaid_record:
-        still_has_plaid = plaid_record.plaid_transaction_id is not None
-        plaid_record.source_type = (
-            Record.SourceType.PLAID if still_has_plaid else Record.SourceType.MANUAL
-        )
-        plaid_record.save(update_fields=["source_type"])
-
-    if document_record:
-        document_record.source_type = (
-            Record.SourceType.OCR
-            if document_record.documents.filter(did_ocr=True).exists()
-            else Record.SourceType.MANUAL
-        )
-        document_record.save(update_fields=["source_type"])
-
-    RecordEvent.objects.create(
-        record=plaid_record or document_record,
-        user=None,
-        event=RecordEvent.Event.UNMERGED,
-        metadata={
-            "plaid_record_id": plaid_record.pk if plaid_record else None,
-            "document_record_id": document_record.pk if document_record else None,
-        },
-    )
 
     logger.info("Undone merge %s", merge_log.pk)
     return document_record

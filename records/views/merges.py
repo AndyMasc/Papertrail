@@ -9,8 +9,8 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
-from django.views.generic.edit import FormView
 from django.views.generic.base import View
+from django.views.generic.edit import FormView
 from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
@@ -76,7 +76,9 @@ class ManualMergeView(LoginRequiredMixin, FormView):
         document = DocumentData.objects.filter(associated_record=document_record).first()
         result = merge_document_into_plaid(plaid_record, document_record, document)
         if result is None:
-            messages.error(self.request, "Could not merge — the receipt may have already been merged.")
+            messages.error(
+                self.request, "Could not merge — the receipt may have already been merged."
+            )
         else:
             messages.success(self.request, "Records merged successfully.")
         return redirect(self.success_url)

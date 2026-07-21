@@ -53,7 +53,7 @@
 
             <div class="flex items-center justify-end w-6 shrink-0 relative z-20">
                 <div class="flex items-center justify-end w-full gap-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
-                    <form action="{% url 'documents:delete_document' document.pk %}" method="POST" onsubmit="return confirm('Delete document permanently?');" class="inline">
+                    <form action="{% url 'documents:delete_document' document.pk %}" method="POST" onsubmit="return confirm('Delete this document permanently?');" class="inline">
                         {% csrf_token %}
                         <button type="submit" class="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-all cursor-pointer" title="Delete Permanently">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 hover:text-rose-500 transition-colors duration-200">

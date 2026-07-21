@@ -4,11 +4,10 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
-from django.views.generic.edit import CreateView, DeleteView, UpdateView
 from django.views.generic import ListView
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from ..forms import FolderForm
 from ..models import Folder
@@ -112,7 +111,7 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return Folder.objects.filter(user=self.request.user)
 
-    def delete(self, request, *args, **kwargs):
+    def delete(self, request, *_, **__):
         folder = self.get_object()
         folder.records.update(folder=None)
         folder.delete()
@@ -120,9 +119,7 @@ class FolderDeleteView(LoginRequiredMixin, DeleteView):
             folders = Folder.objects.filter(user=self.request.user).annotate(
                 active_records_count=Count("records", filter=Q(records__is_active=True))
             )
-            unfiled_count = request.user.records.filter(
-                folder__isnull=True, is_active=True
-            ).count()
+            unfiled_count = request.user.records.filter(folder__isnull=True, is_active=True).count()
             return render(
                 request,
                 "records/partials/folder_list_partial.html",

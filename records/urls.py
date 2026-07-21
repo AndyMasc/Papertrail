@@ -11,8 +11,7 @@ urlpatterns = [
         name="add_record",
     ),
     path("add_record/", views.AddRecordView.as_view(), name="add_record_manual"),
-    path("delete_record/<int:record_id>/", views.DeleteRecord.as_view(), name="delete_record"),
-    path("undelete/<int:record_id>/", views.UndeleteRecord.as_view(), name="undelete_record"),
+    path("delete_record/<int:pk>/", views.DeleteRecord.as_view(), name="delete_record"),
     path(
         "record_detail/<int:pk>/",
         views.RecordDetailView.as_view(),
@@ -59,5 +58,4 @@ urlpatterns = [
         name="manual_merge_modal",
     ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
-    path("export-csv/<int:pk>/", views.RecordAuditExportView.as_view(), name="export_audit_csv"),
 ]

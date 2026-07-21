@@ -23,8 +23,8 @@ from Papertrail.utils import CachedPaginator
 
 from ..filters import RecordFilter
 from ..forms import AddRecordForm, RecordUpdateForm
-from ..models import Folder, Record, RecordEvent, RecordQuerySet
-from ..services import RecordCreator
+from ..matching import try_match_document_record
+from ..models import Folder, Record
 
 logger = logging.getLogger(__name__)
 
@@ -110,31 +110,6 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
     @transaction.atomic
     def form_valid(self, form):
         messages.success(self.request, "Record updated successfully.")
-
-        if form.changed_data:
-            field_event_map = {
-                "merchant": RecordEvent.Event.MERCHANT_EDITED,
-                "balance": RecordEvent.Event.AMOUNT_EDITED,
-                "title": RecordEvent.Event.TITLE_EDITED,
-                "record_type": RecordEvent.Event.RECORD_TYPE_CHANGED,
-                "folder": RecordEvent.Event.FOLDER_CHANGED,
-            }
-            for field in form.changed_data:
-                event = field_event_map.get(field)
-                if event:
-                    old_val = form.initial.get(field)
-                    new_val = form.cleaned_data.get(field)
-                    RecordEvent.objects.create(
-                        record=self.object,
-                        user=self.request.user,
-                        event=event,
-                        metadata={
-                            "field": field,
-                            "old": str(old_val) if old_val is not None else None,
-                            "new": str(new_val) if new_val is not None else None,
-                        },
-                    )
-
         self.object = form.save()
 
         if self.request.headers.get("HX-Request") == "true":
@@ -203,7 +178,11 @@ class AddRecordView(LoginRequiredMixin, CreateView):
             cache_key = f"ocr_status_{document.id}"
             cached_status = cache.get(cache_key)
 
-            if document.status in (DocumentStatus.PROCESSING, DocumentStatus.UPLOADED, DocumentStatus.PENDING_UPLOAD):
+            if document.status in (
+                DocumentStatus.PROCESSING,
+                DocumentStatus.UPLOADED,
+                DocumentStatus.PENDING_UPLOAD,
+            ):
                 is_waiting = True
 
             elif document.status == DocumentStatus.ERROR:
@@ -236,17 +215,19 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         if document and document.associated_record:
             return HttpResponseBadRequest("This document is already associated with a record.")
 
-        creator = RecordCreator(
-            user=self.request.user,
-            form_data={**form.cleaned_data},
-            document=document,
-        )
-        result = creator.create()
-        self.object = result.record
+        self.object = form.save(commit=False)
+        self.object.user = self.request.user
+        self.object.save()
+        form.save_m2m()
 
-        if result.was_merged:
+        if document:
+            document.associated_record = self.object
+            document.save(update_fields=["associated_record"])
+
+        merged = try_match_document_record(self.object, document) if document else None
+        if merged:
             messages.success(self.request, "Receipt matched with bank transaction and merged.")
-            return redirect("records:record_detail", pk=result.merged_record.pk)
+            return redirect("records:record_detail", pk=merged.pk)
 
         return redirect("documents:add_support_docs", record_id=self.object.pk)
 
