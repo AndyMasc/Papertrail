@@ -83,8 +83,11 @@ class DocumentData(models.Model):
     did_ocr = models.BooleanField(default=False)
     ocr_retries = models.PositiveSmallIntegerField(default=0)
     ocr_error = models.TextField(blank=True, default="")
+    ocr_metadata = models.JSONField(blank=True, null=True)
     notes = models.TextField(blank=True, default="")
     file_extension = models.CharField(max_length=10, blank=True, default="")
+    file_size = models.BigIntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True, default="")
     file_hash = models.CharField(max_length=64, db_index=True)
     status = models.CharField(
         max_length=20,

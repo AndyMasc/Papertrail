@@ -8,7 +8,7 @@ from django.db.models import Q
 from django_qstash import shared_task
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
-from records.models import Folder, Record
+from records.models import Folder, Record, RecordEvent
 
 from .models import PlaidItem
 from .plaid_client import client
@@ -72,6 +72,8 @@ def _txn_to_record_defaults(
         "record_type": Record.RecordTypes.FINANCIAL_DOCUMENT,
         "notes": primary_category,
         "folder": matched_folder,
+        "source_type": Record.SourceType.PLAID,
+        "original_plaid": txn,
     }
 
 
@@ -107,24 +109,39 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
         with db_transaction.atomic():
             txn: dict[str, Any]
             for txn in data.get("removed", []):
+                records = list(Record.objects.filter(plaid_transaction_id=txn["transaction_id"]))
+                for r in records:
+                    RecordEvent.objects.create(
+                        record=r,
+                        user=None,
+                        event=RecordEvent.Event.DELETED,
+                        metadata={"source": "plaid_sync", "transaction_id": txn["transaction_id"]},
+                    )
                 deleted, _ = Record.objects.filter(
                     plaid_transaction_id=txn["transaction_id"]
                 ).delete()
                 stats["removed"] += deleted
 
             for txn in data.get("added", []):
-                Record.objects.update_or_create(
+                record, created = Record.objects.update_or_create(
                     plaid_transaction_id=txn["transaction_id"],
                     defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache),
                 )
+                if created:
+                    RecordEvent.objects.create(
+                        record=record,
+                        user=None,
+                        event=RecordEvent.Event.IMPORTED,
+                        metadata={"transaction_id": txn["transaction_id"]},
+                    )
                 stats["added"] += 1
 
             for txn in data.get("modified", []):
-                Record.objects.update_or_create(
-                    plaid_transaction_id=txn["transaction_id"],
-                    defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache),
+                updated = Record.objects.filter(plaid_transaction_id=txn["transaction_id"]).update(
+                    original_plaid=txn
                 )
-                stats["modified"] += 1
+                if updated:
+                    stats["modified"] += 1
 
             cursor = data.get("next_cursor", cursor)
             has_more = data.get("has_more", False)

@@ -53,13 +53,16 @@ def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
 
 class RecordQuerySet(models.QuerySet):
     def for_user(self, user: User) -> "RecordQuerySet":
-        return self.filter(user=user)
+        return self.filter(user=user, deleted_at__isnull=True)
 
     def active(self) -> "RecordQuerySet":
-        return self.filter(is_active=True)
+        return self.filter(is_active=True, deleted_at__isnull=True)
 
     def archived(self) -> "RecordQuerySet":
-        return self.filter(is_active=False)
+        return self.filter(is_active=False, deleted_at__isnull=True)
+
+    def trashed(self) -> "RecordQuerySet":
+        return self.filter(deleted_at__isnull=False)
 
     def with_documents(self) -> "RecordQuerySet":
         return self.prefetch_related("documents")
@@ -143,6 +146,12 @@ class RecordManager(models.Manager.from_queryset(RecordQuerySet)):
 
 
 class Record(models.Model):
+    class SourceType(models.TextChoices):
+        OCR = "ocr", "Receipt OCR"
+        PLAID = "plaid", "Plaid Transaction"
+        MANUAL = "manual", "Manual Entry"
+        MERGED = "merged", "Merged Record"
+
     class RecordTypes(models.TextChoices):
         EXPENSE_RECEIPT = "expense_receipt", "Expense Receipt"
         VOUCHER = "voucher", "Voucher"
@@ -216,6 +225,15 @@ class Record(models.Model):
 
     expiry_notification_sent = models.BooleanField(default=False, db_index=True)
 
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    source_type = models.CharField(
+        max_length=10,
+        choices=SourceType.choices,
+        default=SourceType.MANUAL,
+        db_index=True,
+    )
+    original_data = models.JSONField(blank=True, null=True)
+    original_plaid = models.JSONField(blank=True, null=True)
     plaid_transaction_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     plaid_item = models.ForeignKey(
         "plaid_integration.PlaidItem",
@@ -326,3 +344,46 @@ class MergeLog(models.Model):
 
     def __str__(self) -> str:
         return f"Merge {self.pk}: plaid={self.plaid_record_id} <- doc={self.document_record_id}"
+
+
+class RecordEvent(models.Model):
+    class Event(models.TextChoices):
+        CREATED = "record_created", "Record created"
+        RECEIPT_UPLOADED = "receipt_uploaded", "Receipt uploaded"
+        OCR_COMPLETED = "ocr_completed", "OCR completed"
+        IMPORTED = "imported_from_plaid", "Imported from Plaid"
+        MATCHED = "receipt_matched", "Receipt matched"
+        MERGED = "records_merged", "Records merged"
+        UNMERGED = "records_unmerged", "Records unmerged"
+        FOLDER_CHANGED = "folder_changed", "Folder changed"
+        MERCHANT_EDITED = "merchant_edited", "Merchant edited"
+        AMOUNT_EDITED = "amount_edited", "Amount edited"
+        TITLE_EDITED = "title_edited", "Title edited"
+        RECORD_TYPE_CHANGED = "record_type_changed", "Record type changed"
+        REMINDER_SENT = "reminder_sent", "Reminder sent"
+        CSV_EXPORTED = "csv_exported", "CSV exported"
+        DOCUMENT_ADDED = "document_added", "Supporting document added"
+        DOCUMENT_REMOVED = "document_removed", "Supporting document removed"
+        ARCHIVED = "record_archived", "Record archived"
+        UNARCHIVED = "record_unarchived", "Record unarchived"
+        DELETED = "record_deleted", "Record deleted"
+
+    record = models.ForeignKey(Record, on_delete=models.CASCADE, related_name="events")
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    event = models.CharField(max_length=30, choices=Event.choices)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    metadata = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["record", "-timestamp"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_event_display()} on {self.record_id} at {self.timestamp}"

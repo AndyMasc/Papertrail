@@ -1,38 +1,29 @@
-import hashlib
-import json
 import logging
-import os
-import uuid
 from typing import Any
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import EmptyPage, InvalidPage, PageNotAnInteger, Paginator
-from django.db import DatabaseError, transaction
-from django.db.models import ProtectedError
+from django.db import transaction
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DeleteView, ListView, UpdateView
+from django.views.generic import ListView, UpdateView
 from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
 from Papertrail.utils import CachedPaginator
-from records.models import Record
+from records.models import Record, RecordEvent
 
 from .filters import DocumentFilter
-from .forms import DocumentUpdateForm, R2UploadForm
+from .forms import DocumentUpdateForm
 from .models import DocumentData, DocumentStatus
-from .storage import (
-    gatekeeper_validate_r2_object,
-    generate_presigned_post,
-    generate_read_presigned_url,
-    generate_upload_key,
-    verify_r2_object_exists,
-)
+from .services import UploadService, UploadValidator
+from .storage import generate_read_presigned_url
 
 logger = logging.getLogger(__name__)
 
@@ -102,91 +93,31 @@ class BaseR2UploadView(LoginRequiredMixin, View):
     def _handle_presign_request(
         self, request: HttpRequest, record_id: int | None = None
     ) -> JsonResponse:
-        if request.content_type == "application/json":
-            try:
-                data = json.loads(request.body)
-            except json.JSONDecodeError:
-                return JsonResponse({"error": "Invalid JSON."}, status=400)
-        else:
-            data = request.POST
+        result = UploadService(request, record_id=record_id).handle()
 
-        file_hash = data.get("file_hash", "").strip()
-        filename = data.get("filename", "").strip()
-        content_type = data.get("content_type", "").strip().split(";")[0].strip()
-        notes = data.get("notes", "").strip()
-        force_upload = data.get("force_upload") == "true"
-
-        if not file_hash or not filename:
-            return JsonResponse({"error": "Missing file_hash or filename."}, status=400)
-
-        form = R2UploadForm({"filename": filename, "content_type": content_type, "notes": notes})
-        if not form.is_valid():
+        if result.status == "error":
             return JsonResponse(
-                {"error": "Invalid file parameters.", "details": form.errors},
+                {"error": result.error, "details": result.error_details},
                 status=400,
             )
 
-        if not force_upload:
-            existing_doc = (
-                DocumentData.objects.for_user(request.user)
-                .filter(file_hash=file_hash)
-                .exclude(status=DocumentStatus.DELETING)
-                .with_record()
-                .first()
+        if result.status == "duplicate_confirmed":
+            return JsonResponse(
+                {
+                    "status": "duplicate_confirmed",
+                    "document_id": result.existing_document_id,
+                    "record_id": result.existing_record_id,
+                    "record_label": result.existing_record_label,
+                    "record_url": result.existing_record_url,
+                }
             )
-            if existing_doc:
-                record_id_out = None
-                record_label = "Unassociated Document"
-                record_url = "#"
-                if existing_doc.associated_record:
-                    record_id_out = existing_doc.associated_record.id
-                    record_label = getattr(
-                        existing_doc.associated_record,
-                        "title",
-                        f"Record #{record_id_out}",
-                    )
-                    record_url = f"/records/record_detail/{record_id_out}"
-                return JsonResponse(
-                    {
-                        "status": "duplicate_confirmed",
-                        "document_id": existing_doc.id,
-                        "record_id": record_id_out,
-                        "record_label": record_label,
-                        "record_url": record_url,
-                    }
-                )
-
-        effective_hash = file_hash
-        if force_upload:
-            salt = f"-forced-{uuid.uuid4().hex}"
-            effective_hash = hashlib.sha256((file_hash + salt).encode("utf-8")).hexdigest()
-
-        ext = os.path.splitext(filename)[1].lower() or ".bin"
-        safe_title = os.path.splitext(filename)[0]
-        safe_title = safe_title.replace("_", " ").replace("-", " ").title()
-
-        key = generate_upload_key(request.user.id, ext)
-
-        with transaction.atomic():
-            document = DocumentData.objects.create(
-                user=request.user,
-                filepath=key,
-                associated_record_id=record_id,
-                did_ocr=(record_id is None),
-                title=safe_title,
-                notes=notes,
-                file_hash=effective_hash,
-                status=DocumentStatus.PENDING_UPLOAD,
-            )
-
-        upload_url = generate_presigned_post(request.user.id, key, content_type)
 
         return JsonResponse(
             {
                 "status": "upload_url",
-                "upload_url": upload_url,
-                "key": key,
-                "document_id": document.id,
+                "upload_url": result.upload_url,
+                "key": result.key,
+                "document_id": result.document_id,
             }
         )
 
@@ -227,38 +158,14 @@ class ConfirmUploadView(LoginRequiredMixin, View):
             except DocumentData.DoesNotExist:
                 return JsonResponse({"error": "Document not found."}, status=404)
 
-            if document.status != DocumentStatus.PENDING_UPLOAD:
-                return JsonResponse(
-                    {"error": f"Unexpected status: {document.status}."},
-                    status=409,
-                )
+            result = UploadValidator(document, key).validate()
+            if not result.valid:
+                return JsonResponse({"error": result.error}, status=422)
 
-            if document.filepath != key:
-                logger.warning(
-                    "Key mismatch for doc %s: expected=%s, received=%s",
-                    document_id,
-                    document.filepath,
-                    key,
-                )
-                return JsonResponse({"error": "Key mismatch."}, status=400)
-
-            if not verify_r2_object_exists(key):
-                document.status = DocumentStatus.ERROR
-                document.save(update_fields=["status"])
-                return JsonResponse({"error": "File not found in storage."}, status=404)
-
-            validation = gatekeeper_validate_r2_object(key)
-            if not validation["valid"]:
-                document.status = DocumentStatus.ERROR
-                document.notes = (
-                    (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
-                ).strip()
-                document.save(update_fields=["status", "notes"])
-                logger.warning("Gatekeeper rejected doc %s: %s", document_id, validation["error"])
-                return JsonResponse({"error": validation["error"]}, status=422)
-
+            document.file_size = result.file_size
+            document.mime_type = result.mime_type or ""
             document.status = DocumentStatus.UPLOADED
-            document.save(update_fields=["status"])
+            document.save(update_fields=["status", "file_size", "mime_type"])
 
         return JsonResponse({"status": "confirmed", "document_id": document.id})
 
@@ -375,37 +282,42 @@ class PendingOCRListView(LoginRequiredMixin, ListView):
         )
 
 
-class DeleteDocument(LoginRequiredMixin, DeleteView):
-    model = DocumentData
+class DeleteDocument(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, document_id: int) -> HttpResponse:
+        document = get_object_or_404(
+            DocumentData.objects.select_related("associated_record"),
+            id=document_id,
+            user=request.user,
+        )
+        record = document.associated_record
 
-    def get_queryset(self):
-        return self.model.objects.for_user(self.request.user).with_record()
+        RecordEvent.objects.create(
+            record=record,
+            user=request.user,
+            event=RecordEvent.Event.DOCUMENT_REMOVED,
+            metadata={"document_id": document.id, "title": document.title},
+        ) if record else None
 
-    def get_success_url(self) -> str:
-        associated_record = self.object.associated_record
-        if associated_record:
-            return reverse("records:record_detail", kwargs={"pk": associated_record.id})
-        return reverse("records:view_all_records")
+        delete_record_too = (
+            record and record.source_type == Record.SourceType.OCR and document.did_ocr
+        )
 
-    @transaction.atomic
-    def form_valid(self, form) -> HttpResponse:
-        try:
-            return super().form_valid(form)
-        except (ProtectedError, DatabaseError) as e:
-            logger.error(
-                "Failed to delete document %s for user %s: %s",
-                self.object.pk,
-                self.request.user.pk,
-                e,
-                exc_info=True,
+        if delete_record_too:
+            RecordEvent.objects.create(
+                record=record,
+                user=request.user,
+                event=RecordEvent.Event.DELETED,
+                metadata={"source_type": record.source_type, "reason": "primary_evidence_removed"},
             )
-            messages.error(
-                self.request,
-                "Failed to complete deletion safely due to a system error.",
-            )
-            if self.request.headers.get("HX-Request") == "true":
-                return HttpResponse(status=204, headers={"HX-Refresh": "true"})
-            return redirect(self.get_success_url())
+            record.deleted_at = timezone.now()
+            record.save(update_fields=["deleted_at"])
+
+        document.delete()
+
+        messages.success(request, "Document deleted.")
+        if record and not delete_record_too:
+            return redirect("records:record_detail", pk=record.pk)
+        return redirect("records:view_all_records")
 
 
 class AddSupportDocuments(BaseR2UploadView):

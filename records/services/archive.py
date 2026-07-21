@@ -1,6 +1,6 @@
 from django.http import HttpRequest, HttpResponse
 
-from .models import Record
+from records.models import Record
 
 
 def archive_record(record: Record, request: HttpRequest | None = None) -> HttpResponse | None:

@@ -19,7 +19,9 @@ def ocr_data_to_form_initial(data: dict | None) -> dict:
     if not isinstance(data, dict):
         return {}
 
-    products_data = data.get("products") or []
+    payload = data.get("parsed") if "_metadata" in data else data
+
+    products_data = payload.get("products") or []
 
     if isinstance(products_data, list):
         processed_products = [
@@ -30,14 +32,14 @@ def ocr_data_to_form_initial(data: dict | None) -> dict:
         products_value = products_data
 
     return {
-        "title": data.get("title"),
+        "title": payload.get("title"),
         "products": products_value,
-        "merchant": data.get("merchant"),
-        "balance": data.get("balance"),
-        "transaction_date": data.get("transaction_date"),
-        "expiry_date": data.get("expiry_date"),
-        "record_type": data.get("record_type"),
-        "suggested_folder": data.get("suggested_folder"),
+        "merchant": payload.get("merchant"),
+        "balance": payload.get("balance"),
+        "transaction_date": payload.get("transaction_date"),
+        "expiry_date": payload.get("expiry_date"),
+        "record_type": payload.get("record_type"),
+        "suggested_folder": payload.get("suggested_folder"),
     }
 
 

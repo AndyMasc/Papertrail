@@ -146,6 +146,7 @@ def extract_document(document_id: int) -> dict[str, Any]:
             return cached
 
     _set_document_status(document_id, DocumentStatus.PROCESSING)
+    start_time = timezone.now()
 
     try:
         document = (
@@ -161,9 +162,21 @@ def extract_document(document_id: int) -> dict[str, Any]:
 
         final_data = _call_gemini(part, folder_names)
 
-        cache.set(cache_key, final_data, timeout=OCR_CACHE_TTL)
+        elapsed = (timezone.now() - start_time).total_seconds()
+
+        enriched = {
+            "parsed": final_data,
+            "_metadata": {
+                "model": "gemini-3.1-flash-lite",
+                "processing_time_seconds": elapsed,
+                "completed_at": timezone.now().isoformat(),
+                "document_id": document_id,
+            },
+        }
+
+        cache.set(cache_key, enriched, timeout=OCR_CACHE_TTL)
         _set_document_status(document_id, DocumentStatus.COMPLETED, ocr_error="", did_ocr=True)
-        return final_data
+        return enriched
 
     except Exception as exc:
         logger.warning("OCR attempt failed for doc %s: %s", document_id, exc, exc_info=True)
