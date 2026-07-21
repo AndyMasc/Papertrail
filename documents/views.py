@@ -16,7 +16,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.generic import DeleteView, UpdateView
+from django.views.generic import DeleteView, ListView, UpdateView
 from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
@@ -54,6 +54,10 @@ class DocumentListView(LoginRequiredMixin, FilterView):
     context_object_name = "documents"
     filterset_class = DocumentFilter
     paginate_by = settings.PAGINATE_BY
+
+    @method_decorator(ratelimit(key="user", rate="120/m", method="GET", block=True))
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
 
     def get_queryset(self):
         qs = (
@@ -341,6 +345,34 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         if self.request.headers.get("HX-Request") == "true":
             return self.render_to_response(self.get_context_data(form=form), status=422)
         return super().form_invalid(form)
+
+
+class PendingOCRListView(LoginRequiredMixin, ListView):
+    template_name = "documents/pending_ocr_list.html"
+    model = DocumentData
+    context_object_name = "documents"
+    paginate_by = settings.PAGINATE_BY
+
+    @method_decorator(ratelimit(key="user", rate="120/m", method="GET", block=True))
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
+
+    def get_queryset(self):
+        return (
+            DocumentData.objects.for_user(self.request.user)
+            .filter(
+                did_ocr=True,
+                associated_record__isnull=True,
+                status__in=[
+                    DocumentStatus.UPLOADED,
+                    DocumentStatus.PROCESSING,
+                    DocumentStatus.COMPLETED,
+                    DocumentStatus.ERROR,
+                ],
+            )
+            .only("id", "title", "status", "date_added")
+            .order_by("-date_added")
+        )
 
 
 class DeleteDocument(LoginRequiredMixin, DeleteView):

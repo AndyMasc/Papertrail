@@ -26,6 +26,7 @@ from documents.storage import (
     verify_r2_object_exists,
 )
 from records.models import Record
+from documents.tasks import _bulk_delete_documents
 
 
 def _make_hash(content: bytes = b"test content") -> str:
@@ -894,6 +895,198 @@ class ValidatorsTest(TestCase):
 
         with self.assertRaises(ValidationError):
             validate_file_bytes(b"\x00\x01\x02\x03", 100)
+
+
+class PendingOCRListViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="ocruser", password="pass")
+        self.url = reverse("documents:pending_ocr")
+        self.record = Record.objects.create(
+            user=self.user,
+            title="Test Record",
+            transaction_date=timezone.now().date(),
+        )
+
+    def _make_doc(self, status: str, **kwargs) -> DocumentData:
+        return DocumentData.objects.create(
+            user=self.user,
+            filepath="users/1/test.pdf",
+            file_hash=hashlib.sha256(f"test_{status}".encode()).hexdigest(),
+            status=status,
+            did_ocr=True,
+            **kwargs,
+        )
+
+    def test_login_required(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_authenticated_access(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "documents/pending_ocr_list.html")
+
+    def test_includes_uploaded_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.UPLOADED)
+        response = self.client.get(self.url)
+        self.assertIn(doc, response.context["documents"])
+
+    def test_includes_processing_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.PROCESSING)
+        response = self.client.get(self.url)
+        self.assertIn(doc, response.context["documents"])
+
+    def test_includes_completed_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.COMPLETED)
+        response = self.client.get(self.url)
+        self.assertIn(doc, response.context["documents"])
+
+    def test_includes_error_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.ERROR)
+        response = self.client.get(self.url)
+        self.assertIn(doc, response.context["documents"])
+
+    def test_excludes_pending_upload_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.PENDING_UPLOAD)
+        response = self.client.get(self.url)
+        self.assertNotIn(doc, response.context["documents"])
+
+    def test_excludes_deleting_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.DELETING)
+        response = self.client.get(self.url)
+        self.assertNotIn(doc, response.context["documents"])
+
+    def test_excludes_linked_docs(self):
+        self.client.force_login(self.user)
+        doc = self._make_doc(DocumentStatus.COMPLETED, associated_record=self.record)
+        response = self.client.get(self.url)
+        self.assertNotIn(doc, response.context["documents"])
+
+    def test_excludes_did_ocr_false_docs(self):
+        self.client.force_login(self.user)
+        doc = DocumentData.objects.create(
+            user=self.user,
+            filepath="users/1/support.pdf",
+            file_hash=hashlib.sha256(b"support").hexdigest(),
+            status=DocumentStatus.UPLOADED,
+            did_ocr=False,
+        )
+        response = self.client.get(self.url)
+        self.assertNotIn(doc, response.context["documents"])
+
+    def test_excludes_other_users_docs(self):
+        other = User.objects.create_user(username="other", password="pass")
+        self.client.force_login(self.user)
+        doc = DocumentData.objects.create(
+            user=other,
+            filepath="users/2/other.pdf",
+            file_hash=hashlib.sha256(b"other").hexdigest(),
+            status=DocumentStatus.COMPLETED,
+            did_ocr=True,
+        )
+        response = self.client.get(self.url)
+        self.assertNotIn(doc, response.context["documents"])
+
+    def test_empty_state(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(len(response.context["documents"]), 0)
+        self.assertContains(response, "All caught up")
+
+
+class BulkDeleteDocumentsTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="cleanupuser", password="pass")
+        self.docs = []
+        for i in range(3):
+            doc = DocumentData.objects.create(
+                user=self.user,
+                filepath=f"users/1/doc_{i}.pdf",
+                file_hash=hashlib.sha256(f"doc_{i}".encode()).hexdigest(),
+                status=DocumentStatus.COMPLETED,
+                did_ocr=True,
+            )
+            self.docs.append(doc)
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_deletes_db_records(self, mock_delete):
+        file_data = [(d.id, d.filepath) for d in self.docs]
+        _bulk_delete_documents(file_data)
+        for doc in self.docs:
+            self.assertFalse(DocumentData.objects.filter(id=doc.id).exists())
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_deletes_r2_objects(self, mock_delete):
+        file_data = [(d.id, d.filepath) for d in self.docs]
+        _bulk_delete_documents(file_data)
+        expected_keys = [f"users/1/doc_{i}.pdf" for i in range(3)]
+        mock_delete.assert_called_once()
+        call_kwargs = mock_delete.call_args[1]
+        actual_keys = [o["Key"] for o in call_kwargs["Delete"]["Objects"]]
+        self.assertCountEqual(actual_keys, expected_keys)
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_deletes_db_first_then_r2(self, mock_delete):
+        call_order = []
+
+        original_delete = DocumentData.objects.filter
+
+        with patch.object(DocumentData.objects, "filter") as mock_filter:
+            mock_qs = mock_filter.return_value
+            mock_qs.delete.side_effect = lambda: call_order.append("db")
+
+            def mock_r2(*args, **kwargs):
+                call_order.append("r2")
+
+            mock_delete.side_effect = mock_r2
+
+            file_data = [(self.docs[0].id, self.docs[0].filepath)]
+            _bulk_delete_documents(file_data)
+
+        self.assertEqual(call_order, ["db", "r2"])
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_db_failure_skips_r2(self, mock_delete):
+        file_data = [(self.docs[0].id, self.docs[0].filepath)]
+
+        with patch.object(DocumentData.objects, "filter") as mock_filter:
+            mock_qs = mock_filter.return_value
+            mock_qs.delete.side_effect = Exception("DB error")
+
+            _bulk_delete_documents(file_data)
+
+        mock_delete.assert_not_called()
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_r2_failure_does_not_rollback_db(self, mock_delete):
+        mock_delete.side_effect = Exception("R2 error")
+
+        doc = self.docs[0]
+        file_data = [(doc.id, doc.filepath)]
+        _bulk_delete_documents(file_data)
+
+        self.assertFalse(DocumentData.objects.filter(id=doc.id).exists())
+
+    @patch("documents.tasks.s3.delete_objects")
+    def test_no_filepath_skips_r2(self, mock_delete):
+        doc = DocumentData.objects.create(
+            user=self.user,
+            filepath="",
+            file_hash=hashlib.sha256(b"nopath").hexdigest(),
+            status=DocumentStatus.COMPLETED,
+            did_ocr=True,
+        )
+        file_data = [(doc.id, doc.filepath)]
+        _bulk_delete_documents(file_data)
+        mock_delete.assert_not_called()
+        self.assertFalse(DocumentData.objects.filter(id=doc.id).exists())
 
 
 class StorageUtilsTest(TestCase):

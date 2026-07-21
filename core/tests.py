@@ -113,7 +113,8 @@ class DashboardViewTest(TestCase):
     def test_context_has_counts(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:dashboard"))
-        self.assertIn("active_records_count", response.context)
+        self.assertIn("merged_records_count", response.context)
+        self.assertIn("pending_ocr_count", response.context)
         self.assertIn("records", response.context)
         self.assertIn("expiring_soon", response.context)
         self.assertIn("orphaned_document_count", response.context)
@@ -168,6 +169,7 @@ class UpdateUserSettingsFormTest(TestCase):
             "expiring_notifications_advance_time",
             "enable_push_notifications",
             "enable_email_notifications",
+            "auto_create_and_organize_folders",
         ]
         self.assertEqual(list(form.fields.keys()), expected)
 

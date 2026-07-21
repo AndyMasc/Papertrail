@@ -33,22 +33,25 @@ def run_auto_match(record_pk: int, has_plaid: bool) -> None:
 
     from records.matching import try_match_document_record, try_match_plaid_record
 
-    if has_plaid:
-        matched = try_match_plaid_record(record)
-        if matched:
-            logger.info(
-                "Auto-matched %d document(s) to plaid record %s",
-                len(matched),
-                record_pk,
-            )
-    else:
-        result = try_match_document_record(record)
-        if result:
-            logger.info(
-                "Auto-matched document record %s to plaid record %s",
-                record_pk,
-                result.pk,
-            )
+    try:
+        if has_plaid:
+            matched = try_match_plaid_record(record)
+            if matched:
+                logger.info(
+                    "Auto-matched %d document(s) to plaid record %s",
+                    len(matched),
+                    record_pk,
+                )
+        else:
+            result = try_match_document_record(record)
+            if result:
+                logger.info(
+                    "Auto-matched document record %s to plaid record %s",
+                    record_pk,
+                    result.pk,
+                )
+    except Exception:
+        logger.exception("Auto-match failed for record %s", record_pk)
 
 
 @shared_task

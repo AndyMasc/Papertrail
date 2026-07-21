@@ -132,4 +132,48 @@
             }
         });
     </script>
+
+    <script type="speculationrules">
+        {
+            "prefetch": [{
+                "source": "document",
+                "where": {
+                    "and": [
+                        { "href_matches": "/*" },
+                        { "not": { "href_matches": ["*.json", "*.xml", "*.rss"] } }
+                    ]
+                },
+                "eagerness": "moderate"
+            }],
+            "prerender": [{
+                "source": "document",
+                "where": {
+                    "and": [
+                        { "href_matches": "/*" },
+                        { "not": { "href_matches": ["*.json", "*.xml", "*.rss"] } }
+                    ]
+                },
+                "eagerness": "conservative"
+            }]
+        }
+    </script>
+
+    <script>
+        if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('speculationrules')) {
+            let prefetchTimer;
+            document.addEventListener('pointerenter', function(e) {
+                const link = e.target.closest('a[href^="/"]');
+                if (!link || link.dataset.pf) return;
+                clearTimeout(prefetchTimer);
+                prefetchTimer = setTimeout(() => {
+                    link.dataset.pf = '1';
+                    const el = document.createElement('link');
+                    el.rel = 'prefetch';
+                    el.href = link.href;
+                    document.head.appendChild(el);
+                }, 80);
+            }, { passive: true });
+        }
+    </script>
+
 </html>

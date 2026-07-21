@@ -49,7 +49,6 @@ LIST_FIELDS = (
     "record_type",
     "title",
     "merchant",
-    "products",
     "expiry_date",
     "transaction_date",
     "date_added",
@@ -65,11 +64,15 @@ class RecordListView(LoginRequiredMixin, FilterView):
     filterset_class = RecordFilter
     paginate_by = settings.PAGINATE_BY
 
+    @method_decorator(ratelimit(key="user", rate="120/m", method="GET", block=True))
+    def dispatch(self, *args: Any, **kwargs: Any) -> HttpResponse:
+        return super().dispatch(*args, **kwargs)
+
     def get_queryset(self) -> RecordQuerySet:
         qs = Record.objects.for_user(self.request.user)
         search_query = self.request.GET.get("search", "").strip()
         if search_query:
-            return qs.smart_search(search_query)
+            return qs.smart_search(search_query).only(*LIST_FIELDS)
         return qs.only(*LIST_FIELDS).order_by("-last_edited")
 
     def get_template_names(self) -> list[str]:

@@ -16,7 +16,7 @@ from .storage import BUCKET, s3
 logger = logging.getLogger(__name__)
 
 GEMINI_TIMEOUT = 60
-OCR_CACHE_TTL = 900
+OCR_CACHE_TTL = 604800
 MAX_OCR_RETRIES = 3
 
 try:
@@ -184,24 +184,22 @@ def delete_document(filepath: str) -> None:
         s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(filepath))
 
 
-@shared_task
-def delete_orphaned_documents() -> None:
-    grace_period = timezone.now() - timedelta(days=1)
-    orphaned_files = DocumentData.objects.filter(
-        associated_record=None,
-        date_added__lt=grace_period,
-    ).exclude(status=DocumentStatus.DELETING)
-
-    if not orphaned_files.exists():
-        return
-
-    file_data = list(orphaned_files.values_list("id", "filepath"))
+def _bulk_delete_documents(file_data: list[tuple[int, str]]) -> None:
     CHUNK_SIZE = 1000
 
     for i in range(0, len(file_data), CHUNK_SIZE):
         chunk = file_data[i : i + CHUNK_SIZE]
         chunk_ids = [item[0] for item in chunk]
         chunk_paths = [_normalize_s3_key(item[1]) for item in chunk if item[1]]
+
+        if not chunk_ids:
+            continue
+
+        try:
+            DocumentData.objects.filter(id__in=chunk_ids).delete()
+        except Exception as e:
+            logger.error("Failed to delete orphaned DB records: %s", e, exc_info=True)
+            continue
 
         if not chunk_paths:
             continue
@@ -211,12 +209,44 @@ def delete_orphaned_documents() -> None:
                 Bucket=BUCKET,
                 Delete={"Objects": [{"Key": path} for path in chunk_paths]},
             )
-            DocumentData.objects.filter(id__in=chunk_ids).delete()
         except Exception as e:
-            logger.error("Failed bulk deletion of orphaned chunk: %s", e, exc_info=True)
+            logger.error(
+                "R2 cleanup failed for orphaned keys (DB already cleaned): %s", e, exc_info=True
+            )
             continue
 
-    logger.info("Orphaned documents cleanup completed.")
+
+@shared_task
+def delete_orphaned_documents() -> None:
+    grace_period = timezone.now() - timedelta(days=1)
+    orphaned_files = DocumentData.objects.filter(
+        associated_record=None,
+        date_added__lt=grace_period,
+        did_ocr=False,
+    ).exclude(status=DocumentStatus.DELETING)
+
+    if orphaned_files.exists():
+        file_data = list(orphaned_files.values_list("id", "filepath"))
+        _bulk_delete_documents(file_data)
+        logger.info("Orphaned documents cleanup completed.")
+
+    ocr_grace = timezone.now() - timedelta(days=7)
+    abandoned_ocr = DocumentData.objects.filter(
+        associated_record=None,
+        date_added__lt=ocr_grace,
+        did_ocr=True,
+        status__in=[
+            DocumentStatus.UPLOADED,
+            DocumentStatus.PROCESSING,
+            DocumentStatus.COMPLETED,
+            DocumentStatus.ERROR,
+        ],
+    )
+
+    if abandoned_ocr.exists():
+        file_data = list(abandoned_ocr.values_list("id", "filepath"))
+        _bulk_delete_documents(file_data)
+        logger.info("Abandoned OCR documents cleanup completed.")
 
 
 @shared_task

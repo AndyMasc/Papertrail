@@ -4,7 +4,7 @@ from django.core.cache import cache
 
 from .models import DocumentData
 
-FILTER_CHOICES_CACHE_TTL = 300
+FILTER_CHOICES_CACHE_TTL = 3600
 
 
 class DocumentFilter(django_filters.FilterSet):
@@ -45,19 +45,13 @@ class DocumentFilter(django_filters.FilterSet):
             cache_key = f"de_v2_{self.request.user.id}"
             extensions = cache.get(cache_key)
             if extensions is None:
-                raw = DocumentData.objects.filter(user=self.request.user).values_list(
-                    "file_extension", flat=True
+                extensions = sorted(
+                    ext.strip().lower()[:10]
+                    for ext in DocumentData.objects.filter(user=self.request.user)
+                    .values_list("file_extension", flat=True)
+                    .distinct()
+                    if ext and ext.strip()
                 )
-                seen = set()
-                result = []
-                for ext in raw:
-                    if not ext:
-                        continue
-                    normalized = ext.strip().lower()[:10]
-                    if normalized and normalized not in seen:
-                        seen.add(normalized)
-                        result.append(normalized)
-                extensions = sorted(result)
                 cache.set(cache_key, extensions, FILTER_CHOICES_CACHE_TTL)
             return extensions
         return []

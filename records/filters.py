@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from .models import Folder, MergeLog, Record
 
-FILTER_CHOICES_CACHE_TTL = 300
+FILTER_CHOICES_CACHE_TTL = 3600
 
 
 class RecordFilter(django_filters.FilterSet):
@@ -64,9 +64,9 @@ class RecordFilter(django_filters.FilterSet):
             user_record_types = cache.get(cache_key)
             if user_record_types is None:
                 user_record_types = set(
-                    Record.objects.filter(user=self.request.user, is_active=True).values_list(
-                        "record_type", flat=True
-                    )
+                    Record.objects.filter(user=self.request.user, is_active=True)
+                    .values_list("record_type", flat=True)
+                    .distinct()
                 )
                 cache.set(cache_key, user_record_types, FILTER_CHOICES_CACHE_TTL)
 

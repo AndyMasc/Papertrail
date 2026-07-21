@@ -24,7 +24,7 @@ from django.views.generic import TemplateView, UpdateView
 from webpush.models import PushInformation, SubscriptionInfo
 from webpush.views import save_info
 
-from documents.models import DocumentData
+from documents.models import DocumentData, DocumentStatus
 from records.models import MergeLog, Record
 
 from .forms import UpdateUserSettingsForm
@@ -53,11 +53,23 @@ def health_check(request: HttpRequest) -> JsonResponse:  # noqa: ARG001
     except DatabaseError:
         db_ok = False
 
-    status = 200 if db_ok else 503
+    redis_ok = True
+    try:
+        from django.core.cache import cache
+
+        cache.set("health_check_ping", "ok", timeout=5)
+        if cache.get("health_check_ping") != "ok":
+            raise ConnectionError("Cache ping failed")
+    except Exception:
+        redis_ok = False
+
+    healthy = db_ok and redis_ok
+    status = 200 if healthy else 503
     return JsonResponse(
         {
-            "status": "healthy" if db_ok else "unhealthy",
+            "status": "healthy" if healthy else "unhealthy",
             "database": "connected" if db_ok else "disconnected",
+            "cache": "connected" if redis_ok else "disconnected",
         },
         status=status,
     )
@@ -130,7 +142,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         all_user_records = Record.objects.for_user(user)
         active_records_qs = all_user_records.active()
 
-        merge_count, monthly_expenses, orphaned_count = await asyncio.gather(
+        merge_count, monthly_expenses, orphaned_count, pending_ocr_count = await asyncio.gather(
             MergeLog.objects.filter(plaid_record__user=user, undone_at__isnull=True).acount(),
             all_user_records.filter(
                 transaction_date__gte=start_of_month,
@@ -138,6 +150,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 balance__isnull=False,
             ).aaggregate(total=Sum("balance")),
             DocumentData.objects.for_user(user).orphaned().acount(),
+            DocumentData.objects.for_user(user)
+            .filter(
+                did_ocr=True,
+                associated_record__isnull=True,
+                status__in=[
+                    DocumentStatus.UPLOADED,
+                    DocumentStatus.PROCESSING,
+                    DocumentStatus.COMPLETED,
+                    DocumentStatus.ERROR,
+                ],
+            )
+            .acount(),
         )
 
         recent_records = [
@@ -177,6 +201,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "expiring_soon_count": len(expiring_soon),
             "monthly_expenses": monthly_expenses.get("total") or 0,
             "orphaned_document_count": orphaned_count,
+            "pending_ocr_count": pending_ocr_count,
         }
 
         await cache.aset(cache_key, context, timeout=DASHBOARD_CACHE_TTL)
