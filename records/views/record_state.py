@@ -3,11 +3,9 @@ import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
 from django.views.generic.base import View
-from django.views.generic.edit import DeleteView
 
-from ..models import Record, RecordQuerySet
+from ..models import Record
 from ..services import archive_record, unarchive_record
 
 logger = logging.getLogger(__name__)
@@ -27,11 +25,3 @@ class UnarchiveRecord(LoginRequiredMixin, View):
         record = get_object_or_404(Record, id=record_id, user=request.user, is_active=False)
         unarchive_record(record)
         return redirect("records:view_all_records")
-
-
-class DeleteRecord(LoginRequiredMixin, DeleteView):
-    model = Record
-    success_url = reverse_lazy("records:view_all_records")
-
-    def get_queryset(self) -> RecordQuerySet:
-        return Record.objects.for_user(self.request.user)

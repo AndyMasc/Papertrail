@@ -19,10 +19,16 @@ class DocumentStatus(models.TextChoices):
 
 class DocumentDataQuerySet(models.QuerySet):
     def for_user(self, user) -> "DocumentDataQuerySet":
-        return self.filter(user=user)
+        return self.filter(user=user, deleted_at__isnull=True)
+
+    def active(self) -> "DocumentDataQuerySet":
+        return self.filter(deleted_at__isnull=True)
+
+    def trashed(self) -> "DocumentDataQuerySet":
+        return self.filter(deleted_at__isnull=False)
 
     def orphaned(self) -> "DocumentDataQuerySet":
-        return self.filter(associated_record__isnull=True)
+        return self.filter(associated_record__isnull=True, deleted_at__isnull=True)
 
     def linked(self) -> "DocumentDataQuerySet":
         return self.filter(associated_record__isnull=False)
@@ -97,6 +103,7 @@ class DocumentData(models.Model):
     )
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     objects = DocumentDataManager()
 
@@ -133,6 +140,17 @@ class DocumentData(models.Model):
             if normalized:
                 self.file_extension = normalized
         super().save(*args, **kwargs)
+
+    def delete(self, using=None, keep_parents=False):
+        if self.did_ocr:
+            self.deleted_at = timezone.now()
+            self.associated_record = None
+            self.save(update_fields=["deleted_at", "associated_record"])
+        else:
+            super().delete(using=using, keep_parents=keep_parents)
+
+    def hard_delete(self, using=None, keep_parents=False):
+        super().delete(using=using, keep_parents=keep_parents)
 
     def __str__(self):
         return f"{self.filepath}"

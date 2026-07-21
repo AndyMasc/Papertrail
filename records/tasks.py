@@ -69,7 +69,7 @@ def archive_expired_records() -> None:
 
 
 @shared_task
-def delete_2month_archived_records() -> None:
+def delete_7year_archived_records() -> None:
     from documents.models import DocumentData
     from documents.tasks import delete_document as delete_s3_object
 
@@ -79,23 +79,27 @@ def delete_2month_archived_records() -> None:
         MergeLog.objects.filter(undone_at__isnull=True).values_list("document_record_id", flat=True)
     )
 
-    two_months_ago = timezone.now() - timedelta(days=60)
-    two_month_expired_records = Record.objects.filter(
-        last_edited__lt=two_months_ago,
+    seven_years_ago = timezone.now() - timedelta(days=365 * 7)
+    seven_year_expired_records = Record.objects.filter(
+        last_edited__lt=seven_years_ago,
         expiry_date__gte=F("date_added"),
         is_active=False,
         user__settings__auto_delete_archived_records=True,
     ).exclude(pk__in=merged_ids)
 
     document_paths = list(
-        DocumentData.objects.filter(associated_record__in=two_month_expired_records).values_list(
+        DocumentData.objects.filter(associated_record__in=seven_year_expired_records).values_list(
             "filepath", flat=True
         )
     )
 
-    deleted_count, _ = two_month_expired_records.delete()
+    deleted_count = 0
+    for record in seven_year_expired_records:
+        record.hard_delete()
+        deleted_count += 1
+
     if deleted_count:
-        logger.info("Deleted %d archived records older than 60 days.", deleted_count)
+        logger.info("Hard-deleted %d archived records.", deleted_count)
 
     for path in document_paths:
         if path:

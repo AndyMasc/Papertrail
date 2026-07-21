@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-xl font-bold text-zinc-900 dark:text-zinc-100">Deleted Documents</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Soft-deleted critical documents are preserved for 7 years before permanent removal.</p>
+        </div>
+        <a href="{% url 'documents:document_list_view' %}"
+           class="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+            ← Back to Documents
+        </a>
+    </div>
+
+    <div id="query-results-container" class="space-y-2">
+        {% include "documents/partials/document_list_partial.html" %}
+    </div>
+</div>
+{% endblock %}

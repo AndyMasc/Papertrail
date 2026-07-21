@@ -20,7 +20,7 @@
                 {{ form.auto_delete_archived_records.label }}
             </label>
             <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                Permanently delete records and associated data after two months in the archive.
+                Permanently delete records and associated data after seven years in the archive (IRS Compliant).
             </span>
         </div>
         <div class="flex items-center pt-0.5">
@@ -39,6 +39,20 @@
         </div>
         <div class="flex items-center pt-0.5">
             {% render_field form.expiring_notifications_advance_time class="w-24 rounded border-zinc-300 dark:border-zinc-700 text-center text-sm bg-transparent cursor-pointer px-2 py-1" %}
+        </div>
+    </div>
+
+    <div class="flex items-start justify-between px-6 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10 transition-all duration-150">
+        <div class="flex flex-col pr-4">
+            <label for="{{ form.auto_delete_deleted_documents.id_for_label }}" class="text-xs font-medium text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
+                {{ form.auto_delete_deleted_documents.label }}
+            </label>
+            <span class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                Permanently delete soft-deleted documents after seven years.
+            </span>
+        </div>
+        <div class="flex items-center pt-0.5">
+            {% render_field form.auto_delete_deleted_documents class="size-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-500 focus:ring-emerald-500/20 bg-transparent cursor-pointer" %}
         </div>
     </div>
 

@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError
 from django.db import transaction as db_transaction
 from django.db.models import Q
+from django.utils import timezone
 from django_qstash import shared_task
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 
@@ -107,10 +108,10 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
         with db_transaction.atomic():
             txn: dict[str, Any]
             for txn in data.get("removed", []):
-                deleted, _ = Record.objects.filter(
+                archived = Record.objects.filter(
                     plaid_transaction_id=txn["transaction_id"]
-                ).delete()
-                stats["removed"] += deleted
+                ).update(is_active=False, last_edited=timezone.now())
+                stats["removed"] += archived
 
             for txn in data.get("added", []):
                 Record.objects.update_or_create(

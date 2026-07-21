@@ -13,6 +13,7 @@ class UserSettings(models.Model):
     )
     auto_archive_expired_records = models.BooleanField(default=True)
     auto_delete_archived_records = models.BooleanField(default=True)
+    auto_delete_deleted_documents = models.BooleanField(default=True)
     enable_push_notifications = models.BooleanField(default=True)
     enable_email_notifications = models.BooleanField(default=True)
     auto_create_and_organize_folders = models.BooleanField(default=True)

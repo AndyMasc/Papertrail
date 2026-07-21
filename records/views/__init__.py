@@ -6,7 +6,7 @@ from .merges import (
     MergeListView,
     UndoMergeView,
 )
-from .record_state import ArchiveRecord, DeleteRecord, UnarchiveRecord
+from .record_state import ArchiveRecord, UnarchiveRecord
 from .records import AddRecordView, CheckOCRStatus, RecordDetailView, RecordListView
 
 __all__ = [
@@ -16,7 +16,6 @@ __all__ = [
     "CheckOCRStatus",
     "ArchiveRecord",
     "UnarchiveRecord",
-    "DeleteRecord",
     "FolderListView",
     "CreateFolder",
     "FolderUpdateView",

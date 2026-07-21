@@ -11,7 +11,6 @@ urlpatterns = [
         name="add_record",
     ),
     path("add_record/", views.AddRecordView.as_view(), name="add_record_manual"),
-    path("delete_record/<int:pk>/", views.DeleteRecord.as_view(), name="delete_record"),
     path(
         "record_detail/<int:pk>/",
         views.RecordDetailView.as_view(),

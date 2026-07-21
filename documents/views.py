@@ -382,15 +382,28 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
         return self.model.objects.for_user(self.request.user).with_record()
 
     def get_success_url(self) -> str:
-        associated_record = self.object.associated_record
-        if associated_record:
-            return reverse("records:record_detail", kwargs={"pk": associated_record.id})
+        record = getattr(self, "_associated_record", None)
+        if record:
+            return reverse("records:record_detail", kwargs={"pk": record.id})
         return reverse("records:view_all_records")
 
     @transaction.atomic
-    def form_valid(self, form) -> HttpResponse:
+    def form_valid(self, _form) -> HttpResponse:
+        record = self.object.associated_record
         try:
-            return super().form_valid(form)
+            self.object.delete()
+            if self.object.did_ocr:
+                messages.info(
+                    self.request,
+                    "Document removed from record. Critical documents are preserved for compliance.",
+                )
+            else:
+                messages.success(self.request, "Document deleted permanently.")
+            url = (
+                reverse("records:record_detail", kwargs={"pk": record.id})
+                if record else reverse("records:view_all_records")
+            )
+            return redirect(url)
         except (ProtectedError, DatabaseError) as e:
             logger.error(
                 "Failed to delete document %s for user %s: %s",
@@ -405,7 +418,11 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
             )
             if self.request.headers.get("HX-Request") == "true":
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})
-            return redirect(self.get_success_url())
+            url = (
+                reverse("records:record_detail", kwargs={"pk": record.id})
+                if record else reverse("records:view_all_records")
+            )
+            return redirect(url)
 
 
 class AddSupportDocuments(BaseR2UploadView):
@@ -424,3 +441,21 @@ class AddSupportDocuments(BaseR2UploadView):
     def post(self, request: HttpRequest, record_id: int) -> JsonResponse:
         get_object_or_404(Record, pk=record_id, user=request.user)
         return self._handle_presign_request(request, record_id=record_id)
+
+
+class TrashDocumentListView(LoginRequiredMixin, ListView):
+    template_name = "documents/trash_list.html"
+    model = DocumentData
+    context_object_name = "documents"
+    paginate_by = settings.PAGINATE_BY
+
+    def get_queryset(self):
+        return (
+            DocumentData.objects.filter(user=self.request.user, deleted_at__isnull=False)
+            .order_by("-deleted_at")
+        )
+
+    def get_template_names(self) -> list[str]:
+        if self.request.headers.get("HX-Target") == "query-results-container":
+            return ["documents/partials/document_list_partial.html"]
+        return [self.template_name]

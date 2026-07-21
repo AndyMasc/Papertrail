@@ -15,4 +15,5 @@ urlpatterns = [
     ),
     path("document_lists/", views.DocumentListView.as_view(), name="document_list_view"),
     path("pending-ocr/", views.PendingOCRListView.as_view(), name="pending_ocr"),
+    path("trash/", views.TrashDocumentListView.as_view(), name="trash_list"),
 ]

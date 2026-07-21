@@ -9,7 +9,6 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-
 User = get_user_model()
 
 _MONTH_MAP = {
@@ -253,6 +252,14 @@ class Record(models.Model):
             models.Index(fields=["transaction_date"], name="idx_record_trans_date"),
             models.Index(fields=["user", "balance"], name="idx_record_user_balance"),
         ]
+
+    def delete(self, using=None, keep_parents=False):
+        self.is_active = False
+        self.last_edited = timezone.now()
+        self.save(update_fields=["is_active", "last_edited"])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        super().delete(using=using, keep_parents=keep_parents)
 
     def __str__(self):
         return self.title
