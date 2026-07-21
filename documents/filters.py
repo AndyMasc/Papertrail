@@ -8,6 +8,12 @@ FILTER_CHOICES_CACHE_TTL = 3600
 
 
 class DocumentFilter(django_filters.FilterSet):
+    is_active = django_filters.BooleanFilter(
+        field_name="is_active",
+        lookup_expr="exact",
+        widget=forms.Select(choices=[(None, "All"), (True, "Active"), (False, "Trash")]),
+    )
+
     file_type = django_filters.ChoiceFilter(
         field_name="file_extension",
         lookup_expr="iexact",
@@ -19,6 +25,7 @@ class DocumentFilter(django_filters.FilterSet):
     status = django_filters.ChoiceFilter(
         choices=(
             ("orphaned", "Orphaned (Unlinked)"),
+            ("processed_unsaved", "Processed (Unsaved)"),
             ("linked", "Associated Records"),
         ),
         method="filter_by_status",
@@ -59,6 +66,11 @@ class DocumentFilter(django_filters.FilterSet):
     def filter_by_status(self, queryset, name, value):  # noqa: ARG002
         if value == "orphaned":
             return queryset.filter(associated_record__isnull=True)
+        elif value == "processed_unsaved":
+            return queryset.filter(
+                associated_record__isnull=True,
+                status="completed",
+            )
         elif value == "linked":
             return queryset.filter(associated_record__isnull=False)
         return queryset

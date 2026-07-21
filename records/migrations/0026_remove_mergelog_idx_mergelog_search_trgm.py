@@ -2,7 +2,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("records", "0025_add_mergelog_trigram_index"),
     ]

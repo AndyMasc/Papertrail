@@ -50,6 +50,19 @@ def choose_folder(
     return folder
 
 
+def _get_payment_method(plaid_item: PlaidItem, account_id: str) -> str:
+    if not plaid_item.accounts_data or not account_id:
+        return ""
+    for acct in plaid_item.accounts_data:
+        if acct.get("id") == account_id:
+            name = acct.get("name", "")
+            mask = acct.get("mask", "")
+            if name and mask:
+                return f"{name} (••{mask})"
+            return name or ""
+    return ""
+
+
 def _txn_to_record_defaults(
     txn: dict[str, Any], plaid_item: PlaidItem, folder_cache: dict[str, Folder] | None = None
 ) -> dict[str, Any]:
@@ -72,6 +85,7 @@ def _txn_to_record_defaults(
         "transaction_date": txn.get("authorized_date") or txn["date"],
         "record_type": Record.RecordTypes.FINANCIAL_DOCUMENT,
         "notes": primary_category,
+        "payment_method": _get_payment_method(plaid_item, txn.get("account_id", "")),
         "folder": matched_folder,
     }
 
@@ -108,9 +122,9 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
         with db_transaction.atomic():
             txn: dict[str, Any]
             for txn in data.get("removed", []):
-                archived = Record.objects.filter(
-                    plaid_transaction_id=txn["transaction_id"]
-                ).update(is_active=False, last_edited=timezone.now())
+                archived = Record.objects.filter(plaid_transaction_id=txn["transaction_id"]).update(
+                    is_active=False, last_edited=timezone.now()
+                )
                 stats["removed"] += archived
 
             for txn in data.get("added", []):

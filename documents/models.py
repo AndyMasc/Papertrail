@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 User = settings.AUTH_USER_MODEL
 
@@ -19,16 +20,16 @@ class DocumentStatus(models.TextChoices):
 
 class DocumentDataQuerySet(models.QuerySet):
     def for_user(self, user) -> "DocumentDataQuerySet":
-        return self.filter(user=user, deleted_at__isnull=True)
+        return self.filter(user=user, is_active=True)
 
     def active(self) -> "DocumentDataQuerySet":
-        return self.filter(deleted_at__isnull=True)
+        return self.filter(is_active=True)
 
     def trashed(self) -> "DocumentDataQuerySet":
-        return self.filter(deleted_at__isnull=False)
+        return self.filter(is_active=False)
 
     def orphaned(self) -> "DocumentDataQuerySet":
-        return self.filter(associated_record__isnull=True, deleted_at__isnull=True)
+        return self.filter(associated_record__isnull=True, is_active=True)
 
     def linked(self) -> "DocumentDataQuerySet":
         return self.filter(associated_record__isnull=False)
@@ -101,11 +102,13 @@ class DocumentData(models.Model):
         default=DocumentStatus.PENDING_UPLOAD,
         db_index=True,
     )
+    is_active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     objects = DocumentDataManager()
+    history = HistoricalRecords(m2m_fields=[])
 
     class Meta:
         ordering = ["-date_added"]
@@ -143,14 +146,21 @@ class DocumentData(models.Model):
 
     def delete(self, using=None, keep_parents=False):
         if self.did_ocr:
+            self.is_active = False
             self.deleted_at = timezone.now()
             self.associated_record = None
-            self.save(update_fields=["deleted_at", "associated_record"])
+            self.save(update_fields=["is_active", "deleted_at", "associated_record"])
         else:
             super().delete(using=using, keep_parents=keep_parents)
 
     def hard_delete(self, using=None, keep_parents=False):
         super().delete(using=using, keep_parents=keep_parents)
+
+    def undo_delete(self):
+        self.is_active = True
+        self.deleted_at = None
+        self.associated_record = None
+        self.save(update_fields=["is_active", "deleted_at"])
 
     def __str__(self):
         return f"{self.filepath}"

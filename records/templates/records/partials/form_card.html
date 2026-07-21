@@ -12,7 +12,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Intelligently extracting document details...
+            Intelligently extracting data... You can leave here, we'll give you a on your dashboard...
         </div>
 
         <div class="space-y-2"><div class="h-3 bg-zinc-100 dark:bg-zinc-800 rounded w-1/4"></div><div class="h-5 bg-zinc-50 dark:bg-zinc-800/50 rounded w-1/2"></div></div>
@@ -25,28 +25,43 @@
         {% csrf_token %}
 
         {% for field in form %}
+            {% if field.name != 'payment_method' %}
+                <div class="group border-b border-zinc-100 px-6 py-4 transition-all duration-200 focus-within:bg-zinc-50 dark:border-zinc-800 dark:focus-within:bg-zinc-800/40">
+                    <label for="{{ field.id_for_label }}" class="tracking-wider uppercase flex items-center w-full whitespace-nowrap mb-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        {% if field.label == 'Title' %}
+                            Descriptive title
+                        {% else %}
+                            {{ field.label }}
+                        {% endif %}
+
+                        {% if field.field.required or field.name == 'notes' or field.name == 'payment_method' %}
+                            <span class="ml-1 text-rose-400 font-bold">*</span>
+                        {% endif %}
+                    </label>
+
+                    {% render_field field class="mt-0.5 text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-900 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-100 placeholder:text-zinc-400" %}
+
+                    {% if field.errors %}
+                        <p class="mt-2 text-xs text-rose-400">
+                            {{ field.errors|join:", " }}
+                        </p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
+
+        {% if form.payment_method %}
             <div class="group border-b border-zinc-100 px-6 py-4 transition-all duration-200 focus-within:bg-zinc-50 dark:border-zinc-800 dark:focus-within:bg-zinc-800/40">
-                <label for="{{ field.id_for_label }}" class="tracking-wider uppercase flex items-center w-full whitespace-nowrap mb-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                    {% if field.label == 'Title' %}
-                        Descriptive title
-                    {% else %}
-                        {{ field.label }}
-                    {% endif %}
-
-                    {% if field.field.required %}
-                        <span class="ml-1 text-rose-400 font-bold">*</span>
-                    {% endif %}
+                <label for="{{ form.payment_method.id_for_label }}" class="tracking-wider uppercase flex items-center w-full whitespace-nowrap mb-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    Payment Method / Account <span class="ml-1 text-rose-400 font-bold">*</span>
                 </label>
-
-                {% render_field field class="mt-0.5 text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-900 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-100 placeholder:text-zinc-400" %}
-
-                {% if field.errors %}
-                    <p class="mt-2 text-xs text-rose-400">
-                        {{ field.errors|join:", " }}
-                    </p>
+                {% if form.payment_method.field.disabled %}
+                    <p class="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300 font-medium">{{ form.payment_method.value|default:"—" }}</p>
+                {% else %}
+                    {% render_field form.payment_method class="mt-0.5 text-sm resize-none max-h-20 w-full border-none bg-transparent p-0 text-zinc-900 outline-none ring-0 focus:outline-none focus:ring-0 dark:text-zinc-100 placeholder:text-zinc-400" %}
                 {% endif %}
             </div>
-        {% endfor %}
+        {% endif %}
 
         {% if form.non_field_errors %}
             <div class="p-5 text-red-500">

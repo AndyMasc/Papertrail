@@ -168,6 +168,8 @@ def _record_snapshot(record: Record) -> dict[str, Any]:
         "transaction_date": record.transaction_date.isoformat()
         if record.transaction_date
         else None,
+        "payment_method": record.payment_method,
+        "payment_method_locked": record.payment_method_locked,
     }
 
 
@@ -209,7 +211,19 @@ def merge_document_into_plaid(
     if fresh_doc.folder_id:
         locked_plaid.folder_id = fresh_doc.folder_id
 
-    locked_plaid.save(update_fields=["products", "notes", "record_type", "folder_id"])
+    locked_plaid.payment_method = locked_plaid.payment_method or fresh_doc.payment_method
+    locked_plaid.payment_method_locked = True
+
+    locked_plaid.save(
+        update_fields=[
+            "products",
+            "notes",
+            "record_type",
+            "folder_id",
+            "payment_method",
+            "payment_method_locked",
+        ]
+    )
 
     fresh_doc.is_active = False
     fresh_doc.save(update_fields=["is_active"])
@@ -253,7 +267,18 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
         plaid_record.notes = snap.get("notes", "")
         plaid_record.record_type = snap.get("record_type", Record.RecordTypes.FINANCIAL_DOCUMENT)
         plaid_record.folder_id = snap.get("folder_id")
-        plaid_record.save(update_fields=["products", "notes", "record_type", "folder_id"])
+        plaid_record.payment_method = snap.get("payment_method", "")
+        plaid_record.payment_method_locked = snap.get("payment_method_locked", False)
+        plaid_record.save(
+            update_fields=[
+                "products",
+                "notes",
+                "record_type",
+                "folder_id",
+                "payment_method",
+                "payment_method_locked",
+            ]
+        )
 
     if document_record:
         document_record._skip_auto_match = True

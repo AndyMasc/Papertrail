@@ -4,6 +4,12 @@ from . import views
 
 app_name = "records"
 urlpatterns = [
+    path(
+        "record_detail/<int:pk>/history/",
+        views.RecordHistoryView.as_view(),
+        name="record_history",
+    ),
+
     path("view_all_records/", views.RecordListView.as_view(), name="view_all_records"),
     path(
         "add_record/<int:document_id>/",
@@ -57,4 +63,5 @@ urlpatterns = [
         name="manual_merge_modal",
     ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
+    path("hard-delete/<int:pk>/", views.HardDeleteRecordView.as_view(), name="hard_delete_record"),
 ]

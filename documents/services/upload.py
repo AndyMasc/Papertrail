@@ -93,8 +93,7 @@ class UploadService:
 
     def _find_duplicate(self, file_hash: str) -> DocumentData | None:
         return (
-            DocumentData.objects.for_user(self.user)
-            .filter(file_hash=file_hash)
+            DocumentData.objects.filter(user=self.user, file_hash=file_hash)
             .exclude(status=DocumentStatus.DELETING)
             .with_record()
             .first()

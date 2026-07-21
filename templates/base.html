@@ -118,6 +118,14 @@
                                 window.dispatchEvent(toastEvent);
                             });
                         }
+                        if (triggers.showToast) {
+                            const msg = triggers.showToast;
+                            const level = msg.tags === 'error' ? 40 : msg.tags === 'warning' ? 30 : 25;
+                            const toastEvent = new CustomEvent('django-messages', {
+                                detail: { message: msg.text, level }
+                            });
+                            window.dispatchEvent(toastEvent);
+                        }
                     } catch (e) {
                         console.error("Failed to parse HX-Trigger header values:", e);
                     }

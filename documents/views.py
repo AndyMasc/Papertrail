@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import uuid
+from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
@@ -14,6 +15,7 @@ from django.db.models import ProtectedError
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import DeleteView, ListView, UpdateView
@@ -128,8 +130,7 @@ class BaseR2UploadView(LoginRequiredMixin, View):
 
         if not force_upload:
             existing_doc = (
-                DocumentData.objects.for_user(request.user)
-                .filter(file_hash=file_hash)
+                DocumentData.objects.filter(user=request.user, file_hash=file_hash)
                 .exclude(status=DocumentStatus.DELETING)
                 .with_record()
                 .first()
@@ -285,11 +286,13 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
         return [self.template_name]
 
     def get_queryset(self):
-        return DocumentData.objects.for_user(self.request.user)
+        return DocumentData.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         context["view_url"] = generate_read_presigned_url(self.object.filepath)
+        seven_years_ago = timezone.now() - timedelta(days=365 * 7)
+        context["seven_years_ago_unix"] = seven_years_ago.timestamp()
 
         records_list = self.search_records()
         paginator = Paginator(records_list, 5)
@@ -377,9 +380,10 @@ class PendingOCRListView(LoginRequiredMixin, ListView):
 
 class DeleteDocument(LoginRequiredMixin, DeleteView):
     model = DocumentData
+    pk_url_kwarg = "document_id"
 
     def get_queryset(self):
-        return self.model.objects.for_user(self.request.user).with_record()
+        return self.model.objects.filter(user=self.request.user).with_record()
 
     def get_success_url(self) -> str:
         record = getattr(self, "_associated_record", None)
@@ -401,7 +405,8 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
                 messages.success(self.request, "Document deleted permanently.")
             url = (
                 reverse("records:record_detail", kwargs={"pk": record.id})
-                if record else reverse("records:view_all_records")
+                if record
+                else reverse("records:view_all_records")
             )
             return redirect(url)
         except (ProtectedError, DatabaseError) as e:
@@ -420,7 +425,8 @@ class DeleteDocument(LoginRequiredMixin, DeleteView):
                 return HttpResponse(status=204, headers={"HX-Refresh": "true"})
             url = (
                 reverse("records:record_detail", kwargs={"pk": record.id})
-                if record else reverse("records:view_all_records")
+                if record
+                else reverse("records:view_all_records")
             )
             return redirect(url)
 
@@ -443,19 +449,67 @@ class AddSupportDocuments(BaseR2UploadView):
         return self._handle_presign_request(request, record_id=record_id)
 
 
-class TrashDocumentListView(LoginRequiredMixin, ListView):
+class TrashDocumentListView(DocumentListView):
     template_name = "documents/trash_list.html"
-    model = DocumentData
-    context_object_name = "documents"
-    paginate_by = settings.PAGINATE_BY
 
     def get_queryset(self):
-        return (
-            DocumentData.objects.filter(user=self.request.user, deleted_at__isnull=False)
+        qs = (
+            DocumentData.objects.filter(user=self.request.user, is_active=False)
+            .with_record()
+            .only(*LIST_FIELDS, "associated_record__title")
             .order_by("-deleted_at")
         )
+        search_query = self.request.GET.get("search", "").strip()
+        if search_query:
+            return qs.search(search_query)
+        return qs
 
     def get_template_names(self) -> list[str]:
         if self.request.headers.get("HX-Target") == "query-results-container":
             return ["documents/partials/document_list_partial.html"]
         return [self.template_name]
+
+
+class UndoDeleteDocument(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        document = get_object_or_404(
+            DocumentData, pk=pk, user=request.user, is_active=False
+        )
+        document.undo_delete()
+        if request.headers.get("HX-Request") == "true":
+            response = HttpResponse(status=200)
+            response["HX-Trigger"] = json.dumps(
+                {"showToast": {"text": "Document restored.", "tags": "success"}}
+            )
+            return response
+        messages.success(request, "Document restored.")
+        return redirect("documents:trash_list")
+
+
+class HardDeleteDocumentView(LoginRequiredMixin, View):
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        document = get_object_or_404(DocumentData, pk=pk, user=request.user)
+        seven_years_ago = timezone.now() - timedelta(days=365 * 7)
+        if document.date_added > seven_years_ago:
+            if request.headers.get("HX-Request") == "true":
+                response = HttpResponse(status=204)
+                response["HX-Trigger"] = json.dumps({
+                    "showToast": {"text": "This document is not old enough for permanent deletion.", "tags": "error"}
+                })
+                return response
+            messages.error(request, "This document is not old enough for permanent deletion.")
+            return redirect("documents:view_document", pk=pk)
+        filepath = document.filepath
+        document.hard_delete()
+        if filepath:
+            from .tasks import delete_document
+            delete_document(filepath)
+        if request.headers.get("HX-Request") == "true":
+            response = HttpResponse(status=204)
+            response["HX-Trigger"] = json.dumps({
+                "showToast": {"text": "Document permanently deleted.", "tags": "success"}
+            })
+            response["HX-Redirect"] = reverse("documents:trash_list")
+            return response
+        messages.success(request, "Document permanently deleted.")
+        return redirect("documents:trash_list")

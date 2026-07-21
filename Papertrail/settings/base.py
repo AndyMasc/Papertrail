@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "widget_tweaks",
     "slippers",
     "django_filters",
+    "simple_history",
     # Local apps
     "core.apps.CoreConfig",
     "documents.apps.DocumentsConfig",
@@ -71,6 +72,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
     "core.middleware.HtmxMessageMiddleware",  # Send messages without reload
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "csp.middleware.CSPMiddleware",

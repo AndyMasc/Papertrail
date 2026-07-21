@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load form_tags %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10 space-y-6">
+
+    <div class="flex items-center justify-between gap-4">
+        <div>
+            <a href="{% url 'records:record_detail' record.pk %}"
+               class="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all duration-150 group">
+                <svg class="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform duration-150" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Back to record
+            </a>
+            <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 mt-2">Change History</h1>
+            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{{ record.title }}</p>
+        </div>
+    </div>
+
+    <div class="space-y-3">
+        {% for h in history %}
+            <div class="block rounded-2xl border border-zinc-200/50 bg-white dark:border-zinc-800 dark:bg-zinc-800/20 p-4 transition-all duration-200">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold
+                            {% if h.history_type == '+' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400
+                            {% elif h.history_type == '~' %}bg-amber-500/10 text-amber-600 dark:text-amber-400
+                            {% elif h.history_type == '-' %}bg-rose-500/10 text-rose-600 dark:text-rose-400
+                            {% endif %}">
+                            {% if h.history_type == '+' %}C{% elif h.history_type == '~' %}U{% elif h.history_type == '-' %}D{% endif %}
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                {% if h.source_type == "document" %}
+                                    {% if h.history_type == '+' %}Document Added
+                                    {% elif h.history_type == '~' %}Document Updated
+                                    {% elif h.history_type == '-' %}Document Removed
+                                    {% endif %}
+                                    <span class="text-zinc-400 dark:text-zinc-500 font-normal">— {{ h.title|default:"Untitled" }}</span>
+                                {% elif h.source_type == "merge" %}
+                                    {% if h.history_type == '+' %}Merged
+                                    {% elif h.history_type == '-' %}Merge Undone
+                                    {% endif %}
+                                {% else %}
+                                    {% if h.history_type == '+' %}Created
+                                    {% elif h.history_type == '~' %}Updated
+                                    {% elif h.history_type == '-' %}Deleted
+                                    {% endif %}
+                                {% endif %}
+                            </p>
+                            <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                                {{ h.history_date|date:"M j, Y g:i A" }}
+                                {% if h.history_user %}
+                                    by {{ h.history_user.get_full_name|default:h.history_user.username }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {% if h.history_type == '~' and h.prev_record %}
+                    <div class="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800/60">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-xs">
+                            {% if h.source_type == "document" %}
+                                {% for field in doc_tracked_fields %}
+                                    {% with old_val=h.prev_record|get_attr:field new_val=h|get_attr:field %}
+                                        {% if old_val != new_val %}
+                                            <div>
+                                                <span class="text-zinc-400 dark:text-zinc-500 font-medium capitalize">{{ field|title }}</span>
+                                                <div class="mt-0.5 space-y-0.5">
+                                                    <div class="text-zinc-600 dark:text-zinc-300 line-through decoration-rose-500/40">{{ old_val|default:"(empty)" }}</div>
+                                                    <div class="text-emerald-600 dark:text-emerald-400">{{ new_val|default:"(empty)" }}</div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% else %}
+                                {% for field in tracked_fields %}
+                                    {% with old_val=h.prev_record|get_attr:field new_val=h|get_attr:field %}
+                                        {% if old_val != new_val %}
+                                            <div>
+                                                <span class="text-zinc-400 dark:text-zinc-500 font-medium capitalize">{{ field|title }}</span>
+                                                <div class="mt-0.5 space-y-0.5">
+                                                    <div class="text-zinc-600 dark:text-zinc-300 line-through decoration-rose-500/40">{{ old_val|default:"(empty)" }}</div>
+                                                    <div class="text-emerald-600 dark:text-emerald-400">{{ new_val|default:"(empty)" }}</div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="text-center py-12 text-sm text-zinc-400 dark:text-zinc-500 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                No history recorded for this record.
+            </div>
+        {% endfor %}
+    </div>
+
+    {% include "core/pagination_controls.html" %}
+</div>
+{% endblock %}

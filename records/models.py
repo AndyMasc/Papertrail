@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
+
 User = get_user_model()
 
 _MONTH_MAP = {
@@ -190,14 +192,16 @@ class Record(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
 
     title = models.CharField(max_length=255)
-    merchant = models.CharField(max_length=255, blank=True, default="")
+    merchant = models.CharField(max_length=255, default="")
     balance = models.DecimalField(
-        max_digits=12, decimal_places=2, blank=True, null=True, db_index=True
+        max_digits=12, decimal_places=2, default=Decimal("0.00"), db_index=True
     )
     products = models.TextField(blank=True, default="")
-    transaction_date = models.DateField(null=True, blank=True, db_index=True)
+    transaction_date = models.DateField(db_index=True)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     notes = models.TextField(blank=True, default="")
+    payment_method = models.CharField(max_length=255, blank=True, default="")
+    payment_method_locked = models.BooleanField(default=False)
     record_type = models.CharField(
         max_length=30,
         choices=RecordTypes.choices,
@@ -225,6 +229,7 @@ class Record(models.Model):
     )
 
     objects = RecordManager()
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-last_edited"]

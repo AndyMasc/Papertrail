@@ -49,6 +49,38 @@
                 </div>
             {% endif %}
         </section>
+        {% if record.date_added|date:"U" < seven_years_ago_unix %}
+            <section class="p-6 bg-white dark:bg-zinc-800/20 border border-rose-200/80 dark:border-rose-900/50 rounded-2xl space-y-3">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-sm font-bold tracking-wider text-rose-600 dark:text-rose-400">Danger Zone</h2>
+                        <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">This record is over 7 years old and can be permanently deleted.</p>
+                    </div>
+                    <form hx-post="{% url 'records:hard_delete_record' record.pk %}"
+                          hx-target="this"
+                          hx-swap="none"
+                          onsubmit="return confirm('Permanently delete this record and all associated documents? This cannot be undone.');">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-rose-600 hover:bg-rose-500 rounded-2xl transition-all duration-150 shadow-xs active:scale-[0.98]">
+                            Delete Permanently
+                        </button>
+                    </form>
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="p-6 bg-white dark:bg-zinc-800/20 border border-zinc-200/80 dark:border-zinc-800/50 rounded-2xl">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-sm font-bold tracking-wider text-zinc-900 dark:text-white">Change History</h2>
+                    <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">View all changes made to this record.</p>
+                </div>
+                <a href="{% url 'records:record_history' record.pk %}"
+                   class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white rounded-2xl transition-all duration-150 shadow-xs active:scale-[0.98]">
+                    View History
+                </a>
+            </div>
+        </section>
     </div>
 
     <script>

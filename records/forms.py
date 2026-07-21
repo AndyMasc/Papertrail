@@ -36,6 +36,7 @@ _MAXLENGTH_HELP = {
     "title": 255,
     "merchant": 255,
     "notes": 500,
+    "payment_method": 255,
 }
 
 
@@ -49,17 +50,26 @@ def _with_maxlength(field: forms.Field, limit: int) -> None:
 class BaseRecordForm(forms.ModelForm):
     title = forms.CharField(max_length=255, required=True)
     products = forms.CharField(widget=TrimmedTextarea, required=False)
-    merchant = forms.CharField(max_length=255, required=False)
-    balance = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    merchant = forms.CharField(max_length=255, required=True)
+    balance = forms.DecimalField(max_digits=10, decimal_places=2, required=True)
     transaction_date = forms.DateField(
-        widget=forms.DateInput(attrs={"type": "date"}), required=False
+        widget=forms.DateInput(attrs={"type": "date"}), required=True
     )
     expiry_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}), required=False)
     record_type = forms.ChoiceField(
         choices=Record.RecordTypes.choices,
         required=True,
     )
-    notes = forms.CharField(widget=TrimmedTextarea, required=False, max_length=500)
+    notes = forms.CharField(
+        widget=TrimmedTextarea,
+        required=False,
+        max_length=500,
+        label="Business Purpose / Notes",
+    )
+    payment_method = forms.CharField(
+        max_length=255,
+        required=False,
+    )
     folder = forms.ModelChoiceField(
         queryset=Folder.objects.none(),
         required=False,
@@ -81,6 +91,7 @@ class BaseRecordForm(forms.ModelForm):
             "expiry_date",
             "record_type",
             "notes",
+            "payment_method",
             "folder",
         ]
 
@@ -108,6 +119,22 @@ class BaseRecordForm(forms.ModelForm):
         transaction_date = cleaned_data.get("transaction_date")
         if expiry_date and transaction_date and expiry_date < transaction_date:
             raise ValidationError({"expiry_date": "Expiry date cannot be before transaction date."})
+        notes = cleaned_data.get("notes", "")
+        payment_method = cleaned_data.get("payment_method", "")
+        record_type = cleaned_data.get("record_type")
+        if record_type in (
+            Record.RecordTypes.EXPENSE_RECEIPT,
+            Record.RecordTypes.VENDOR_INVOICE,
+            Record.RecordTypes.CUSTOMER_INVOICE,
+        ):
+            if not notes or not notes.strip():
+                raise ValidationError(
+                    {"notes": "Business purpose is required for this record type."}
+                )
+            if not payment_method or not payment_method.strip():
+                raise ValidationError(
+                    {"payment_method": "Payment method is required for this record type."}
+                )
         return cleaned_data
 
 
@@ -131,6 +158,9 @@ class RecordUpdateForm(BaseRecordForm):
             self.fields["folder"].queryset = Folder.objects.filter(user=user)
             self.fields["folder"].required = False
             self.fields["folder"].empty_label = "Unfiled"
+        instance = getattr(self, "instance", None)
+        if instance and instance.pk and instance.payment_method_locked:
+            self.fields["payment_method"].disabled = True
 
 
 class ManualMergeForm(forms.Form):

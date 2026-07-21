@@ -4,6 +4,11 @@ from django.urls import reverse
 register = template.Library()
 
 
+@register.filter
+def get_attr(obj, attr):
+    return getattr(obj, attr, "")
+
+
 @register.simple_tag(takes_context=True)
 def filter_url(context, view_name, **kwargs):
     request = context.get("request")

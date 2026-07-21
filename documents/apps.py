@@ -6,4 +6,4 @@ class DocumentsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
 
     def ready(self):
-        pass
+        from . import signals  # noqa: F401

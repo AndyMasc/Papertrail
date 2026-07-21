@@ -135,10 +135,16 @@ def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, A
 def extract_document(document_id: int) -> dict[str, Any]:
     cache_key = _get_cache_key(document_id)
 
-    doc_lookup = DocumentData.objects.filter(id=document_id).values("status").first()
+    doc_lookup = DocumentData.objects.filter(id=document_id).values("status", "did_ocr").first()
     if not doc_lookup:
         logger.error("Document %s does not exist.", document_id)
         return {"error": "Document not found."}
+
+    if doc_lookup["did_ocr"]:
+        cached = cache.get(cache_key)
+        if isinstance(cached, dict) and "error" not in cached:
+            return cached
+        return {"error": "Already processed"}
 
     if doc_lookup["status"] == DocumentStatus.COMPLETED:
         cached = cache.get(cache_key)

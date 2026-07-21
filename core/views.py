@@ -149,7 +149,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 transaction_date__lte=now,
                 balance__isnull=False,
             ).aaggregate(total=Sum("balance")),
-            DocumentData.objects.for_user(user).orphaned().acount(),
+            DocumentData.objects.for_user(user).orphaned().exclude(status="completed").acount(),
             DocumentData.objects.for_user(user)
             .filter(
                 did_ocr=True,

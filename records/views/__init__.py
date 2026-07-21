@@ -7,13 +7,15 @@ from .merges import (
     UndoMergeView,
 )
 from .record_state import ArchiveRecord, UnarchiveRecord
-from .records import AddRecordView, CheckOCRStatus, RecordDetailView, RecordListView
+from .records import AddRecordView, CheckOCRStatus, HardDeleteRecordView, RecordDetailView, RecordHistoryView, RecordListView
 
 __all__ = [
     "RecordListView",
     "RecordDetailView",
+    "RecordHistoryView",
     "AddRecordView",
     "CheckOCRStatus",
+    "HardDeleteRecordView",
     "ArchiveRecord",
     "UnarchiveRecord",
     "FolderListView",
