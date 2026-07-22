@@ -388,9 +388,18 @@ class DocumentUpdateFormTest(TestCase):
 
     def test_associated_record_queryset_active_only(self):
         user = User.objects.create_user(username="formuser", password="pass")
-        active = Record.objects.create(user=user, title="Active", record_type="expense_receipt")
+        active = Record.objects.create(
+            user=user,
+            title="Active",
+            record_type="expense_receipt",
+            transaction_date=timezone.now().date(),
+        )
         inactive = Record.objects.create(
-            user=user, title="Inactive", record_type="voucher", is_active=False
+            user=user,
+            title="Inactive",
+            record_type="voucher",
+            is_active=False,
+            transaction_date=timezone.now().date(),
         )
         form = DocumentUpdateForm()
         qs = form.fields["associated_record"].queryset
@@ -413,6 +422,7 @@ class DocumentFilterTest(TestCase):
             user=self.user,
             title="Test Record",
             record_type="expense_receipt",
+            transaction_date=timezone.now().date(),
         )
 
     def test_filter_by_status_orphaned(self):
@@ -495,7 +505,7 @@ class UploadViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "documents/upload_file.html")
 
-    @patch("documents.views.generate_presigned_post")
+    @patch("documents.storage.generate_presigned_post")
     def test_post_presign_valid(self, mock_presign):
         mock_presign.return_value = "https://example.com/upload-url"
         self.client.force_login(self.user)
@@ -516,7 +526,7 @@ class UploadViewTest(TestCase):
         self.assertIn("key", data)
         self.assertIn("upload_url", data)
 
-    @patch("documents.views.generate_presigned_post")
+    @patch("documents.storage.generate_presigned_post")
     def test_post_presign_duplicate_detection(self, mock_presign):
         mock_presign.return_value = "https://example.com/upload-url"
         self.client.force_login(self.user)
@@ -538,7 +548,7 @@ class UploadViewTest(TestCase):
             data = response.json()
             self.assertEqual(data["status"], "duplicate_confirmed")
 
-    @patch("documents.views.generate_presigned_post")
+    @patch("documents.storage.generate_presigned_post")
     def test_post_presign_force_upload_skips_duplicate(self, mock_presign):
         mock_presign.return_value = "https://example.com/upload-url"
         self.client.force_login(self.user)
@@ -602,8 +612,8 @@ class ConfirmUploadViewTest(TestCase):
         )
         self.assertEqual(response.status_code, 302)
 
-    @patch("documents.views.verify_r2_object_exists")
-    @patch("documents.views.gatekeeper_validate_r2_object")
+    @patch("documents.views.upload.verify_r2_object_exists")
+    @patch("documents.views.upload.gatekeeper_validate_r2_object")
     def test_confirm_valid(self, mock_gatekeeper, mock_verify):
         mock_verify.return_value = True
         mock_gatekeeper.return_value = {"valid": True}

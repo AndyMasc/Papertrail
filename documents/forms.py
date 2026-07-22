@@ -1,3 +1,9 @@
+"""Forms for document upload and metadata editing.
+
+Provides validation for R2 presigned-URL uploads (filename, content type)
+and a ModelForm for updating document title, notes, and record association.
+"""
+
 from pathlib import Path
 
 from django import forms
@@ -7,6 +13,8 @@ from .models import DocumentData
 
 
 class R2UploadForm(forms.Form):
+    """Validates file metadata before generating a Cloudflare R2 presigned upload URL."""
+
     filename = forms.CharField(max_length=255, required=True)
     content_type = forms.CharField(max_length=100, required=True)
     notes = forms.CharField(required=False)
@@ -21,12 +29,14 @@ class R2UploadForm(forms.Form):
                 self.fields[fname].widget.attrs["class"] = f"{cls} char-limit"
 
     def clean_filename(self):
+        """Strip path components and reject invalid filenames like '.' or '..'."""
         filename = Path(self.cleaned_data["filename"]).name
         if not filename or filename in {".", ".."}:
             raise ValidationError("Invalid filename.")
         return filename
 
     def clean_content_type(self):
+        """Validate that the MIME type is within the allowed set of supported formats."""
         content_type = self.cleaned_data["content_type"].lower().split(";")[0].strip()
         allowed = {
             "application/pdf",
@@ -42,6 +52,8 @@ class R2UploadForm(forms.Form):
 
 
 class DocumentUpdateForm(forms.ModelForm):
+    """ModelForm for editing document title, notes, and associated record."""
+
     class Meta:
         model = DocumentData
         fields = ["title", "notes", "associated_record"]

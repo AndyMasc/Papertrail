@@ -1,3 +1,10 @@
+"""Background tasks for the records module, executed via django-qstash.
+
+Covers automated record matching on save, archival of expired records,
+permanent deletion of records older than seven years, and expiry
+notification dispatch (DB, email, and web push).
+"""
+
 import logging
 from datetime import timedelta
 
@@ -25,6 +32,12 @@ User = get_user_model()
 
 @shared_task
 def run_auto_match(record_pk: int, has_plaid: bool) -> None:
+    """Attempt to automatically match a newly saved record with its counterpart.
+
+    When *has_plaid* is True the record is a Plaid transaction and is matched
+    against document records; otherwise it is a document record matched against
+    Plaid transactions. Failures are logged but never propagated.
+    """
     try:
         record = Record.objects.get(pk=record_pk)
     except Record.DoesNotExist:
@@ -56,6 +69,11 @@ def run_auto_match(record_pk: int, has_plaid: bool) -> None:
 
 @shared_task
 def archive_expired_records() -> None:
+    """Soft-delete all active records whose expiry date has passed.
+
+    Only archives records belonging to users who opted into auto-archiving.
+    Records added after expiry are excluded (``expiry_date >= date_added``).
+    """
     today = timezone.now().date()
     active_expired_records = Record.objects.filter(
         expiry_date__lt=today,
@@ -70,6 +88,12 @@ def archive_expired_records() -> None:
 
 @shared_task
 def delete_7year_archived_records() -> None:
+    """Permanently delete archived records older than seven years.
+
+    Respects the user's ``auto_delete_archived_records`` setting. Merged
+    document records (still referenced by an active MergeLog) are excluded.
+    Associated S3 document objects are also deleted asynchronously.
+    """
     from documents.models import DocumentData
     from documents.tasks import delete_document as delete_s3_object
 
@@ -107,7 +131,24 @@ def delete_7year_archived_records() -> None:
 
 
 @shared_task
+def delete_2month_archived_records() -> None:
+    """Alias for delete_7year_archived_records kept for backward compatibility.
+
+    Hard deletion requires records to be archived for at least 7 years
+    per IRS audit compliance.
+    """
+    delete_7year_archived_records()
+
+
+@shared_task
 def send_expiry_notifications() -> None:
+    """Send expiry notifications for records approaching their expiry date.
+
+    Respects each user's ``expiring_notifications_advance_time`` preference
+    (1, 3, 7, or 30 days). Creates DB notifications and dispatches email
+    and web-push notifications per user. Records already notified are
+    skipped via the ``expiry_notification_sent`` flag.
+    """
     today = timezone.now().date()
 
     expiring_records = (

@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("records", "0029_add_nickname_remove_payment_method_locked"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -84,12 +83,8 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["-created_at"],
                 "indexes": [
-                    models.Index(
-                        fields=["user", "action"], name="idx_auditlog_user_action"
-                    ),
-                    models.Index(
-                        fields=["record", "action"], name="idx_auditlog_record_action"
-                    ),
+                    models.Index(fields=["user", "action"], name="idx_auditlog_user_action"),
+                    models.Index(fields=["record", "action"], name="idx_auditlog_record_action"),
                 ],
             },
         ),

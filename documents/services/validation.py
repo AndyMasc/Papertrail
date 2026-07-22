@@ -1,3 +1,10 @@
+"""Upload validation service for confirming R2 file integrity.
+
+Validates that a document's upload state is correct, the R2 object exists,
+and passes gatekeeper checks for size, type, and content before transitioning
+to the uploaded status.
+"""
+
 from dataclasses import dataclass
 
 from documents.models import DocumentData, DocumentStatus
@@ -10,18 +17,28 @@ from documents.storage import (
 
 @dataclass
 class UploadValidationResult:
-    valid: bool
+    """Outcome of an upload validation check, including error details on failure."""
+
+    valid: bool = True
     error: str | None = None
     file_size: int | None = None
     mime_type: str | None = None
 
 
 class UploadValidator:
+    """Validates an R2 upload for a document by checking status, key match, and file integrity."""
+
     def __init__(self, document: DocumentData, key: str):
         self.document = document
         self.key = key
 
     def validate(self) -> UploadValidationResult:
+        """Run all validation checks and return the result.
+
+        Checks document status, key consistency, R2 object existence, and
+        gatekeeper rules. Updates document status to ERROR on storage or
+        validation failures.
+        """
         if self.document.status != DocumentStatus.PENDING_UPLOAD:
             return UploadValidationResult(
                 valid=False,

@@ -1,3 +1,10 @@
+"""Image preprocessing and OCR result mapping for Gemini-based document extraction.
+
+Handles HEIC decoding, deskewing, resizing, and WebP encoding to prepare
+images for optimal Gemini OCR performance, plus mapping extracted JSON
+to record form fields.
+"""
+
 import json
 import logging
 
@@ -16,6 +23,10 @@ SKEW_THRESHOLD = 0.5
 
 
 def ocr_data_to_form_initial(data: dict | None) -> dict:
+    """Convert raw Gemini OCR output into a dict suitable for pre-populating a record form.
+
+    Normalizes the products field from a list of dicts/strings into newline-joined text.
+    """
     if not isinstance(data, dict):
         return {}
 
@@ -42,6 +53,7 @@ def ocr_data_to_form_initial(data: dict | None) -> dict:
 
 
 def _decode_image(image_bytes: bytes) -> np.ndarray | None:
+    """Decode image bytes into an OpenCV BGR array, supporting HEIC via pillow-heif."""
     if is_supported(image_bytes):
         try:
             heif_file = read_heif(image_bytes)
@@ -58,6 +70,11 @@ def _decode_image(image_bytes: bytes) -> np.ndarray | None:
 
 
 def _deskew_image(img: np.ndarray) -> np.ndarray:
+    """Rotate image to correct skew detected via the deskew library.
+
+    Downsamples to SKEW_MAX_DIM for angle detection performance, then
+    applies the rotation at full resolution if the angle exceeds the threshold.
+    """
     h, w = img.shape[:2]
     scale = SKEW_MAX_DIM / max(h, w)
     if scale < 1.0:
@@ -85,6 +102,7 @@ def _deskew_image(img: np.ndarray) -> np.ndarray:
 
 
 def _resize_image(img: np.ndarray) -> np.ndarray:
+    """Scale image so the longest dimension does not exceed MAX_DIMENSION."""
     h, w = img.shape[:2]
     if max(h, w) > MAX_DIMENSION:
         scale = MAX_DIMENSION / max(h, w)
@@ -93,6 +111,7 @@ def _resize_image(img: np.ndarray) -> np.ndarray:
 
 
 def _encode_webp(img: np.ndarray) -> bytes:
+    """Encode an OpenCV image to WebP bytes at the configured quality level."""
     encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), WEBP_QUALITY]
     success, encoded_img = cv2.imencode(".webp", img, encode_param)
     if not success:
@@ -101,6 +120,11 @@ def _encode_webp(img: np.ndarray) -> bytes:
 
 
 def prepare_image_for_gemini(image_bytes: bytes) -> bytes:
+    """Full preprocessing pipeline: decode, deskew, resize, and encode to WebP.
+
+    Falls back to the original bytes if any step fails, ensuring OCR can
+    still attempt extraction on unprocessed images.
+    """
     try:
         img = _decode_image(image_bytes)
         if img is None:
@@ -116,6 +140,11 @@ def prepare_image_for_gemini(image_bytes: bytes) -> bytes:
 
 
 def prepare_image_from_pil(image: Image.Image) -> bytes:
+    """Convert a PIL Image to preprocessed WebP bytes for Gemini OCR.
+
+    Handles RGB, RGBA, and grayscale input by converting to BGR for OpenCV,
+    then runs the standard deskew-resize-encode pipeline.
+    """
     img_array = np.array(image)
     if img_array.ndim == 3 and img_array.shape[2] == 3:
         img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)

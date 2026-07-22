@@ -1,3 +1,9 @@
+"""Cloudflare R2 (S3-compatible) storage operations for document files.
+
+Handles presigned URL generation, object existence verification, gatekeeper
+validation of uploaded files, and deletion of single or batch objects.
+"""
+
 import logging
 import uuid
 from functools import lru_cache
@@ -42,6 +48,7 @@ def _get_s3_client():
 
 
 def get_s3_client():
+    """Return the cached S3-compatible client for R2 operations."""
     return _get_s3_client()
 
 
@@ -49,11 +56,13 @@ s3 = get_s3_client()
 
 
 def generate_upload_key(user_id: int, extension: str) -> str:
+    """Create a unique, namespaced S3 key for a user's uploaded file."""
     safe_ext = extension.lstrip(".").lower()
     return f"users/{user_id}/{uuid.uuid4()}.{safe_ext}"
 
 
 def generate_presigned_post(user_id: int, key: str, content_type: str) -> str:  # noqa: ARG001
+    """Generate a presigned PUT URL for uploading a file to R2 (15-minute expiry)."""
     return s3.generate_presigned_url(
         "put_object",
         Params={
@@ -66,6 +75,7 @@ def generate_presigned_post(user_id: int, key: str, content_type: str) -> str:  
 
 
 def generate_read_presigned_url(key: str) -> str:
+    """Generate a presigned GET URL for viewing a file from R2 (15-minute expiry)."""
     return s3.generate_presigned_url(
         "get_object",
         Params={
@@ -77,6 +87,7 @@ def generate_read_presigned_url(key: str) -> str:
 
 
 def verify_r2_object_exists(key: str) -> bool:
+    """Check whether a file exists in R2 by performing a HEAD request."""
     try:
         s3.head_object(Bucket=BUCKET, Key=key)
         return True
@@ -85,6 +96,7 @@ def verify_r2_object_exists(key: str) -> bool:
 
 
 def get_r2_object_head(key: str) -> dict | None:
+    """Retrieve R2 object metadata, returning None if the object doesn't exist."""
     try:
         return s3.head_object(Bucket=BUCKET, Key=key)
     except ClientError:
@@ -92,6 +104,14 @@ def get_r2_object_head(key: str) -> dict | None:
 
 
 def gatekeeper_validate_r2_object(key: str) -> dict:
+    """Validate an uploaded R2 object for size, emptiness, file type, and image dimensions.
+
+    Rejects files that exceed size limits, are empty, have disallowed MIME types,
+    or contain images with excessively large pixel counts. Deletes invalid objects.
+
+    Returns:
+        Dict with 'valid' key (bool) and optional 'error' message.
+    """
     head = get_r2_object_head(key)
     if head is None:
         return {"valid": False, "error": "Object not found in R2."}
@@ -146,6 +166,7 @@ def gatekeeper_validate_r2_object(key: str) -> dict:
 
 
 def delete_r2_object(key: str) -> None:
+    """Delete a single object from R2, logging any client errors."""
     try:
         s3.delete_object(Bucket=BUCKET, Key=key)
     except ClientError as e:
@@ -153,6 +174,7 @@ def delete_r2_object(key: str) -> None:
 
 
 def delete_r2_objects_batch(keys: list[str]) -> None:
+    """Delete multiple R2 objects in chunks of 1000 (R2 batch limit)."""
     if not keys:
         return
     CHUNK = 1000

@@ -1,4 +1,12 @@
+"""Async tasks for syncing Plaid transactions into Papertrail records.
+
+Uses Plaid's Transactions Sync endpoint to incrementally fetch new,
+modified, and removed transactions. Converts them into Record objects
+and organizes them into user folders by category.
+"""
+
 import logging
+from datetime import date
 from typing import Any
 
 from django.contrib.auth.models import User
@@ -20,6 +28,13 @@ logger: logging.Logger = logging.getLogger(__name__)
 def choose_folder(
     user: User, category: str | None, folder_cache: dict[str, Folder] | None = None
 ) -> Folder | None:
+    """Find or create a Folder matching the given transaction category.
+
+    Searches existing user folders using keyword matching on the category
+    name. If no match is found, auto-creates a new folder unless the user
+    has disabled auto-organization. Results are optionally cached to avoid
+    repeated DB lookups within a single sync batch.
+    """
     if not category:
         return None
 
@@ -51,6 +66,12 @@ def choose_folder(
 
 
 def _get_payment_method(plaid_item: PlaidItem, account_id: str) -> str:
+    """Build a display string for the payment method from stored account data.
+
+    Returns a formatted string like ``Chase Checking (••1234)`` for use
+    in Record metadata. Falls back to the account name alone if the mask
+    is unavailable.
+    """
     if not plaid_item.accounts_data or not account_id:
         return ""
     for acct in plaid_item.accounts_data:
@@ -68,6 +89,12 @@ def _txn_to_record_defaults(
     plaid_item: PlaidItem,
     folder_cache: dict[str, Folder] | None = None,
 ) -> dict[str, Any]:
+    """Convert a Plaid transaction dict into Record model defaults.
+
+    Extracts merchant name, amount, date, and category from the Plaid
+    transaction and maps them to the corresponding Record fields. Also
+    resolves the payment method display string from stored account data.
+    """
     categories = txn.get("category") or []
     primary_category = categories[0] if categories else ""
     user = plaid_item.user
@@ -78,13 +105,16 @@ def _txn_to_record_defaults(
     if auto_create_enabled:
         matched_folder = choose_folder(user, primary_category, folder_cache=folder_cache)
 
+    raw_date = txn.get("authorized_date") or txn["date"]
+    if isinstance(raw_date, str):
+        raw_date = date.fromisoformat(raw_date)
     defaults = {
         "user": user,
         "plaid_item": plaid_item,
         "title": txn["name"],
         "merchant": txn.get("merchant_name") or txn["name"],
         "balance": abs(txn["amount"]),
-        "transaction_date": txn.get("authorized_date") or txn["date"],
+        "transaction_date": raw_date,
         "record_type": Record.RecordTypes.FINANCIAL_DOCUMENT,
         "notes": primary_category,
         "folder": matched_folder,
@@ -95,6 +125,13 @@ def _txn_to_record_defaults(
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, Any]:
+    """Sync all pending transactions for a Plaid item and create/update Records.
+
+    Paginates through the Plaid Transactions Sync endpoint using the stored
+    cursor, processing added, modified, and removed transactions in atomic
+    batches. After syncing, attempts to match new financial records against
+    existing uploaded documents. Retries with exponential backoff on API errors.
+    """
     try:
         plaid_item: PlaidItem = PlaidItem.objects.select_related("user").get(id=plaid_item_id)
     except PlaidItem.DoesNotExist:

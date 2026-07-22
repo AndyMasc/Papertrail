@@ -1,3 +1,11 @@
+"""Fuzzy matching engine that pairs Plaid bank transactions with uploaded receipts.
+
+Uses rapidfuzz for text similarity and tolerances on balance and date fields
+to score candidate pairs. High-scoring pairs are automatically merged, while
+users can also trigger merges manually through the UI. Every merge creates a
+MergeLog snapshot that supports undo and receipt replacement.
+"""
+
 import logging
 from datetime import timedelta
 from decimal import Decimal
@@ -43,6 +51,12 @@ def _balance_diff(a: Decimal | None, b: Decimal | None) -> Decimal | None:
 
 
 def calculate_match_score(record_a: Record, record_b: Record) -> int:
+    """Return a composite score (0-120) measuring how likely two records refer to the same purchase.
+
+    Scores are derived from balance proximity, date proximity, merchant
+    similarity, and title similarity. A score above ``MERGE_SCORE_THRESHOLD``
+    (55) indicates a probable match.
+    """
     score = 0
 
     diff = _balance_diff(record_a.balance, record_b.balance)
@@ -97,6 +111,11 @@ def _apply_date_window(qs: QuerySet[Record], record: Record) -> QuerySet[Record]
 
 
 def find_best_plaid_match(record: Record) -> Record | None:
+    """Find the highest-scoring active Plaid record that matches *record*.
+
+    Searches within a date window defined by ``MATCH_LOOKAHEAD_DAYS``. Returns
+    ``None`` when no candidate exceeds the merge score threshold.
+    """
     qs = (
         Record.objects.filter(
             user=record.user,
@@ -132,6 +151,11 @@ def find_best_plaid_match(record: Record) -> Record | None:
 
 
 def find_document_matches_for_plaid(plaid_record: Record) -> list[tuple[Record, int]]:
+    """Return all document records that score above the merge threshold against *plaid_record*.
+
+    Results are sorted highest score first. Used both by automatic matching
+    and the manual merge search panel.
+    """
     qs = (
         Record.objects.filter(
             user=plaid_record.user,
@@ -213,6 +237,13 @@ def merge_document_into_plaid(
     document_record: Record,
     document: DocumentData | None = None,
 ) -> Record | None:
+    """Merge a document record into a Plaid transaction inside an atomic transaction.
+
+    Transfers editable fields (products, notes, record_type, folder) from the
+    document record onto the Plaid record, re-associates any DocumentData, and
+    creates a MergeLog snapshot for undo support. Returns the locked Plaid
+    record on success, or ``None`` if the document is no longer mergeable.
+    """
     locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
     fresh_doc = Record.objects.select_for_update().get(pk=document_record.pk)
     if not fresh_doc.is_active or fresh_doc.plaid_transaction_id is not None:
@@ -260,6 +291,12 @@ def merge_document_into_plaid(
 
 @db_transaction.atomic
 def undo_merge(merge_log: MergeLog) -> Record | None:
+    """Reverse a previously completed merge, restoring both records to their pre-merge state.
+
+    Operates inside an atomic block with ``select_for_update`` to prevent
+    concurrent modifications. Returns the restored document record, or
+    ``None`` if the merge was already undone.
+    """
     merge_log = MergeLog.objects.select_for_update().get(pk=merge_log.pk)
     if merge_log.undone_at:
         return None
@@ -299,6 +336,11 @@ def try_match_document_record(
     document_record: Record,
     document: DocumentData | None = None,
 ) -> Record | None:
+    """Attempt to automatically merge a newly created document record with its best Plaid match.
+
+    Returns the merged Plaid record on success, or ``None`` when no match is
+    found.
+    """
     plaid_match = find_best_plaid_match(document_record)
     if plaid_match is None:
         return None
@@ -307,6 +349,11 @@ def try_match_document_record(
 
 
 def try_match_plaid_record(plaid_record: Record) -> list[Record]:
+    """Attempt to automatically merge all matching document records into a Plaid transaction.
+
+    Called when a new Plaid record is saved. Returns a list of document records
+    that were successfully merged.
+    """
     matches = find_document_matches_for_plaid(plaid_record)
     if not matches:
         return []
@@ -327,97 +374,3 @@ def try_match_plaid_record(plaid_record: Record) -> list[Record]:
             merged.append(doc_record)
 
     return merged
-
-
-@db_transaction.atomic
-def replace_receipt(merge_log: MergeLog, new_document_record: Record) -> Record | None:
-    if merge_log.undone_at or not merge_log.plaid_record:
-        return None
-
-    plaid_record = merge_log.plaid_record
-    old_document_record = merge_log.document_record
-
-    locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
-    new_doc = Record.objects.select_for_update().get(pk=new_document_record.pk)
-
-    if not new_doc.is_active or new_doc.plaid_transaction_id is not None:
-        logger.warning(
-            "New document record %s is not mergable (is_active=%s, plaid_id=%r)",
-            new_document_record.pk,
-            new_doc.is_active,
-            new_doc.plaid_transaction_id,
-        )
-        return None
-
-    locked_plaid._skip_auto_match = True
-    new_doc._skip_auto_match = True
-
-    pre_plaid_snapshot = _record_snapshot(locked_plaid)
-
-    if old_document_record:
-        locked_old_doc = Record.objects.select_for_update().get(pk=old_document_record.pk)
-        locked_old_doc._skip_auto_match = True
-        locked_old_doc.is_active = True
-        locked_old_doc.plaid_transaction_id = None
-        locked_old_doc.save(update_fields=["is_active", "plaid_transaction_id"])
-
-    new_doc_ids = list(
-        DocumentData.objects.filter(associated_record=new_doc).values_list("pk", flat=True)
-    )
-    if new_doc_ids:
-        DocumentData.objects.filter(pk__in=new_doc_ids).update(associated_record=locked_plaid)
-
-    _apply_doc_fields_to_plaid(locked_plaid, new_doc)
-
-    new_doc.is_active = False
-    new_doc.save(update_fields=["is_active"])
-
-    merge_log.undone_at = timezone.now()
-    merge_log.save(update_fields=["undone_at"])
-
-    new_doc_snapshot = _record_snapshot(new_doc)
-    new_doc_snapshot["document_ids"] = new_doc_ids
-
-    MergeLog.objects.create(
-        plaid_record=locked_plaid,
-        document_record=new_doc,
-        document=DocumentData.objects.filter(pk__in=new_doc_ids).first() if new_doc_ids else None,
-        plaid_snapshot=pre_plaid_snapshot,
-        document_snapshot=new_doc_snapshot,
-    )
-
-    logger.info(
-        "Replaced receipt on merge %s: old doc %s, new doc %s",
-        merge_log.pk,
-        old_document_record.pk if old_document_record else None,
-        new_doc.pk,
-    )
-
-    return locked_plaid
-
-
-@db_transaction.atomic
-def detach_receipt(merge_log: MergeLog) -> Record | None:
-    merge_log = MergeLog.objects.select_for_update().get(pk=merge_log.pk)
-    if merge_log.undone_at or not merge_log.plaid_record:
-        return None
-
-    plaid_record = merge_log.plaid_record
-    document_record = merge_log.document_record
-
-    locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
-    _restore_plaid_from_snapshot(locked_plaid, merge_log.plaid_snapshot)
-
-    if document_record:
-        _restore_document_record(document_record)
-
-    doc_ids: list[int] | None = merge_log.document_snapshot.get("document_ids")
-    if doc_ids and document_record:
-        DocumentData.objects.filter(pk__in=doc_ids).update(associated_record=document_record)
-
-    merge_log.undone_at = timezone.now()
-    merge_log.save(update_fields=["undone_at"])
-
-    logger.info("Detached receipt from merge %s", merge_log.pk)
-
-    return locked_plaid

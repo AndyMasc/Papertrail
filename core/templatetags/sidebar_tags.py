@@ -1,3 +1,9 @@
+"""Custom template tags for sidebar navigation highlighting.
+
+Provides the ``active_link`` tag which returns the appropriate CSS classes
+based on whether the current request path matches a given URL pattern.
+"""
+
 from django import template
 from django.urls import NoReverseMatch, reverse
 
@@ -6,6 +12,11 @@ register = template.Library()
 
 @register.simple_tag(takes_context=True)
 def active_link(context, view_name, base_classes, active_classes):
+    """Return ``active_classes`` when the current path matches ``view_name``, else ``base_classes``.
+
+    Handles both resolved URL names and literal paths. A literal path of ``/``
+    is excluded from prefix matching to avoid the root path always being active.
+    """
     request = context.get("request")
     if not request:
         return base_classes

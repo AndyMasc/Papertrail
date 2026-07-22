@@ -1,3 +1,5 @@
+"""Shared utility classes for the Papertrail project."""
+
 import hashlib
 
 from django.core.cache import cache
@@ -8,10 +10,18 @@ PAGINATOR_COUNT_CACHE_TTL = 60
 
 
 class CachedPaginator(Paginator):
+    """A Paginator that caches expensive queryset COUNT queries.
+
+    Django's default paginator runs a ``SELECT COUNT(*)`` on every
+    page load, which can be slow for large tables. This subclass
+    caches the count result keyed by the query's WHERE clause and
+    model table, avoiding redundant queries within the TTL window.
+    """
+
     @cached_property
-    def count(self):
+    def count(self) -> int:  # type: ignore[override]
         if not hasattr(self.object_list, "query"):
-            return Paginator.count.__get__(self, type(self))
+            return Paginator.count.__get__(self, type(self))  # type: ignore[arg-type]
         cache_key = self._make_count_cache_key()
         cached = cache.get(cache_key)
         if cached is not None:

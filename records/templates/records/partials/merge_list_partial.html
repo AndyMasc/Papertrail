@@ -77,15 +77,6 @@
             <div class="absolute bottom-3 left-6 top-auto translate-y-0 lg:bottom-auto lg:left-auto lg:right-4 lg:top-1/2 lg:-translate-y-1/2 flex items-center justify-end w-auto z-20 pointer-events-none">
                 <div class="flex items-center gap-1.5 pointer-events-auto lg:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all duration-250 ease-out bg-zinc-50 dark:bg-[#0c0c0e] lg:bg-transparent pr-2 lg:p-0">
                     {% if not merge.undone_at and merge.plaid_record %}
-                        <form method="POST" action="{% url 'records:detach_receipt' merge.pk %}"
-                              onsubmit="return confirm('Detach receipt? The bank transaction will remain as-is.');">
-                            {% csrf_token %}
-                            <button type="submit" class="p-1.5 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all duration-150 cursor-pointer" title="Detach Receipt">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-5 h-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                                </svg>
-                            </button>
-                        </form>
                         <form method="POST" action="{% url 'records:undo_merge' merge.pk %}">
                             {% csrf_token %}
                             <button onclick="return confirm('Undo this merge? The receipt will be restored as a separate record.')" class="p-1.5 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-all duration-150 cursor-pointer" title="Undo Merge">

@@ -1,3 +1,10 @@
+"""Root URL configuration for the Papertrail project.
+
+Routes all top-level URL patterns including admin, third-party apps,
+and the module-specific URL includes. Password management endpoints
+are intentionally blocked since Papertrail uses external auth.
+"""
+
 from django.conf import settings
 from django.contrib import admin
 from django.http import HttpResponseForbidden
@@ -7,6 +14,7 @@ from core.views import safe_webpush_save_info
 
 
 def forbidden_view(request, *args, **kwargs):  # noqa: ARG001
+    """Return a 403 response for disabled password management endpoints."""
     return HttpResponseForbidden("Password features are disabled.")
 
 
@@ -34,3 +42,4 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns.insert(3, path("__reload__/", include("django_browser_reload.urls")))
+    urlpatterns.insert(-1, path("__debug__/", include("debug_toolbar.urls")))

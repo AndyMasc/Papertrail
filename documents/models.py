@@ -1,3 +1,9 @@
+"""Database models and querysets for the documents module.
+
+Manages the lifecycle of uploaded document files, from pending upload through
+OCR processing to archival, including soft-delete for compliance retention.
+"""
+
 import os
 
 from django.conf import settings
@@ -10,6 +16,8 @@ User = settings.AUTH_USER_MODEL
 
 
 class DocumentStatus(models.TextChoices):
+    """Lifecycle states a document transitions through from upload to completion."""
+
     PENDING_UPLOAD = "pending_upload", "Pending Upload"
     UPLOADED = "uploaded", "Uploaded"
     PROCESSING = "processing", "Processing OCR"
@@ -19,58 +27,81 @@ class DocumentStatus(models.TextChoices):
 
 
 class DocumentDataQuerySet(models.QuerySet):
+    """Custom queryset providing filtered views across the document lifecycle."""
+
     def for_user(self, user) -> "DocumentDataQuerySet":
+        """Return only active documents belonging to the given user."""
         return self.filter(user=user, is_active=True)
 
     def active(self) -> "DocumentDataQuerySet":
+        """Return non-trashed documents."""
         return self.filter(is_active=True)
 
     def trashed(self) -> "DocumentDataQuerySet":
+        """Return soft-deleted documents."""
         return self.filter(is_active=False)
 
     def orphaned(self) -> "DocumentDataQuerySet":
+        """Return active documents not linked to any record."""
         return self.filter(associated_record__isnull=True, is_active=True)
 
     def linked(self) -> "DocumentDataQuerySet":
+        """Return documents associated with at least one record."""
         return self.filter(associated_record__isnull=False)
 
     def by_status(self, status: str) -> "DocumentDataQuerySet":
+        """Filter documents to those matching the given lifecycle status."""
         return self.filter(status=status)
 
     def pending(self) -> "DocumentDataQuerySet":
+        """Return documents awaiting upload confirmation."""
         return self.by_status(DocumentStatus.PENDING_UPLOAD)
 
     def processing(self) -> "DocumentDataQuerySet":
+        """Return documents currently undergoing OCR processing."""
         return self.by_status(DocumentStatus.PROCESSING)
 
     def completed(self) -> "DocumentDataQuerySet":
+        """Return documents that have finished OCR successfully."""
         return self.by_status(DocumentStatus.COMPLETED)
 
     def errored(self) -> "DocumentDataQuerySet":
+        """Return documents that failed OCR processing."""
         return self.by_status(DocumentStatus.ERROR)
 
     def stale_pending(self, minutes: int = 30) -> "DocumentDataQuerySet":
+        """Return pending uploads older than the given threshold for cleanup."""
         cutoff = timezone.now() - timezone.timedelta(minutes=minutes)
         return self.pending().filter(date_added__lt=cutoff)
 
     def stale_error(self, days: int = 2) -> "DocumentDataQuerySet":
+        """Return errored documents older than the given threshold for cleanup."""
         cutoff = timezone.now() - timezone.timedelta(days=days)
         return self.errored().filter(date_added__lt=cutoff)
 
     def search(self, query: str) -> "DocumentDataQuerySet":
+        """Case-insensitive search across document title and notes."""
         if not (query := query.strip()):
             return self
         return self.filter(Q(title__icontains=query) | Q(notes__icontains=query))
 
     def with_record(self) -> "DocumentDataQuerySet":
+        """Eager-load the associated record to avoid N+1 queries."""
         return self.select_related("associated_record")
 
 
 class DocumentDataManager(models.Manager.from_queryset(DocumentDataQuerySet)):
-    pass
+    """Manager that exposes DocumentDataQuerySet filters at the model level."""
 
 
 class DocumentData(models.Model):
+    """Represents an uploaded document file and its processing metadata.
+
+    Documents track a file from initial upload through optional OCR extraction,
+    linking to a Record once processed. OCR-processed documents are soft-deleted
+    for 7-year compliance retention; unprocessed documents are hard-deleted.
+    """
+
     id = models.BigAutoField(primary_key=True)
     title = models.CharField(max_length=200, default="Untitled")
     user = models.ForeignKey(
@@ -137,6 +168,7 @@ class DocumentData(models.Model):
         ]
 
     def save(self, *args, **kwargs):
+        """Persist the document, auto-deriving file_extension from filepath if blank."""
         if self.filepath and not self.file_extension:
             _, ext = os.path.splitext(self.filepath)
             normalized = ext.replace(".", "").strip().lower()[:10]
@@ -145,6 +177,7 @@ class DocumentData(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False):
+        """Soft-delete OCR'd documents for compliance; hard-delete others."""
         if self.did_ocr:
             self.is_active = False
             self.deleted_at = timezone.now()
@@ -154,9 +187,11 @@ class DocumentData(models.Model):
             super().delete(using=using, keep_parents=keep_parents)
 
     def hard_delete(self, using=None, keep_parents=False):
+        """Permanently remove the database record regardless of OCR status."""
         super().delete(using=using, keep_parents=keep_parents)
 
     def undo_delete(self):
+        """Restore a soft-deleted document to active status."""
         self.is_active = True
         self.deleted_at = None
         self.associated_record = None
@@ -167,6 +202,7 @@ class DocumentData(models.Model):
 
     @property
     def is_processing(self) -> bool:
+        """True when the document is still in the upload or OCR pipeline."""
         return self.status in (
             DocumentStatus.PENDING_UPLOAD,
             DocumentStatus.UPLOADED,
@@ -175,10 +211,12 @@ class DocumentData(models.Model):
 
     @property
     def is_terminal(self) -> bool:
+        """True when the document has reached a final state (completed or error)."""
         return self.status in (DocumentStatus.COMPLETED, DocumentStatus.ERROR)
 
     @property
     def presigned_view_url(self) -> str:
+        """Generate a temporary S3 presigned URL for viewing the document."""
         from .storage import generate_read_presigned_url
 
         return generate_read_presigned_url(self.filepath)

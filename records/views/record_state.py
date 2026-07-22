@@ -1,3 +1,9 @@
+"""Views for archiving, unarchiving, and deleting records.
+
+Each action creates an AuditLog entry and, for HTMX requests, returns
+a 204 response so the client can update the UI without a full page reload.
+"""
+
 import logging
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -12,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 class ArchiveRecord(LoginRequiredMixin, View):
+    """Soft-delete a record by marking it inactive and logging the action."""
+
     def post(self, request: HttpRequest, record_id: int) -> HttpResponse:
         record = get_object_or_404(Record, id=record_id, user=request.user, is_active=True)
         response = archive_record(record, request)
@@ -26,12 +34,28 @@ class ArchiveRecord(LoginRequiredMixin, View):
 
 
 class UnarchiveRecord(LoginRequiredMixin, View):
+    """Restore a soft-deleted record and log the action."""
+
     def post(self, request: HttpRequest, record_id: int) -> HttpResponse:
         record = get_object_or_404(Record, id=record_id, user=request.user, is_active=False)
         unarchive_record(record)
         AuditLog.objects.create(
             user=request.user,
             action=AuditLog.Action.UNARCHIVE,
+            record=record,
+        )
+        return redirect("records:view_all_records")
+
+
+class DeleteRecordView(LoginRequiredMixin, View):
+    """Soft-delete a record and log the action."""
+
+    def post(self, request: HttpRequest, record_id: int) -> HttpResponse:
+        record = get_object_or_404(Record, id=record_id, user=request.user)
+        record.delete()
+        AuditLog.objects.create(
+            user=request.user,
+            action=AuditLog.Action.SOFT_DELETE,
             record=record,
         )
         return redirect("records:view_all_records")

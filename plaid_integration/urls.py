@@ -1,3 +1,9 @@
+"""URL routing for the Plaid banking integration module.
+
+All endpoints are namespaced under ``plaid:`` and prefixed with ``/plaid/``
+in the project-level URL config.
+"""
+
 from django.urls import path
 
 from . import views

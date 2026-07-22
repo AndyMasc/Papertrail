@@ -1,3 +1,10 @@
+"""URL configuration for the records app.
+
+Routes cover record CRUD, folder management, merge operations (manual,
+undo, detach, replace), archive/unarchive, hard-delete, and the merge
+list view. All paths live under the ``records:`` namespace.
+"""
+
 from django.urls import path
 
 from . import views
@@ -32,6 +39,11 @@ urlpatterns = [
         name="unarchive_record",
     ),
     path(
+        "delete_record/<int:record_id>/",
+        views.DeleteRecordView.as_view(),
+        name="delete_record",
+    ),
+    path(
         "check_ocr_status/<int:document_id>/",
         views.CheckOCRStatus.as_view(),
         name="check_ocr_status",
@@ -61,11 +73,5 @@ urlpatterns = [
         name="manual_merge_modal",
     ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
-    path("merges/<int:merge_id>/detach/", views.DetachReceiptView.as_view(), name="detach_receipt"),
-    path(
-        "merges/<int:merge_id>/replace/",
-        views.ReplaceReceiptView.as_view(),
-        name="replace_receipt",
-    ),
     path("hard-delete/<int:pk>/", views.HardDeleteRecordView.as_view(), name="hard_delete_record"),
 ]

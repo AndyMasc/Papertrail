@@ -1,3 +1,10 @@
+"""Background tasks for OCR extraction, document deletion, and storage reconciliation.
+
+Uses django-q-stash for async execution with retry/backoff. Includes Gemini-based
+OCR with structured output parsing, orphaned document cleanup, stale upload
+reconciliation, and 7-year compliance hard-deletion.
+"""
+
 import logging
 import re
 from datetime import timedelta
@@ -68,28 +75,33 @@ except ImportError:
 
 
 class GeminiOCRError(Exception):
-    """Raised when Gemini OCR fails after all retries."""
+    """Raised when Gemini OCR fails after exhausting all retry attempts."""
 
 
 def _get_cache_key(document_id: int) -> str:
+    """Return the cache key used to store OCR results for a document."""
     return f"ocr_status_{document_id}"
 
 
 def _normalize_s3_key(filepath: str) -> str:
+    """Strip leading slashes from S3 keys to prevent double-slash paths."""
     return filepath.lstrip("/") if filepath else ""
 
 
 def _set_document_status(document_id: int, status: str, **kwargs) -> None:
+    """Update a document's status and any additional fields atomically."""
     DocumentData.objects.filter(id=document_id).update(status=status, **kwargs)
 
 
 def _increment_ocr_retries(document_id: int) -> int:
+    """Atomically increment and return the current OCR retry count."""
     DocumentData.objects.filter(id=document_id).update(ocr_retries=F("ocr_retries") + 1)
     doc = DocumentData.objects.filter(id=document_id).values("ocr_retries").first()
     return doc["ocr_retries"] if doc else 0
 
 
 def _fetch_from_r2(filepath: str) -> bytes:
+    """Download the full file content from R2 for the given key."""
     key = _normalize_s3_key(filepath)
     response = s3.get_object(Bucket=BUCKET, Key=key)
     body = response["Body"]
@@ -99,6 +111,7 @@ def _fetch_from_r2(filepath: str) -> bytes:
 
 
 def _process_image(image_bytes: bytes, filepath: str) -> types.Part:
+    """Convert raw file bytes into a Gemini-compatible Part, preprocessing images."""
     if filepath.lower().endswith(".pdf"):
         return types.Part.from_bytes(data=image_bytes, mime_type="application/pdf")
 
@@ -107,6 +120,7 @@ def _process_image(image_bytes: bytes, filepath: str) -> types.Part:
 
 
 def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, Any]:
+    """Send the image to Gemini with folder context and return parsed OCR results."""
     contents = []
 
     folder_context = (
@@ -133,6 +147,12 @@ def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, A
 
 @shared_task(retries=MAX_OCR_RETRIES, backoff_factor=2)
 def extract_document(document_id: int) -> dict[str, Any]:
+    """Run Gemini OCR on a document, extracting structured financial data.
+
+    Checks for cached results and already-processed documents before fetching
+    from R2. Retries up to MAX_OCR_RETRIES with exponential backoff before
+    marking the document as errored.
+    """
     cache_key = _get_cache_key(document_id)
 
     doc_lookup = DocumentData.objects.filter(id=document_id).values("status", "did_ocr").first()
@@ -186,11 +206,16 @@ def extract_document(document_id: int) -> dict[str, Any]:
 
 @shared_task(retries=3, backoff_factor=2)
 def delete_document(filepath: str) -> None:
+    """Delete a single file from R2 storage, retrying on transient failures."""
     if filepath:
         s3.delete_object(Bucket=BUCKET, Key=_normalize_s3_key(filepath))
 
 
 def _bulk_delete_documents(file_data: list[tuple[int, str]]) -> None:
+    """Delete documents from both the database and R2 in chunks of 1000.
+
+    DB records are deleted first; R2 cleanup is best-effort and logged on failure.
+    """
     CHUNK_SIZE = 1000
 
     for i in range(0, len(file_data), CHUNK_SIZE):
@@ -224,6 +249,11 @@ def _bulk_delete_documents(file_data: list[tuple[int, str]]) -> None:
 
 @shared_task
 def delete_orphaned_documents() -> None:
+    """Remove unlinked documents after a grace period.
+
+    Non-OCR documents older than 1 day and unassociated OCR documents older
+    than 7 days are hard-deleted from both DB and R2.
+    """
     grace_period = timezone.now() - timedelta(days=1)
     orphaned_files = DocumentData.objects.filter(
         associated_record=None,
@@ -259,6 +289,11 @@ def delete_orphaned_documents() -> None:
 
 @shared_task
 def reconcile_documents() -> None:
+    """Clean up stale pending uploads and dangling error records.
+
+    Removes pending uploads older than 30 minutes and errored documents
+    older than 2 days, deleting both the R2 objects and database records.
+    """
     stale_cutoff = timezone.now() - timedelta(minutes=30)
     abandoned_uploads = DocumentData.objects.filter(
         filepath__isnull=False,
@@ -303,6 +338,11 @@ def reconcile_documents() -> None:
 
 @shared_task
 def delete_7year_deleted_documents() -> None:
+    """Hard-delete documents soft-deleted over 7 years ago for users with auto-delete enabled.
+
+    Enforces financial record retention policy by permanently removing
+    documents that have exceeded the compliance window.
+    """
     seven_years_ago = timezone.now() - timedelta(days=365 * 7)
     expired_deleted = DocumentData.objects.filter(
         deleted_at__isnull=False,

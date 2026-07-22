@@ -1,7 +1,13 @@
+"""Core domain models for the records module.
+
+Defines the data layer for Papertrail's record-keeping system: expense records,
+folders for organisation, merge tracking between Plaid and document records,
+and an audit log that captures every significant mutation.
+"""
+
 import calendar
 import datetime
 import re
-import uuid
 from decimal import Decimal, InvalidOperation
 from functools import reduce
 from operator import or_
@@ -54,6 +60,13 @@ def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
 
 
 class RecordQuerySet(models.QuerySet):
+    """Custom QuerySet for Record that enforces safe deletion patterns.
+
+    Bulk ``delete()`` is blocked by default to prevent accidental data loss.
+    Use ``allow_bulk_delete()`` to opt in, or call ``record.delete()``
+    (soft-delete) / ``record.hard_delete()`` (permanent) instead.
+    """
+
     def delete(self):
         if getattr(self, "_allow_bulk_delete", False):
             return super().delete()
@@ -63,23 +76,29 @@ class RecordQuerySet(models.QuerySet):
         )
 
     def allow_bulk_delete(self) -> "RecordQuerySet":
+        """Return a clone that permits ``QuerySet.delete()`` for maintenance tasks."""
         qs = self.all()
         qs._allow_bulk_delete = True
         return qs
 
     def for_user(self, user: User) -> "RecordQuerySet":
+        """Scope the queryset to records belonging to *user*."""
         return self.filter(user=user)
 
     def active(self) -> "RecordQuerySet":
+        """Return only records that have not been soft-deleted."""
         return self.filter(is_active=True)
 
     def archived(self) -> "RecordQuerySet":
+        """Return only records that have been soft-deleted."""
         return self.filter(is_active=False)
 
     def with_documents(self) -> "RecordQuerySet":
+        """Prefetch related ``DocumentData`` objects to avoid N+1 queries."""
         return self.prefetch_related("documents")
 
     def expiring_soon(self, days: int = 30) -> "RecordQuerySet":
+        """Return active records whose expiry falls within the next *days* days."""
         today = timezone.now().date()
         return self.active().filter(
             expiry_date__gte=today,
@@ -87,9 +106,17 @@ class RecordQuerySet(models.QuerySet):
         )
 
     def expired(self) -> "RecordQuerySet":
+        """Return active records whose expiry date has already passed."""
         return self.active().filter(expiry_date__lt=timezone.now().date())
 
     def smart_search(self, search_query: str) -> "RecordQuerySet":
+        """Search across text, numeric, and date fields with natural-language heuristics.
+
+        Accepts free-text queries that are matched against titles, merchants,
+        products, notes, record types, balances, and dates (including relative
+        terms like "today" or month names). Returns an empty queryset when the
+        query is blank after stripping.
+        """
         if not (search_query := search_query.strip()):
             return self
 
@@ -145,6 +172,8 @@ class RecordQuerySet(models.QuerySet):
 
 
 class Folder(models.Model):
+    """User-owned folder for organising records into logical groups."""
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="folders")
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -158,6 +187,14 @@ class RecordManager(models.Manager.from_queryset(RecordQuerySet)):
 
 
 class Record(models.Model):
+    """Central domain object representing an individual financial record.
+
+    Stores metadata extracted from uploaded receipts or synced from Plaid bank
+    transactions. Records are soft-deleted by flipping ``is_active`` rather
+    than removing the row, preserving referential integrity for merge logs
+    and audit history.
+    """
+
     class RecordTypes(models.TextChoices):
         EXPENSE_RECEIPT = "expense_receipt", "Expense Receipt"
         VOUCHER = "voucher", "Voucher"
@@ -208,10 +245,10 @@ class Record(models.Model):
     title = models.CharField(max_length=255)
     merchant = models.CharField(max_length=255, default="")
     balance = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00"), db_index=True
+        max_digits=12, decimal_places=2, null=True, blank=True, default=None, db_index=True
     )
     products = models.TextField(blank=True, default="")
-    transaction_date = models.DateField(db_index=True)
+    transaction_date = models.DateField(null=True, blank=True, db_index=True)
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     notes = models.TextField(blank=True, default="")
     payment_method = models.CharField(max_length=255, blank=True, default="")
@@ -272,12 +309,14 @@ class Record(models.Model):
             models.Index(fields=["user", "balance"], name="idx_record_user_balance"),
         ]
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self, using=None, keep_parents=False):  # noqa: ARG002
+        """Soft-delete the record by marking it inactive rather than removing it."""
         self.is_active = False
         self.last_edited = timezone.now()
         self.save(update_fields=["is_active", "last_edited"])
 
     def hard_delete(self, using=None, keep_parents=False):
+        """Permanently remove this record from the database. Irreversible."""
         super().delete(using=using, keep_parents=keep_parents)
 
     def __str__(self):
@@ -285,20 +324,24 @@ class Record(models.Model):
 
     @property
     def badge_classes(self) -> str:
+        """Return Tailwind CSS classes for the record-type badge in the UI."""
         return self.COLOR_MAP.get(self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value])
 
     @property
     def is_plaid_record(self) -> bool:
+        """True when this record originated from a Plaid bank transaction."""
         return bool(self.plaid_transaction_id)
 
     @property
     def is_expired(self) -> bool:
+        """True when the expiry date is in the past."""
         if self.expiry_date:
             return self.expiry_date < timezone.now().date()
         return False
 
     @property
     def is_expiring_soon(self, days: int = 30) -> bool:
+        """True when the expiry date falls within the next *days* days."""
         if self.expiry_date:
             return self.expiry_date <= (timezone.now().date() + datetime.timedelta(days=days))
         return False
@@ -312,6 +355,13 @@ class Record(models.Model):
 
 
 class MergeLog(models.Model):
+    """Immutable record of a merge between a Plaid transaction and a document record.
+
+    Captures snapshots of both records at merge time so the operation can be
+    undone or the receipt replaced later without data loss. The
+    ``idempotency_key`` column prevents duplicate merges for the same pair.
+    """
+
     plaid_record = models.ForeignKey(
         Record, on_delete=models.SET_NULL, null=True, related_name="merge_logs_as_plaid"
     )
@@ -369,6 +419,12 @@ class MergeLog(models.Model):
 
 
 class AuditLog(models.Model):
+    """Append-only log of every significant record mutation for accountability.
+
+    Each entry captures who did what (action), to which record, at what time,
+    and optionally why (details JSON). Used for compliance and debugging.
+    """
+
     class Action(models.TextChoices):
         MERGE = "merge"
         UNDO_MERGE = "undo_merge"
@@ -383,7 +439,9 @@ class AuditLog(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="audit_logs")
     action = models.CharField(max_length=32, choices=Action.choices, db_index=True)
-    record = models.ForeignKey(Record, on_delete=models.SET_NULL, null=True, related_name="audit_logs")
+    record = models.ForeignKey(
+        Record, on_delete=models.SET_NULL, null=True, related_name="audit_logs"
+    )
     merge_log = models.ForeignKey(MergeLog, on_delete=models.SET_NULL, null=True, blank=True)
     details = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)

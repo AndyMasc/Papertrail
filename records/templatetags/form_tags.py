@@ -1,3 +1,10 @@
+"""Custom template tags and filters used in record-related templates.
+
+Provides ``get_attr`` for dynamic attribute access and ``filter_url``
+for building URLs that preserve existing query parameters while
+updating or removing specific filter values.
+"""
+
 from django import template
 from django.urls import reverse
 
@@ -6,11 +13,18 @@ register = template.Library()
 
 @register.filter
 def get_attr(obj, attr):
+    """Return ``getattr(obj, attr, "")`` — a safe dynamic attribute lookup for templates."""
     return getattr(obj, attr, "")
 
 
 @register.simple_tag(takes_context=True)
 def filter_url(context, view_name, **kwargs):
+    """Build a URL for *view_name* that merges *kwargs* into the current query params.
+
+    Set a param to ``None`` to remove it. Existing query parameters not
+    mentioned in *kwargs* are preserved, making it easy to toggle a single
+    filter without losing others.
+    """
     request = context.get("request")
     if not request:
         return reverse(view_name)

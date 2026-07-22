@@ -1,3 +1,9 @@
+"""URL routing for the documents module.
+
+Maps endpoints for upload, confirmation, viewing, deletion, trash management,
+and OCR status listing. All routes require authentication.
+"""
+
 from django.urls import path
 
 from . import views

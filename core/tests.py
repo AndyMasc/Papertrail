@@ -93,7 +93,7 @@ class HealthCheckTest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "healthy")
-        self.assertEqual(data["database"], "connected")
+        self.assertEqual(data["database"]["status"], "connected")
 
 
 class DashboardViewTest(TestCase):
@@ -166,6 +166,7 @@ class UpdateUserSettingsFormTest(TestCase):
         expected = [
             "auto_archive_expired_records",
             "auto_delete_archived_records",
+            "auto_delete_deleted_documents",
             "expiring_notifications_advance_time",
             "enable_push_notifications",
             "enable_email_notifications",

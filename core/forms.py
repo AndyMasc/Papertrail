@@ -1,3 +1,9 @@
+"""Forms for authentication flows and user settings management.
+
+Extends django-allauth signup and login forms to support a passwordless
+authentication flow, and provides a ModelForm for UserSettings preferences.
+"""
+
 from allauth.account.forms import LoginForm, SignupForm
 from django import forms
 
@@ -5,6 +11,12 @@ from .models import UserSettings
 
 
 class PasswordlessSignupForm(SignupForm):
+    """Signup form that omits password fields and sets an unusable password.
+
+    Used alongside the passwordless login flow so users authenticate via
+    magic link rather than a traditional credential.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields.pop("password1", None)
@@ -18,12 +30,16 @@ class PasswordlessSignupForm(SignupForm):
 
 
 class PasswordlessLoginForm(LoginForm):
+    """Login form that removes the password field for magic-link-only auth."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields.pop("password", None)
 
 
 class UpdateUserSettingsForm(forms.ModelForm):
+    """ModelForm for editing UserSettings automation and notification preferences."""
+
     class Meta:
         model = UserSettings
         fields = [

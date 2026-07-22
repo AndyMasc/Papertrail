@@ -1,3 +1,9 @@
+"""Views for folder CRUD operations.
+
+All folder views are scoped to the current user's folders and support
+HTMX partial responses for seamless in-page folder management.
+"""
+
 import json
 import logging
 
@@ -16,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 class FolderListView(LoginRequiredMixin, ListView):
+    """Paginated list of the current user's folders with active-record counts.
+
+    Supports search filtering by folder name and returns an HTMX partial
+    when the request is an HTMX swap.
+    """
+
     model = Folder
     template_name = "records/folders.html"
     context_object_name = "folders"
@@ -45,6 +57,8 @@ class FolderListView(LoginRequiredMixin, ListView):
 
 
 class CreateFolder(LoginRequiredMixin, CreateView):
+    """Create a new folder and refresh the folder list inline via HTMX."""
+
     model = Folder
     form_class = FolderForm
     template_name = "records/partials/create_folder_modal.html"
@@ -76,6 +90,8 @@ class CreateFolder(LoginRequiredMixin, CreateView):
 
 
 class FolderUpdateView(LoginRequiredMixin, UpdateView):
+    """Inline-edit a folder's name. Returns the updated folder partial via HTMX."""
+
     model = Folder
     form_class = FolderForm
     template_name = "records/partials/edit_folder_inline.html"
@@ -104,6 +120,8 @@ class FolderUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class FolderDeleteView(LoginRequiredMixin, DeleteView):
+    """Delete a folder and un-file all its records before removing the row."""
+
     model = Folder
     pk_url_kwarg = "folder_id"
     success_url = reverse_lazy("records:view_folders")

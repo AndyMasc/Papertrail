@@ -1,3 +1,9 @@
+"""Filtersets for the document list view.
+
+Provides dynamic filter choices for file type, processing status, and
+active/trash state. File-type choices are cached per user to avoid repeated queries.
+"""
+
 import django_filters
 from django import forms
 from django.core.cache import cache
@@ -8,6 +14,12 @@ FILTER_CHOICES_CACHE_TTL = 3600
 
 
 class DocumentFilter(django_filters.FilterSet):
+    """Filters documents by activity state, file extension, and link status.
+
+    File type choices are populated dynamically from the user's existing
+    documents and cached to reduce database load on list views.
+    """
+
     is_active = django_filters.BooleanFilter(
         field_name="is_active",
         lookup_expr="exact",
@@ -48,6 +60,7 @@ class DocumentFilter(django_filters.FilterSet):
         ]
 
     def _get_cached_extensions(self):
+        """Return distinct file extensions for the user, using cache to avoid repeated queries."""
         if self.request and self.request.user.is_authenticated:
             cache_key = f"de_v2_{self.request.user.id}"
             extensions = cache.get(cache_key)
@@ -64,6 +77,7 @@ class DocumentFilter(django_filters.FilterSet):
         return []
 
     def filter_by_status(self, queryset, name, value):  # noqa: ARG002
+        """Filter by composite status: orphaned, processed_unsaved, or linked."""
         if value == "orphaned":
             return queryset.filter(associated_record__isnull=True)
         elif value == "processed_unsaved":

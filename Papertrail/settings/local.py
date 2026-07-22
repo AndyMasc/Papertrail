@@ -1,12 +1,9 @@
-from .base import (
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    STORAGES,
-    env,
-)
+from .base import *  # noqa: F401, F403
 
-INSTALLED_APPS.append("django_browser_reload")
+INSTALLED_APPS.extend(["django_browser_reload", "debug_toolbar"])
+
 MIDDLEWARE.insert(-1, "django_browser_reload.middleware.BrowserReloadMiddleware")
+MIDDLEWARE.insert(-1, "debug_toolbar.middleware.DebugToolbarMiddleware")
 
 CSRF_TRUSTED_ORIGINS = [env("NGROK_HTTPS_TUNNEL_URL")]
 CORS_ALLOW_ALL_ORIGINS = True
@@ -22,6 +19,10 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+
+INTERNAL_IPS = [
+    '127.0.0.1',  # localhost
+]
 
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {

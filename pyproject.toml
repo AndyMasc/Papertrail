@@ -129,6 +129,38 @@ disable_error_code = [
     "misc",
 ]
 
+[tool.bandit]
+exclude_dirs = ["tests", "venv"]
+skips = ["B101"]  # assert used - common in tests
+
 [tool.coverage.run]
-source = ["core", "documents", "records"]
+source = ["core", "documents", "records", "plaid_integration"]
 omit = ["*/migrations/*", "*/tests/*", "*/test_*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.",
+    "raise NotImplementedError",
+    "pass",
+    "except ImportError",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "Papertrail.settings.local"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--tb=short",
+    "-q",
+    "--numprocesses=auto",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests requiring external services",
+]

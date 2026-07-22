@@ -1,3 +1,11 @@
+"""Django signals for the records module.
+
+Hooks into ``post_save`` on Record to trigger automatic matching with
+Plaid transactions whenever a record is updated (not created). The
+matching task is enqueued inside ``transaction.on_commit`` to avoid
+race conditions with uncommitted data.
+"""
+
 import logging
 
 from django.db import transaction
@@ -11,6 +19,12 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Record)
 def auto_match_on_record_save(sender, instance, created, **kwargs):  # noqa: ARG001
+    """Enqueue an auto-match task after a record is saved.
+
+    Skips brand-new records (which have no data to match against), inactive
+    records, and records that set ``_skip_auto_match`` to prevent infinite
+    loops during merge operations.
+    """
     if created:
         return
     if not instance.is_active:

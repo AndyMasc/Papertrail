@@ -1,3 +1,10 @@
+"""Unified notification service supporting webpush, email, and database channels.
+
+Provides helpers to build notification payloads, check per-user delivery
+preferences, and dispatch notifications across one or more channels in a
+single call.
+"""
+
 import logging
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -17,6 +24,12 @@ User = get_user_model()
 
 @dataclass
 class NotificationContext:
+    """Data transfer object bundling all inputs needed to send a multi-channel notification.
+
+    Groups the common fields (user, subject, bodies, webpush payload) so that
+    callers can construct a single object and pass it to ``send_multi_channel_notification``.
+    """
+
     user: User
     subject: str
     text_body: str
@@ -26,6 +39,10 @@ class NotificationContext:
 
 
 def build_site_context() -> dict:
+    """Return site URL, domain, and name for use in notification templates.
+
+    Falls back to a localhost default when ``SITE_URL`` is not configured.
+    """
     site_url = getattr(settings, "SITE_URL", "http://localhost:8000")
     parsed_url = urlparse(site_url)
     site_domain = parsed_url.netloc
@@ -50,6 +67,11 @@ base_payload = {
 
 
 def build_expiry_webpush_payload(record_count: int) -> dict:
+    """Build a webpush payload for the record expiry alert notification.
+
+    Includes the app icon and a human-readable body that adapts to singular
+    or plural record counts.
+    """
     return {
         **base_payload,
         "head": "Record Expiry Alert",
@@ -65,6 +87,11 @@ def build_expiry_email_context(
     auto_archive_msg: str,
     action_url: str,
 ) -> dict:
+    """Assemble the template context for the expiry notification email.
+
+    Merges site-wide context (URL, domain) with record-specific data so the
+    email template can render a personalized summary.
+    """
     site_context = build_site_context()
 
     return {
@@ -79,6 +106,11 @@ def build_expiry_email_context(
 
 
 def send_push_notification(user: User, payload: dict, ttl: int = 1000) -> None:
+    """Send a webpush notification synchronously, logging failures.
+
+    This is a thin wrapper around django-webpush that centralizes error
+    handling and logging for push delivery.
+    """
     try:
         send_user_notification(user=user, payload=payload, ttl=ttl)
         logger.info(f"Dispatched webpush to {user.email}")
@@ -92,6 +124,11 @@ def send_email_notification(
     text_body: str,
     html_body: str,
 ) -> None:
+    """Enqueue an email notification as a QStash background task.
+
+    Uses the user's email as the sole recipient. Delivery is asynchronous
+    so this function returns immediately.
+    """
     send_background_email.delay(
         subject=subject,
         message=text_body,
@@ -103,6 +140,11 @@ def send_email_notification(
 
 
 def _user_can_receive_push(user: User) -> bool:
+    """Check whether the user has push notifications enabled and at least one subscription.
+
+    Returns False when the user has no settings, when push is disabled, or
+    when the webpush module is unavailable.
+    """
     if not hasattr(user, "settings"):
         return False
     if not user.settings.enable_push_notifications:
@@ -117,7 +159,11 @@ def _user_can_receive_push(user: User) -> bool:
 
 
 def _user_can_receive_email(user: User) -> bool:
-    """Check if user has email notifications enabled."""
+    """Check whether the user has email notifications enabled.
+
+    Refreshes the settings from the database to avoid returning a stale value
+    when the preference was recently toggled.
+    """
     if not hasattr(user, "settings"):
         return False
     # Refresh from DB to avoid stale cached value
@@ -137,6 +183,13 @@ def send_multi_channel_notification(
     send_db: bool = False,
     db_message: str | None = None,
 ) -> None:
+    """Dispatch a notification across push, email, and database channels.
+
+    Each channel is independently gated: push is skipped if the user has no
+    subscription or has push disabled, email is skipped if the user has email
+    disabled, and the database record is only created when ``send_db`` is True
+    and a message is provided.
+    """
     if send_push and webpush_payload and _user_can_receive_push(user):
         fire_single_webpush.delay(user_id=user.id, payload=webpush_payload, ttl=webpush_ttl)
 

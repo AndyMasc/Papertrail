@@ -13,11 +13,11 @@
                         <p class="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">Original bank import and receipt data.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <form method="POST" action="{% url 'records:detach_receipt' active_merge.pk %}"
-                              onsubmit="return confirm('Detach receipt? The bank transaction will remain as-is.');">
+                        <form method="POST" action="{% url 'records:undo_merge' active_merge.pk %}"
+                              onsubmit="return confirm('Undo this merge? The receipt will be restored as a separate record.');">
                             {% csrf_token %}
                             <button type="submit" class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-2xl transition-all duration-150 shadow-xs active:scale-[0.98]">
-                                Detach Receipt
+                                Undo Merge
                             </button>
                         </form>
                     </div>

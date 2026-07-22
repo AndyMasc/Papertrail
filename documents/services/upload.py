@@ -1,3 +1,10 @@
+"""Upload service for handling document presign requests and duplicate detection.
+
+Encapsulates the presigned-URL upload workflow: validates input, detects
+duplicates by file hash, generates R2 upload keys, and creates DocumentData
+records in a transactional block.
+"""
+
 import hashlib
 import json
 import os
@@ -15,7 +22,9 @@ from documents.storage import generate_presigned_post, generate_upload_key
 
 @dataclass
 class PresignResult:
-    status: str
+    """Result of a presign request, containing either an upload URL or duplicate info."""
+
+    status: str = "error"
     upload_url: str | None = None
     key: str | None = None
     document_id: int | None = None
@@ -28,6 +37,7 @@ class PresignResult:
 
 
 def _parse_request_data(request: HttpRequest) -> dict[str, Any]:
+    """Extract upload metadata from JSON body or form POST data."""
     if request.content_type == "application/json":
         try:
             return json.loads(request.body)
@@ -37,12 +47,19 @@ def _parse_request_data(request: HttpRequest) -> dict[str, Any]:
 
 
 class UploadService:
+    """Orchestrates the document upload flow from validation through presigned URL generation."""
+
     def __init__(self, request: HttpRequest, record_id: int | None = None):
         self.request = request
         self.record_id = record_id
         self.user = request.user
 
     def handle(self) -> PresignResult:
+        """Process an upload request: validate, check duplicates, and return a presigned URL.
+
+        Returns a PresignResult with status indicating either 'upload_url',
+        'duplicate_confirmed', or 'error'.
+        """
         data = _parse_request_data(self.request)
 
         file_hash = data.get("file_hash", "").strip()
@@ -92,6 +109,7 @@ class UploadService:
         )
 
     def _find_duplicate(self, file_hash: str) -> DocumentData | None:
+        """Search for an existing active document with the same file hash for this user."""
         return (
             DocumentData.objects.filter(user=self.user, file_hash=file_hash)
             .exclude(status=DocumentStatus.DELETING)
@@ -100,6 +118,7 @@ class UploadService:
         )
 
     def _duplicate_result(self, existing: DocumentData) -> PresignResult:
+        """Build a PresignResult reflecting a detected duplicate upload."""
         record_id = None
         record_label = "Unassociated Document"
         record_url = "#"
@@ -122,12 +141,14 @@ class UploadService:
 
     @staticmethod
     def _resolve_hash(file_hash: str, force_upload: bool) -> str:
+        """Return the original hash or a salted variant to bypass duplicate detection."""
         if not force_upload:
             return file_hash
         salt = f"-forced-{uuid.uuid4().hex}"
         return hashlib.sha256((file_hash + salt).encode("utf-8")).hexdigest()
 
     def _prepare_key_and_title(self, filename: str) -> tuple[str, str]:
+        """Derive the R2 storage key and a human-readable title from the filename."""
         ext = os.path.splitext(filename)[1].lower() or ".bin"
         safe_title = os.path.splitext(filename)[0]
         safe_title = safe_title.replace("_", " ").replace("-", " ").title()

@@ -1,3 +1,9 @@
+"""Background tasks for delivering email and webpush notifications.
+
+Tasks are executed asynchronously via QStash (django-qstash). Email delivery
+uses the Resend provider through django-anymail.
+"""
+
 import logging
 
 from django.contrib.auth import get_user_model
@@ -12,6 +18,10 @@ User = get_user_model()
 
 @shared_task
 def send_background_email(subject, message, from_email, recipient_list, html_message=None):
+    """Send an email via the Resend backend as a background task.
+
+    Supports optional HTML content for richer email templates.
+    """
     resend_connection = get_connection(backend="anymail.backends.resend.EmailBackend")
 
     email = EmailMultiAlternatives(
@@ -30,6 +40,11 @@ def send_background_email(subject, message, from_email, recipient_list, html_mes
 
 @shared_task
 def fire_single_webpush(user_id: int, payload: dict, ttl: int = 1000) -> None:
+    """Dispatch a single webpush notification to a user via django-webpush.
+
+    Runs as a background task to avoid blocking the request cycle. Failures
+    are logged but never raised to prevent task retries for transient issues.
+    """
     """Async worker task wrapper around the webpush service execution."""
     try:
         user = User.objects.get(id=user_id)

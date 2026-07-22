@@ -1,22 +1,21 @@
+"""Public view classes exposed by the records views package.
+
+Re-exports every view from the sub-modules so they can be imported
+directly as ``records.views.RecordListView`` etc.
+"""
+
+from .create import AddRecordView, CheckOCRStatus
 from .folders import CreateFolder, FolderDeleteView, FolderListView, FolderUpdateView
+from .history import RecordHistoryView
 from .merges import (
-    DetachReceiptView,
     ManualMergeModalView,
     ManualMergeSearchView,
     ManualMergeView,
     MergeListView,
-    ReplaceReceiptView,
     UndoMergeView,
 )
-from .record_state import ArchiveRecord, UnarchiveRecord
-from .records import (
-    AddRecordView,
-    CheckOCRStatus,
-    HardDeleteRecordView,
-    RecordDetailView,
-    RecordHistoryView,
-    RecordListView,
-)
+from .record_state import ArchiveRecord, DeleteRecordView, UnarchiveRecord
+from .records import HardDeleteRecordView, RecordDetailView, RecordListView
 
 __all__ = [
     "RecordListView",
@@ -27,6 +26,7 @@ __all__ = [
     "HardDeleteRecordView",
     "ArchiveRecord",
     "UnarchiveRecord",
+    "DeleteRecordView",
     "FolderListView",
     "CreateFolder",
     "FolderUpdateView",
@@ -36,6 +36,4 @@ __all__ = [
     "ManualMergeModalView",
     "MergeListView",
     "UndoMergeView",
-    "DetachReceiptView",
-    "ReplaceReceiptView",
 ]

@@ -1,3 +1,10 @@
+"""Django-filters FilterSets for record and merge-log list views.
+
+Provides the filter definitions used by RecordListView and MergeListView,
+including per-user caching of folder and record-type choices to avoid
+repeated database queries on every page load.
+"""
+
 import django_filters
 from django import forms
 from django.core.cache import cache
@@ -9,6 +16,13 @@ FILTER_CHOICES_CACHE_TTL = 3600
 
 
 class RecordFilter(django_filters.FilterSet):
+    """FilterSet for the record list view with dynamic folder and type choices.
+
+    Folder and record-type dropdowns are populated per-user and cached for
+    one hour. The ``expiring_soon`` and ``this_month`` filters are boolean
+    toggles backed by custom methods rather than simple ORM lookups.
+    """
+
     expiring_soon = django_filters.BooleanFilter(
         method="filter_expiring_soon",
         label="Expiring within 30 days",
@@ -83,6 +97,7 @@ class RecordFilter(django_filters.FilterSet):
                 type_filter.extra["choices"] = [("", "All Types")] + filtered
 
     def filter_by_folder(self, queryset, name, value):  # noqa: ARG002
+        """Filter by folder ID, or return unfiled records when *value* is ``"none"``."""
         if not value:
             return queryset
 
@@ -92,6 +107,7 @@ class RecordFilter(django_filters.FilterSet):
         return queryset.filter(folder_id=value)
 
     def filter_expiring_soon(self, queryset, name, value):  # noqa: ARG002
+        """Filter to records expiring within 30 days of today."""
         if value:
             today = timezone.now().date()
             return queryset.filter(
@@ -101,6 +117,7 @@ class RecordFilter(django_filters.FilterSet):
         return queryset
 
     def filter_this_month(self, queryset, name, value):  # noqa: ARG002
+        """Filter to records whose transaction date falls in the current calendar month."""
         if value:
             now = timezone.now()
             return queryset.filter(
@@ -111,6 +128,8 @@ class RecordFilter(django_filters.FilterSet):
 
 
 class MergeLogFilter(django_filters.FilterSet):
+    """FilterSet for the merge list view. Supports free-text search across merge metadata."""
+
     search = django_filters.CharFilter(method="filter_search", label="Search")
 
     class Meta:
@@ -118,6 +137,7 @@ class MergeLogFilter(django_filters.FilterSet):
         fields = []
 
     def filter_search(self, queryset, name, value):  # noqa: ARG002
+        """Case-insensitive search against the ``search_text`` denormalised column."""
         if not value:
             return queryset
         return queryset.filter(search_text__icontains=value)
