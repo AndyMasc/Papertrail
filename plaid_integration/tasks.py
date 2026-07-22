@@ -67,8 +67,6 @@ def _txn_to_record_defaults(
     txn: dict[str, Any],
     plaid_item: PlaidItem,
     folder_cache: dict[str, Folder] | None = None,
-    *,
-    is_update: bool = False,
 ) -> dict[str, Any]:
     categories = txn.get("category") or []
     primary_category = categories[0] if categories else ""
@@ -142,7 +140,7 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
             for txn in data.get("modified", []):
                 Record.objects.update_or_create(
                     plaid_transaction_id=txn["transaction_id"],
-                    defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache, is_update=True),
+                    defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache),
                 )
                 stats["modified"] += 1
 

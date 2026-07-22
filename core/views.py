@@ -46,20 +46,28 @@ def privacy_policy(request: HttpRequest) -> HttpResponse:
 
 
 def health_check(request: HttpRequest) -> JsonResponse:  # noqa: ARG001
+    import time
+
+    start = time.monotonic()
     db_ok = True
+    db_ms = 0
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
+        db_ms = round((time.monotonic() - start) * 1000, 1)
     except DatabaseError:
         db_ok = False
 
     redis_ok = True
+    redis_ms = 0
     try:
         from django.core.cache import cache
 
+        redis_start = time.monotonic()
         cache.set("health_check_ping", "ok", timeout=5)
         if cache.get("health_check_ping") != "ok":
             raise ConnectionError("Cache ping failed")
+        redis_ms = round((time.monotonic() - redis_start) * 1000, 1)
     except Exception:
         redis_ok = False
 
@@ -68,8 +76,9 @@ def health_check(request: HttpRequest) -> JsonResponse:  # noqa: ARG001
     return JsonResponse(
         {
             "status": "healthy" if healthy else "unhealthy",
-            "database": "connected" if db_ok else "disconnected",
-            "cache": "connected" if redis_ok else "disconnected",
+            "database": {"status": "connected" if db_ok else "disconnected", "ms": db_ms},
+            "cache": {"status": "connected" if redis_ok else "disconnected", "ms": redis_ms},
+            "version": getattr(settings, "APP_VERSION", "unknown"),
         },
         status=status,
     )

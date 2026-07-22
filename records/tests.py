@@ -363,7 +363,7 @@ class RecordModelPlaidTest(TestCase):
     def test_nickname_default(self):
         self.assertEqual(self.record.nickname, "")
 
-    def test_save_protects_payment_method_for_plaid_record(self):
+    def test_save_allows_payment_method_for_plaid_record(self):
         record = Record.objects.create(
             user=self.user,
             title="Plaid Record",
@@ -375,7 +375,7 @@ class RecordModelPlaidTest(TestCase):
         record.payment_method = "Modified"
         record.save(update_fields=["payment_method"])
         record.refresh_from_db()
-        self.assertEqual(record.payment_method, "Chase (••1234)")
+        self.assertEqual(record.payment_method, "Modified")
 
     def test_save_allows_payment_method_for_non_plaid_record(self):
         self.record.payment_method = "Visa (1234)"

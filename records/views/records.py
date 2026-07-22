@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.core.paginator import InvalidPage
 from django.db import transaction
-from django.http import Http404, HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -24,12 +24,13 @@ from django_ratelimit.decorators import ratelimit
 from documents.models import DocumentData, DocumentStatus
 from documents.ocr_helpers import ocr_data_to_form_initial
 from documents.tasks import extract_document
+from Papertrail.responses import api_error
 from Papertrail.utils import CachedPaginator
 
 from ..filters import RecordFilter
 from ..forms import AddRecordForm, RecordUpdateForm
 from ..matching import try_match_document_record
-from ..models import Folder, MergeLog, Record
+from ..models import AuditLog, Folder, MergeLog, Record
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,12 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         document = self.document
         if document:
             if document.associated_record:
-                return HttpResponseBadRequest("This document is already associated with a record.")
+                return api_error(
+                    request,
+                    "This document is already associated with a record.",
+                    code="document_already_associated",
+                    status=400,
+                )
 
             if document.status in (
                 DocumentStatus.UPLOADED,
@@ -248,7 +254,12 @@ class AddRecordView(LoginRequiredMixin, CreateView):
         document = self.document
 
         if document and document.associated_record:
-            return HttpResponseBadRequest("This document is already associated with a record.")
+            return api_error(
+                self.request,
+                "This document is already associated with a record.",
+                code="document_already_associated",
+                status=400,
+            )
 
         self.object = form.save(commit=False)
         self.object.user = self.request.user
@@ -332,6 +343,8 @@ _HISTORY_EXCLUDE = frozenset(
     }
 )
 
+_HISTORY_MAX_ENTRIES_PER_SOURCE = 200
+
 
 class RecordHistoryView(LoginRequiredMixin, ListView):
     template_name = "records/record_history.html"
@@ -342,7 +355,10 @@ class RecordHistoryView(LoginRequiredMixin, ListView):
         from django.db.models import Q
 
         self._record = get_object_or_404(Record, pk=self.kwargs["pk"], user=self.request.user)
-        record_entries = list(self._record.history.all())
+
+        record_entries = list(
+            self._record.history.all()[:_HISTORY_MAX_ENTRIES_PER_SOURCE]
+        )
         for h in record_entries:
             h.source_type = "record"
 
@@ -355,7 +371,10 @@ class RecordHistoryView(LoginRequiredMixin, ListView):
         )
 
         doc_entries = (
-            list(DocumentData.history.filter(pk__in=doc_ids).select_related("history_user"))
+            list(
+                DocumentData.history.filter(pk__in=doc_ids)
+                .select_related("history_user")[:_HISTORY_MAX_ENTRIES_PER_SOURCE]
+            )
             if doc_ids
             else []
         )
@@ -367,7 +386,7 @@ class RecordHistoryView(LoginRequiredMixin, ListView):
 
         merges = MergeLog.objects.filter(
             Q(plaid_record=self._record) | Q(document_record=self._record)
-        )
+        )[:_HISTORY_MAX_ENTRIES_PER_SOURCE]
         for merge in merges:
             merge_entry = SimpleNamespace(
                 source_type="merge",
@@ -451,6 +470,12 @@ class HardDeleteRecordView(LoginRequiredMixin, View):
             return redirect("records:record_detail", pk=pk)
         for doc in DocumentData.objects.filter(associated_record=record):
             doc.hard_delete()
+        AuditLog.objects.create(
+            user=request.user,
+            action=AuditLog.Action.HARD_DELETE,
+            record=record,
+            details={"title": record.title},
+        )
         record.hard_delete()
         if request.headers.get("HX-Request") == "true":
             response = HttpResponse(status=204)

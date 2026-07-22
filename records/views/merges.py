@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import InvalidPage, Paginator
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
@@ -15,6 +15,7 @@ from django_filters.views import FilterView
 from django_ratelimit.decorators import ratelimit
 
 from documents.models import DocumentData
+from Papertrail.responses import api_error
 
 from ..filters import MergeLogFilter, RecordFilter
 from ..forms import ManualMergeForm
@@ -24,7 +25,7 @@ from ..matching import (
     replace_receipt,
     undo_merge,
 )
-from ..models import MergeLog, Record
+from ..models import AuditLog, MergeLog, Record
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,13 @@ class ManualMergeView(LoginRequiredMixin, FormView):
                 self.request, "Could not merge — the receipt may have already been merged."
             )
         else:
+            AuditLog.objects.create(
+                user=self.request.user,
+                action=AuditLog.Action.MERGE,
+                record=plaid_record,
+                merge_log=result,
+                details={"document_record_id": document_record.pk},
+            )
             messages.success(self.request, "Records merged successfully.")
         return redirect(self.success_url)
 
@@ -94,7 +102,7 @@ class ManualMergeSearchView(LoginRequiredMixin, View):
         try:
             qs = _get_merge_candidate_qs(request, mode)
         except ValueError:
-            return HttpResponseBadRequest("Invalid mode")
+            return api_error(request, "Invalid mode", code="invalid_mode", status=400)
         search_query = request.GET.get("search", "").strip()
         if search_query:
             qs = qs.smart_search(search_query)
@@ -124,7 +132,7 @@ class ManualMergeModalView(LoginRequiredMixin, View):
         try:
             qs = _get_merge_candidate_qs(request, mode)
         except ValueError:
-            return HttpResponseBadRequest("Invalid mode")
+            return api_error(request, "Invalid mode", code="invalid_mode", status=400)
         qs = qs.order_by("-transaction_date")
         paginator = Paginator(qs, MANUAL_MERGE_PAGE_SIZE)
         page_obj = paginator.get_page(1)
@@ -174,6 +182,12 @@ class UndoMergeView(LoginRequiredMixin, View):
         if restored is None:
             messages.info(request, "This merge was already undone.")
         else:
+            AuditLog.objects.create(
+                user=request.user,
+                action=AuditLog.Action.UNDO_MERGE,
+                record=merge_log.plaid_record,
+                merge_log=merge_log,
+            )
             messages.success(request, "Merge undone. Records and document restored.")
         if request.headers.get("HX-Request"):
             response = HttpResponse(status=204)
@@ -197,6 +211,12 @@ class DetachReceiptView(LoginRequiredMixin, View):
         if result is None:
             messages.info(request, "This merge was already detached.")
         else:
+            AuditLog.objects.create(
+                user=request.user,
+                action=AuditLog.Action.DETACH_RECEIPT,
+                record=merge_log.plaid_record,
+                merge_log=merge_log,
+            )
             messages.success(request, "Receipt detached. Bank transaction remains.")
         if request.headers.get("HX-Request"):
             response = HttpResponse(status=204)
@@ -240,5 +260,15 @@ class ReplaceReceiptView(LoginRequiredMixin, FormView):
         if result is None:
             messages.error(self.request, "Could not replace receipt.")
         else:
+            AuditLog.objects.create(
+                user=self.request.user,
+                action=AuditLog.Action.REPLACE_RECEIPT,
+                record=merge_log.plaid_record,
+                merge_log=result,
+                details={
+                    "old_document_record_id": merge_log.document_record_id,
+                    "new_document_record_id": new_document_record.pk,
+                },
+            )
             messages.success(self.request, "Receipt replaced successfully.")
         return redirect(self.success_url)

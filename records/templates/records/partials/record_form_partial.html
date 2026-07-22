@@ -69,7 +69,7 @@
 
         <div class="md:col-span-2 p-4 sm:p-5 bg-white dark:bg-zinc-900/40 border {% if form.products.errors %}border-rose-500/80{% else %}border-zinc-200/70 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80{% endif %} rounded-xl sm:rounded-2xl space-y-1.5 shadow-xs backdrop-blur-md transition-all duration-200">
             <label for="{{ form.products.id_for_label }}" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block pl-0.5">Products / Items</label>
-            {% render_field form.products class="resize-y min-h-[70px] sm:min-h-max w-full px-3 py-2 text-sm rounded-lg sm:rounded-xl bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/60 dark:border-zinc-800/60 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" %}
+            {% render_field form.products class="resize-y min-h-[70px] sm:min-h-[calc(100%-3vh)] w-full px-3 py-2 text-sm rounded-lg sm:rounded-xl bg-zinc-50/50 dark:bg-zinc-950/40 border border-zinc-200/60 dark:border-zinc-800/60 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-hidden focus:border-zinc-400 dark:focus:border-zinc-600 transition-all" %}
             {% if form.products.errors %}<p class="text-[11px] text-rose-500 pl-1 font-medium">{{ form.products.errors|striptags }}</p>{% endif %}
         </div>
 

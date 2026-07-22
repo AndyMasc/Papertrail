@@ -1,6 +1,7 @@
 import calendar
 import datetime
 import re
+import uuid
 from decimal import Decimal, InvalidOperation
 from functools import reduce
 from operator import or_
@@ -54,10 +55,17 @@ def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
 
 class RecordQuerySet(models.QuerySet):
     def delete(self):
+        if getattr(self, "_allow_bulk_delete", False):
+            return super().delete()
         raise TypeError(
             "Use record.delete() for soft-delete or record.hard_delete() for permanent deletion. "
             "QuerySet.delete() is not allowed on Record to prevent accidental data loss."
         )
+
+    def allow_bulk_delete(self) -> "RecordQuerySet":
+        qs = self.all()
+        qs._allow_bulk_delete = True
+        return qs
 
     def for_user(self, user: User) -> "RecordQuerySet":
         return self.filter(user=user)
@@ -318,6 +326,9 @@ class MergeLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     undone_at = models.DateTimeField(null=True, blank=True, db_index=True)
     search_text = models.TextField(blank=True, db_index=False)
+    idempotency_key = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, db_index=True
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -355,3 +366,34 @@ class MergeLog(models.Model):
 
     def __str__(self) -> str:
         return f"Merge {self.pk}: plaid={self.plaid_record_id} <- doc={self.document_record_id}"
+
+
+class AuditLog(models.Model):
+    class Action(models.TextChoices):
+        MERGE = "merge"
+        UNDO_MERGE = "undo_merge"
+        DETACH_RECEIPT = "detach_receipt"
+        REPLACE_RECEIPT = "replace_receipt"
+        CREATE_RECORD = "create_record"
+        UPDATE_RECORD = "update_record"
+        SOFT_DELETE = "soft_delete"
+        HARD_DELETE = "hard_delete"
+        ARCHIVE = "archive"
+        UNARCHIVE = "unarchive"
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="audit_logs")
+    action = models.CharField(max_length=32, choices=Action.choices, db_index=True)
+    record = models.ForeignKey(Record, on_delete=models.SET_NULL, null=True, related_name="audit_logs")
+    merge_log = models.ForeignKey(MergeLog, on_delete=models.SET_NULL, null=True, blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "action"], name="idx_auditlog_user_action"),
+            models.Index(fields=["record", "action"], name="idx_auditlog_record_action"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.action} by user={self.user_id} record={self.record_id} at {self.created_at}"

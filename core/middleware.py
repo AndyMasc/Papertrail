@@ -1,8 +1,35 @@
+import contextvars
 import json
+import logging
+import uuid
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.contrib.messages import get_messages
 from django.utils import timezone
+
+request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
+
+
+class RequestIDMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+        request.request_id = request_id
+        token = request_id_var.set(request_id)
+        try:
+            response = self.get_response(request)
+            response["X-Request-ID"] = request_id
+            return response
+        finally:
+            request_id_var.reset(token)
+
+
+class RequestIDLogFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = request_id_var.get("")
+        return True
 
 
 class TimezoneMiddleware:

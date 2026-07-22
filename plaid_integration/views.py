@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -8,6 +9,7 @@ import jwt
 import plaid
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render
@@ -42,6 +44,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 PLAID_JWKS_URL = "https://plaid.com/auth/v1/webhook_public_key"
 _jwks_cache: dict[str, Any] = {}
 _jwks_fetched_at: float | None = None
+
+PLAID_STATUS_CACHE_TTL = 30
+WEBHOOK_MAX_BODY_SIZE = 1024 * 100  # 100KB
 
 
 def _get_plaid_jwk(kid: str, max_age: int = 3600) -> dict[str, Any] | None:
@@ -210,6 +215,7 @@ class PublicTokenExchange(APIView):
                 )
             except plaid.ApiException:
                 logger.warning("Failed to fire initial sync webhook for item %s", item_id)
+            cache.delete(f"plaid_status:{request.user.id}")
             return Response({"success": "Bank linked successfully! Syncing transactions…"})
         except Exception:
             logger.exception("Failed to exchange public token for user %s", request.user)
@@ -221,29 +227,34 @@ class PlaidStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request: Request) -> Response:
+        cache_key = f"plaid_status:{request.user.id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         plaid_items = PlaidItem.objects.filter(user=request.user).prefetch_related("records")
 
-        return Response(
-            {
-                "connected": plaid_items.exists(),
-                "items": [
-                    {
-                        "item_id": item.item_id,
-                        "created_at": item.created_at.isoformat() if item.created_at else None,
-                        "has_cursor": bool(item.next_cursor),
-                        "record_count": len(item.records.all()),
-                        "account_name": item.institution_name,
-                        "accounts_data": item.accounts_data,
-                        "last_error_code": item.last_error_code,
-                        "last_error_message": item.last_error_message,
-                        "last_error_at": item.last_error_at.isoformat()
-                        if item.last_error_at
-                        else None,
-                    }
-                    for item in plaid_items
-                ],
-            }
-        )
+        data = {
+            "connected": plaid_items.exists(),
+            "items": [
+                {
+                    "item_id": item.item_id,
+                    "created_at": item.created_at.isoformat() if item.created_at else None,
+                    "has_cursor": bool(item.next_cursor),
+                    "record_count": len(item.records.all()),
+                    "account_name": item.institution_name,
+                    "accounts_data": item.accounts_data,
+                    "last_error_code": item.last_error_code,
+                    "last_error_message": item.last_error_message,
+                    "last_error_at": item.last_error_at.isoformat()
+                    if item.last_error_at
+                    else None,
+                }
+                for item in plaid_items
+            ],
+        }
+        cache.set(cache_key, data, PLAID_STATUS_CACHE_TTL)
+        return Response(data)
 
 
 class SyncTransactionsView(APIView):
@@ -293,12 +304,17 @@ class DisconnectBankView(APIView):
             logger.exception("Failed to remove Plaid item %s from Plaid dashboard", item_id)
 
         plaid_item.delete()
+        cache.delete(f"plaid_status:{request.user.id}")
         return Response({"success": "Bank disconnected"})
 
 
 @csrf_exempt
 @require_POST
 def plaid_webhook(request: HttpRequest) -> HttpResponse:
+    if len(request.body) > WEBHOOK_MAX_BODY_SIZE:
+        logger.warning("Plaid webhook body too large: %d bytes", len(request.body))
+        return HttpResponseBadRequest("Payload too large")
+
     try:
         payload = json.loads(request.body)
     except (ValueError, TypeError):
@@ -346,6 +362,8 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
     elif webhook_code == "TRANSACTIONS_REMOVED":
         txns: list[str] = payload.get("removed_transactions", [])
         with transaction.atomic():
-            Record.objects.filter(plaid_transaction_id__in=txns).delete()
+            Record.objects.filter(plaid_transaction_id__in=txns).update(
+                is_active=False, last_edited=tz.now()
+            )
 
     return HttpResponse("OK")

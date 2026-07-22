@@ -154,6 +154,9 @@ def find_document_matches_for_plaid(plaid_record: Record) -> list[tuple[Record, 
     return results
 
 
+PLAID_RESTORE_FIELDS = ["products", "notes", "record_type", "folder_id", "payment_method"]
+
+
 def _record_snapshot(record: Record) -> dict[str, Any]:
     return {
         "products": record.products,
@@ -170,6 +173,38 @@ def _record_snapshot(record: Record) -> dict[str, Any]:
         else None,
         "payment_method": record.payment_method,
     }
+
+
+def _restore_plaid_from_snapshot(locked_plaid: Record, snap: dict) -> None:
+    locked_plaid._skip_auto_match = True
+    locked_plaid.products = snap.get("products", "")
+    locked_plaid.notes = snap.get("notes", "")
+    locked_plaid.record_type = snap.get("record_type", Record.RecordTypes.FINANCIAL_DOCUMENT)
+    locked_plaid.folder_id = snap.get("folder_id")
+    locked_plaid.payment_method = snap.get("payment_method", "")
+    locked_plaid.save(update_fields=PLAID_RESTORE_FIELDS)
+
+
+def _restore_document_record(document_record: Record) -> None:
+    locked_doc = Record.objects.select_for_update().get(pk=document_record.pk)
+    locked_doc._skip_auto_match = True
+    locked_doc.is_active = True
+    locked_doc.plaid_transaction_id = None
+    locked_doc.save(update_fields=["is_active", "plaid_transaction_id"])
+
+
+def _apply_doc_fields_to_plaid(locked_plaid: Record, doc: Record) -> None:
+    locked_plaid._skip_auto_match = True
+    if doc.products:
+        locked_plaid.products = doc.products
+    if doc.notes:
+        locked_plaid.notes = doc.notes
+    if doc.record_type != Record.RecordTypes.FINANCIAL_DOCUMENT:
+        locked_plaid.record_type = doc.record_type
+    if doc.folder_id:
+        locked_plaid.folder_id = doc.folder_id
+    locked_plaid.payment_method = locked_plaid.payment_method or doc.payment_method
+    locked_plaid.save(update_fields=PLAID_RESTORE_FIELDS)
 
 
 @db_transaction.atomic
@@ -201,26 +236,7 @@ def merge_document_into_plaid(
     DocumentData.objects.filter(associated_record=fresh_doc).update(associated_record=locked_plaid)
     document_snapshot["document_ids"] = doc_document_ids
 
-    if fresh_doc.products:
-        locked_plaid.products = fresh_doc.products
-    if fresh_doc.notes:
-        locked_plaid.notes = fresh_doc.notes
-    if fresh_doc.record_type != Record.RecordTypes.FINANCIAL_DOCUMENT:
-        locked_plaid.record_type = fresh_doc.record_type
-    if fresh_doc.folder_id:
-        locked_plaid.folder_id = fresh_doc.folder_id
-
-    locked_plaid.payment_method = locked_plaid.payment_method or fresh_doc.payment_method
-
-    locked_plaid.save(
-        update_fields=[
-            "products",
-            "notes",
-            "record_type",
-            "folder_id",
-            "payment_method",
-        ]
-    )
+    _apply_doc_fields_to_plaid(locked_plaid, fresh_doc)
 
     fresh_doc.is_active = False
     fresh_doc.save(update_fields=["is_active"])
@@ -260,29 +276,10 @@ def undo_merge(merge_log: MergeLog) -> Record | None:
 
     if plaid_record and plaid_record.is_active:
         locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
-        locked_plaid._skip_auto_match = True
-        snap = merge_log.plaid_snapshot
-        locked_plaid.products = snap.get("products", "")
-        locked_plaid.notes = snap.get("notes", "")
-        locked_plaid.record_type = snap.get("record_type", Record.RecordTypes.FINANCIAL_DOCUMENT)
-        locked_plaid.folder_id = snap.get("folder_id")
-        locked_plaid.payment_method = snap.get("payment_method", "")
-        locked_plaid.save(
-            update_fields=[
-                "products",
-                "notes",
-                "record_type",
-                "folder_id",
-                "payment_method",
-            ]
-        )
+        _restore_plaid_from_snapshot(locked_plaid, merge_log.plaid_snapshot)
 
     if document_record:
-        locked_doc = Record.objects.select_for_update().get(pk=document_record.pk)
-        locked_doc._skip_auto_match = True
-        locked_doc.is_active = True
-        locked_doc.plaid_transaction_id = None
-        locked_doc.save(update_fields=["is_active", "plaid_transaction_id"])
+        _restore_document_record(document_record)
 
     doc_ids: list[int] | None = merge_log.document_snapshot.get("document_ids")
     if doc_ids and plaid_record and document_record:
@@ -358,10 +355,11 @@ def replace_receipt(merge_log: MergeLog, new_document_record: Record) -> Record 
     pre_plaid_snapshot = _record_snapshot(locked_plaid)
 
     if old_document_record:
-        old_document_record._skip_auto_match = True
-        old_document_record.is_active = True
-        old_document_record.plaid_transaction_id = None
-        old_document_record.save(update_fields=["is_active", "plaid_transaction_id"])
+        locked_old_doc = Record.objects.select_for_update().get(pk=old_document_record.pk)
+        locked_old_doc._skip_auto_match = True
+        locked_old_doc.is_active = True
+        locked_old_doc.plaid_transaction_id = None
+        locked_old_doc.save(update_fields=["is_active", "plaid_transaction_id"])
 
     new_doc_ids = list(
         DocumentData.objects.filter(associated_record=new_doc).values_list("pk", flat=True)
@@ -369,26 +367,7 @@ def replace_receipt(merge_log: MergeLog, new_document_record: Record) -> Record 
     if new_doc_ids:
         DocumentData.objects.filter(pk__in=new_doc_ids).update(associated_record=locked_plaid)
 
-    if new_doc.products:
-        locked_plaid.products = new_doc.products
-    if new_doc.notes:
-        locked_plaid.notes = new_doc.notes
-    if new_doc.record_type != Record.RecordTypes.FINANCIAL_DOCUMENT:
-        locked_plaid.record_type = new_doc.record_type
-    if new_doc.folder_id:
-        locked_plaid.folder_id = new_doc.folder_id
-
-    locked_plaid.payment_method = locked_plaid.payment_method or new_doc.payment_method
-
-    locked_plaid.save(
-        update_fields=[
-            "products",
-            "notes",
-            "record_type",
-            "folder_id",
-            "payment_method",
-        ]
-    )
+    _apply_doc_fields_to_plaid(locked_plaid, new_doc)
 
     new_doc.is_active = False
     new_doc.save(update_fields=["is_active"])
@@ -402,7 +381,7 @@ def replace_receipt(merge_log: MergeLog, new_document_record: Record) -> Record 
     MergeLog.objects.create(
         plaid_record=locked_plaid,
         document_record=new_doc,
-        document=DocumentData.objects.filter(associated_record=locked_plaid).first(),
+        document=DocumentData.objects.filter(pk__in=new_doc_ids).first() if new_doc_ids else None,
         plaid_snapshot=pre_plaid_snapshot,
         document_snapshot=new_doc_snapshot,
     )
@@ -427,30 +406,10 @@ def detach_receipt(merge_log: MergeLog) -> Record | None:
     document_record = merge_log.document_record
 
     locked_plaid = Record.objects.select_for_update().get(pk=plaid_record.pk)
-    locked_plaid._skip_auto_match = True
-
-    snap = merge_log.plaid_snapshot
-    locked_plaid.products = snap.get("products", "")
-    locked_plaid.notes = snap.get("notes", "")
-    locked_plaid.record_type = snap.get("record_type", Record.RecordTypes.FINANCIAL_DOCUMENT)
-    locked_plaid.folder_id = snap.get("folder_id")
-    locked_plaid.payment_method = snap.get("payment_method", "")
-    locked_plaid.save(
-        update_fields=[
-            "products",
-            "notes",
-            "record_type",
-            "folder_id",
-            "payment_method",
-        ]
-    )
+    _restore_plaid_from_snapshot(locked_plaid, merge_log.plaid_snapshot)
 
     if document_record:
-        locked_doc = Record.objects.select_for_update().get(pk=document_record.pk)
-        locked_doc._skip_auto_match = True
-        locked_doc.is_active = True
-        locked_doc.plaid_transaction_id = None
-        locked_doc.save(update_fields=["is_active", "plaid_transaction_id"])
+        _restore_document_record(document_record)
 
     doc_ids: list[int] | None = merge_log.document_snapshot.get("document_ids")
     if doc_ids and document_record:

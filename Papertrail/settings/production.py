@@ -25,16 +25,22 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "request_id": {
+            "()": "core.middleware.RequestIDLogFilter",
+        },
+    },
     "formatters": {
         "json": {
             "()": JsonFormatter,
-            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(module)s %(process)d %(thread)d",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(module)s %(process)d %(thread)d %(request_id)s",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "json",
+            "filters": ["request_id"],
         },
     },
     "root": {
