@@ -17,5 +17,7 @@ urlpatterns = [
     path("pending-ocr/", views.PendingOCRListView.as_view(), name="pending_ocr"),
     path("trash/", views.TrashDocumentListView.as_view(), name="trash_list"),
     path("trash/<int:pk>/undo/", views.UndoDeleteDocument.as_view(), name="undo_delete_document"),
-    path("hard-delete/<int:pk>/", views.HardDeleteDocumentView.as_view(), name="hard_delete_document"),
+    path(
+        "hard-delete/<int:pk>/", views.HardDeleteDocumentView.as_view(), name="hard_delete_document"
+    ),
 ]

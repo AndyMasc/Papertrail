@@ -14,6 +14,7 @@ from django.shortcuts import render
 from django.utils import timezone as tz
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.institutions_get_by_id_request_options import InstitutionsGetByIdRequestOptions
@@ -22,6 +23,7 @@ from plaid.model.item_remove_request import ItemRemoveRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
+from plaid.model.sandbox_item_fire_webhook_request import SandboxItemFireWebhookRequest
 from rest_framework import authentication, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.request import Request
@@ -156,7 +158,6 @@ class PublicTokenExchange(APIView):
             return Response({"error": "public_token is required"}, status=400)
         try:
             access_token, item_id = public_token_exchange(public_token)
-            accounts_data: list[dict[str, str]] = request.data.get("accounts", [])
             institution_name = "Bank Account"
 
             try:
@@ -175,6 +176,23 @@ class PublicTokenExchange(APIView):
             except Exception:
                 logger.warning("Failed to fetch institution name for item %s", item_id)
 
+            accounts_data: list[dict[str, str]] = []
+            try:
+                acct_resp = client.accounts_get(AccountsGetRequest(access_token=access_token))
+                acct_data = acct_resp if isinstance(acct_resp, dict) else acct_resp.to_dict()
+                accounts_data = [
+                    {
+                        "id": a["account_id"],
+                        "name": a["name"],
+                        "mask": a.get("mask", ""),
+                        "type": a.get("type", ""),
+                        "subtype": a.get("subtype", ""),
+                    }
+                    for a in acct_data.get("accounts", [])
+                ]
+            except Exception:
+                logger.warning("Failed to fetch accounts for item %s", item_id)
+
             with transaction.atomic():
                 plaid_item = PlaidItem.objects.create(
                     user=request.user,
@@ -183,7 +201,15 @@ class PublicTokenExchange(APIView):
                     institution_name=institution_name,
                     accounts_data=accounts_data,
                 )
-            sync_and_convert_for_item_task.delay(plaid_item.id)
+            try:
+                client.sandbox_item_fire_webhook(
+                    SandboxItemFireWebhookRequest(
+                        access_token=access_token,
+                        webhook_code="DEFAULT_UPDATE",
+                    )
+                )
+            except plaid.ApiException:
+                logger.warning("Failed to fire initial sync webhook for item %s", item_id)
             return Response({"success": "Bank linked successfully! Syncing transactions…"})
         except Exception:
             logger.exception("Failed to exchange public token for user %s", request.user)
@@ -237,7 +263,17 @@ class SyncTransactionsView(APIView):
         except PlaidItem.DoesNotExist:
             return Response({"error": "No Plaid link found for the specified item"}, status=400)
 
-        sync_and_convert_for_item_task.delay(plaid_item.id)
+        try:
+            client.sandbox_item_fire_webhook(
+                SandboxItemFireWebhookRequest(
+                    access_token=plaid_item.access_token,
+                    webhook_code="DEFAULT_UPDATE",
+                )
+            )
+        except plaid.ApiException:
+            logger.exception("Failed to fire Plaid webhook for item %s", plaid_item.item_id)
+            return Response({"error": "Failed to trigger sync via Plaid"}, status=502)
+
         return Response({"status": "sync_initiated"})
 
 
@@ -268,9 +304,10 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
     except (ValueError, TypeError):
         return HttpResponseBadRequest("Invalid JSON")
 
-    if not verify_plaid_webhook(request.body, request.headers.get("Plaid-Verification")):
-        logger.warning("Plaid webhook verification failed for %s", payload.get("item_id"))
-        return HttpResponseForbidden("Invalid webhook signature")
+    if settings.PLAID_ENV != "sandbox":
+        if not verify_plaid_webhook(request.body, request.headers.get("Plaid-Verification")):
+            logger.warning("Plaid webhook verification failed for %s", payload.get("item_id"))
+            return HttpResponseForbidden("Invalid webhook signature")
 
     webhook_type: str = payload.get("webhook_type", "")
     webhook_code: str = payload.get("webhook_code", "")
@@ -284,7 +321,7 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
         logger.warning("Webhook received for unknown item %s", item_id)
         return HttpResponse("OK")
 
-    if webhook_code == "SYNC_UPDATES_AVAILABLE":
+    if webhook_code in ("SYNC_UPDATES_AVAILABLE", "HISTORICAL_UPDATE"):
         sync_and_convert_for_item_task.delay(plaid_item.id)
 
     elif webhook_code in ("ITEM_LOGIN_REQUIRED", "ITEM_REQUIRES_UPDATE", "PENDING_EXPIRATION"):

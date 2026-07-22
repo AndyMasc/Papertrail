@@ -34,7 +34,7 @@ def choose_folder(
 
     query = Q()
     for word in key_words:
-        query |= Q(name__iregex=rf"\y{word}\y")
+        query |= Q(name__icontains=word)
 
     folder = Folder.objects.filter(query, user=user).first()
 
@@ -64,7 +64,11 @@ def _get_payment_method(plaid_item: PlaidItem, account_id: str) -> str:
 
 
 def _txn_to_record_defaults(
-    txn: dict[str, Any], plaid_item: PlaidItem, folder_cache: dict[str, Folder] | None = None
+    txn: dict[str, Any],
+    plaid_item: PlaidItem,
+    folder_cache: dict[str, Folder] | None = None,
+    *,
+    is_update: bool = False,
 ) -> dict[str, Any]:
     categories = txn.get("category") or []
     primary_category = categories[0] if categories else ""
@@ -76,7 +80,7 @@ def _txn_to_record_defaults(
     if auto_create_enabled:
         matched_folder = choose_folder(user, primary_category, folder_cache=folder_cache)
 
-    return {
+    defaults = {
         "user": user,
         "plaid_item": plaid_item,
         "title": txn["name"],
@@ -85,15 +89,16 @@ def _txn_to_record_defaults(
         "transaction_date": txn.get("authorized_date") or txn["date"],
         "record_type": Record.RecordTypes.FINANCIAL_DOCUMENT,
         "notes": primary_category,
-        "payment_method": _get_payment_method(plaid_item, txn.get("account_id", "")),
         "folder": matched_folder,
     }
+    defaults["payment_method"] = _get_payment_method(plaid_item, txn.get("account_id", ""))
+    return defaults
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, Any]:
     try:
-        plaid_item: PlaidItem = PlaidItem.objects.get(id=plaid_item_id)
+        plaid_item: PlaidItem = PlaidItem.objects.select_related("user").get(id=plaid_item_id)
     except PlaidItem.DoesNotExist:
         return {"error": f"PlaidItem {plaid_item_id} not found"}
 
@@ -137,7 +142,7 @@ def sync_and_convert_for_item_task(self, plaid_item_id: int | str) -> dict[str, 
             for txn in data.get("modified", []):
                 Record.objects.update_or_create(
                     plaid_transaction_id=txn["transaction_id"],
-                    defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache),
+                    defaults=_txn_to_record_defaults(txn, plaid_item, folder_cache, is_update=True),
                 )
                 stats["modified"] += 1
 

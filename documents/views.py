@@ -472,9 +472,7 @@ class TrashDocumentListView(DocumentListView):
 
 class UndoDeleteDocument(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        document = get_object_or_404(
-            DocumentData, pk=pk, user=request.user, is_active=False
-        )
+        document = get_object_or_404(DocumentData, pk=pk, user=request.user, is_active=False)
         document.undo_delete()
         if request.headers.get("HX-Request") == "true":
             response = HttpResponse(status=200)
@@ -493,9 +491,14 @@ class HardDeleteDocumentView(LoginRequiredMixin, View):
         if document.date_added > seven_years_ago:
             if request.headers.get("HX-Request") == "true":
                 response = HttpResponse(status=204)
-                response["HX-Trigger"] = json.dumps({
-                    "showToast": {"text": "This document is not old enough for permanent deletion.", "tags": "error"}
-                })
+                response["HX-Trigger"] = json.dumps(
+                    {
+                        "showToast": {
+                            "text": "This document is not old enough for permanent deletion.",
+                            "tags": "error",
+                        }
+                    }
+                )
                 return response
             messages.error(request, "This document is not old enough for permanent deletion.")
             return redirect("documents:view_document", pk=pk)
@@ -503,12 +506,13 @@ class HardDeleteDocumentView(LoginRequiredMixin, View):
         document.hard_delete()
         if filepath:
             from .tasks import delete_document
+
             delete_document(filepath)
         if request.headers.get("HX-Request") == "true":
             response = HttpResponse(status=204)
-            response["HX-Trigger"] = json.dumps({
-                "showToast": {"text": "Document permanently deleted.", "tags": "success"}
-            })
+            response["HX-Trigger"] = json.dumps(
+                {"showToast": {"text": "Document permanently deleted.", "tags": "success"}}
+            )
             response["HX-Redirect"] = reverse("documents:trash_list")
             return response
         messages.success(request, "Document permanently deleted.")

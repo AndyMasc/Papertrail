@@ -29,8 +29,7 @@ from Papertrail.utils import CachedPaginator
 from ..filters import RecordFilter
 from ..forms import AddRecordForm, RecordUpdateForm
 from ..matching import try_match_document_record
-from ..models import MergeLog
-from ..models import Folder, Record
+from ..models import Folder, MergeLog, Record
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ LIST_FIELDS = (
     "balance",
     "last_edited",
     "payment_method",
-    "payment_method_locked",
+    "nickname",
 )
 
 
@@ -119,6 +118,21 @@ class RecordDetailView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         seven_years_ago = timezone.now() - timedelta(days=365 * 7)
         context["seven_years_ago_unix"] = seven_years_ago.timestamp()
+
+        if self.object.is_plaid_record:
+            active_merge = (
+                MergeLog.objects.filter(
+                    plaid_record=self.object,
+                    undone_at__isnull=True,
+                )
+                .select_related("document_record", "document")
+                .first()
+            )
+            if active_merge:
+                context["active_merge"] = active_merge
+                context["plaid_snapshot"] = active_merge.plaid_snapshot
+                context["document_snapshot"] = active_merge.document_snapshot
+
         return context
 
     @transaction.atomic
@@ -167,7 +181,11 @@ class AddRecordView(LoginRequiredMixin, CreateView):
             if document.associated_record:
                 return HttpResponseBadRequest("This document is already associated with a record.")
 
-            if document.status in (DocumentStatus.UPLOADED, DocumentStatus.PENDING_UPLOAD, DocumentStatus.PROCESSING):
+            if document.status in (
+                DocumentStatus.UPLOADED,
+                DocumentStatus.PENDING_UPLOAD,
+                DocumentStatus.PROCESSING,
+            ):
                 cache_key = f"ocr_status_{document.id}"
                 current_cached = cache.get(cache_key)
                 if current_cached is None:
@@ -302,10 +320,17 @@ class CheckOCRStatus(LoginRequiredMixin, View):
         )
 
 
-_HISTORY_EXCLUDE = frozenset({
-    "id", "user", "last_edited", "is_active",
-    "expiry_notification_sent", "plaid_transaction_id", "plaid_item",
-})
+_HISTORY_EXCLUDE = frozenset(
+    {
+        "id",
+        "user",
+        "last_edited",
+        "is_active",
+        "expiry_notification_sent",
+        "plaid_transaction_id",
+        "plaid_item",
+    }
+)
 
 
 class RecordHistoryView(LoginRequiredMixin, ListView):
@@ -316,70 +341,89 @@ class RecordHistoryView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         from django.db.models import Q
 
-        from documents.models import DocumentData
-
-        record = get_object_or_404(Record, pk=self.kwargs["pk"], user=self.request.user)
-        record_entries = list(record.history.all())
+        self._record = get_object_or_404(Record, pk=self.kwargs["pk"], user=self.request.user)
+        record_entries = list(self._record.history.all())
         for h in record_entries:
             h.source_type = "record"
 
-        doc_ids = set(record.documents.values_list("pk", flat=True))
+        doc_ids = set(self._record.documents.values_list("pk", flat=True))
         doc_ids.update(
             v["pk"]
-            for v in DocumentData.history.filter(associated_record=record)
+            for v in DocumentData.history.filter(associated_record=self._record)
             .values("pk")
             .distinct()
         )
 
-        doc_entries = list(
-            DocumentData.history.filter(pk__in=doc_ids).select_related("history_user")
-        ) if doc_ids else []
+        doc_entries = (
+            list(DocumentData.history.filter(pk__in=doc_ids).select_related("history_user"))
+            if doc_ids
+            else []
+        )
 
         for h in doc_entries:
             h.source_type = "document"
 
         merged = record_entries + doc_entries
 
-        # Add merge/undo-merge events from MergeLog
         merges = MergeLog.objects.filter(
-            Q(plaid_record=record) | Q(document_record=record)
+            Q(plaid_record=self._record) | Q(document_record=self._record)
         )
         for merge in merges:
-            merged.append(SimpleNamespace(
+            merge_entry = SimpleNamespace(
                 source_type="merge",
                 history_type="+",
                 history_date=merge.created_at,
                 history_user=None,
-            ))
+                merge=merge,
+            )
+            merged.append(merge_entry)
             if merge.undone_at:
-                merged.append(SimpleNamespace(
-                    source_type="merge",
-                    history_type="-",
-                    history_date=merge.undone_at,
-                    history_user=None,
-                ))
+                merged.append(
+                    SimpleNamespace(
+                        source_type="merge",
+                        history_type="-",
+                        history_date=merge.undone_at,
+                        history_user=None,
+                        merge=merge,
+                    )
+                )
 
         merged.sort(key=lambda x: x.history_date, reverse=True)
         return merged
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        from documents.models import DocumentData
-
-        record = get_object_or_404(
-            Record.objects.only("pk", "title"), pk=self.kwargs["pk"], user=self.request.user
-        )
+        record = self._record
         context["record"] = record
         context["tracked_fields"] = tuple(
-            f.name for f in Record._meta.get_fields()
+            f.name
+            for f in Record._meta.get_fields()
             if f.name not in _HISTORY_EXCLUDE
             and f.name != "folder"
             and not f.auto_created
             and not getattr(f, "is_relation", False)
         )
         context["doc_tracked_fields"] = tuple(
-            f.name for f in DocumentData._meta.get_fields()
-            if f.name not in ("id", "user", "filepath", "file_hash", "file_extension", "file_size", "mime_type", "ocr_retries", "ocr_error", "ocr_metadata", "status", "is_active", "created_at", "updated_at", "deleted_at")
+            f.name
+            for f in DocumentData._meta.get_fields()
+            if f.name
+            not in (
+                "id",
+                "user",
+                "filepath",
+                "file_hash",
+                "file_extension",
+                "file_size",
+                "mime_type",
+                "ocr_retries",
+                "ocr_error",
+                "ocr_metadata",
+                "status",
+                "is_active",
+                "created_at",
+                "updated_at",
+                "deleted_at",
+            )
             and not f.auto_created
             and not getattr(f, "is_relation", False)
         )
@@ -387,15 +431,21 @@ class RecordHistoryView(LoginRequiredMixin, ListView):
 
 
 class HardDeleteRecordView(LoginRequiredMixin, View):
+    @method_decorator(ratelimit(key="user", rate="5/m", method="POST", block=True))
     def post(self, request, pk: int) -> HttpResponse:
         record = get_object_or_404(Record, pk=pk, user=request.user)
         seven_years_ago = timezone.now() - timedelta(days=365 * 7)
         if record.date_added > seven_years_ago:
             if request.headers.get("HX-Request") == "true":
                 response = HttpResponse(status=204)
-                response["HX-Trigger"] = json.dumps({
-                    "showToast": {"text": "This record is not old enough for permanent deletion.", "tags": "error"}
-                })
+                response["HX-Trigger"] = json.dumps(
+                    {
+                        "showToast": {
+                            "text": "This record is not old enough for permanent deletion.",
+                            "tags": "error",
+                        }
+                    }
+                )
                 return response
             messages.error(request, "This record is not old enough for permanent deletion.")
             return redirect("records:record_detail", pk=pk)
@@ -404,9 +454,9 @@ class HardDeleteRecordView(LoginRequiredMixin, View):
         record.hard_delete()
         if request.headers.get("HX-Request") == "true":
             response = HttpResponse(status=204)
-            response["HX-Trigger"] = json.dumps({
-                "showToast": {"text": "Record permanently deleted.", "tags": "success"}
-            })
+            response["HX-Trigger"] = json.dumps(
+                {"showToast": {"text": "Record permanently deleted.", "tags": "success"}}
+            )
             response["HX-Redirect"] = reverse("records:view_all_records")
             return response
         messages.success(request, "Record permanently deleted.")

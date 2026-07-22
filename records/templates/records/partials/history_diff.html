@@ -1,0 +1,14 @@
+{% load form_tags %}
+{% for field in fields %}
+    {% with old_val=prev_record|get_attr:field new_val=entry|get_attr:field %}
+        {% if old_val != new_val %}
+            <div>
+                <span class="text-zinc-400 dark:text-zinc-500 font-medium capitalize">{{ field|title }}</span>
+                <div class="mt-0.5 space-y-0.5">
+                    <div class="text-zinc-600 dark:text-zinc-300 line-through decoration-rose-500/40">{{ old_val|default:"(empty)" }}</div>
+                    <div class="text-emerald-600 dark:text-emerald-400">{{ new_val|default:"(empty)" }}</div>
+                </div>
+            </div>
+        {% endif %}
+    {% endwith %}
+{% endfor %}

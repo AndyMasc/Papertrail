@@ -15,13 +15,16 @@ from records.matching import (
     MERGE_SCORE_THRESHOLD,
     _record_snapshot,
     calculate_match_score,
+    detach_receipt,
     find_best_plaid_match,
     find_document_matches_for_plaid,
     merge_document_into_plaid,
+    replace_receipt,
     try_match_document_record,
     try_match_plaid_record,
     undo_merge,
 )
+from documents.models import DocumentData
 from records.models import MergeLog, Record, Folder
 
 
@@ -32,6 +35,7 @@ class RecordModelTest(TestCase):
             user=self.user,
             title="Test Record",
             record_type="expense_receipt",
+            transaction_date=date(2024, 6, 15),
         )
 
     def test_str(self):
@@ -333,6 +337,53 @@ class RecordModelExpiryNotificationTest(TestCase):
         self.assertFalse(record.expiry_notification_sent)
 
 
+class RecordModelPlaidTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="plaidtest", password="pass")
+        self.record = Record.objects.create(
+            user=self.user,
+            title="Test Record",
+            record_type="expense_receipt",
+            transaction_date=date(2024, 6, 15),
+        )
+
+    def test_is_plaid_record_true(self):
+        record = Record.objects.create(
+            user=self.user,
+            title="Plaid Record",
+            record_type="expense_receipt",
+            plaid_transaction_id="txn_123",
+            transaction_date=date(2024, 6, 15),
+        )
+        self.assertTrue(record.is_plaid_record)
+
+    def test_is_plaid_record_false(self):
+        self.assertFalse(self.record.is_plaid_record)
+
+    def test_nickname_default(self):
+        self.assertEqual(self.record.nickname, "")
+
+    def test_save_protects_payment_method_for_plaid_record(self):
+        record = Record.objects.create(
+            user=self.user,
+            title="Plaid Record",
+            record_type="expense_receipt",
+            plaid_transaction_id="txn_123",
+            payment_method="Chase (••1234)",
+            transaction_date=date(2024, 6, 15),
+        )
+        record.payment_method = "Modified"
+        record.save(update_fields=["payment_method"])
+        record.refresh_from_db()
+        self.assertEqual(record.payment_method, "Chase (••1234)")
+
+    def test_save_allows_payment_method_for_non_plaid_record(self):
+        self.record.payment_method = "Visa (1234)"
+        self.record.save(update_fields=["payment_method"])
+        self.record.refresh_from_db()
+        self.assertEqual(self.record.payment_method, "Visa (1234)")
+
+
 class FolderModelTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="folderuser", password="pass")
@@ -521,6 +572,8 @@ class AddRecordFormTest(TestCase):
             "expiry_date",
             "record_type",
             "notes",
+            "payment_method",
+            "nickname",
             "folder",
         ]
         self.assertEqual(list(form.fields.keys()), expected)
@@ -1651,6 +1704,129 @@ class TryMatchTest(TestCase):
         self.assertFalse(doc.is_active)
         merged_again = try_match_plaid_record(plaid)
         self.assertEqual(merged_again, [])
+
+
+class DetachReceiptTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="detach_test", password="pass")
+        self.plaid = _make_plaid_record(self.user, "Target")
+        self.doc = _make_doc_record(self.user, "Target", products="Groceries", notes="Weekly shop")
+        self.merge_log = MergeLog.objects.create(
+            plaid_record=self.plaid,
+            document_record=self.doc,
+            plaid_snapshot=_record_snapshot(self.plaid),
+            document_snapshot=_record_snapshot(self.doc),
+        )
+        self.plaid.products = "Groceries"
+        self.plaid.notes = "Weekly shop"
+        self.plaid.save()
+        self.doc.is_active = False
+        self.doc.save()
+
+    def test_detach_restores_doc_active(self):
+        result = detach_receipt(self.merge_log)
+        self.assertIsNotNone(result)
+        self.doc.refresh_from_db()
+        self.assertTrue(self.doc.is_active)
+
+    def test_detach_restores_plaid_snapshot(self):
+        self.plaid.products = "Overwritten"
+        self.plaid.save()
+        detach_receipt(self.merge_log)
+        self.plaid.refresh_from_db()
+        self.assertEqual(self.plaid.products, "")
+
+    def test_detach_marks_log_undone(self):
+        detach_receipt(self.merge_log)
+        self.merge_log.refresh_from_db()
+        self.assertIsNotNone(self.merge_log.undone_at)
+
+    def test_detach_already_undone_returns_none(self):
+        detach_receipt(self.merge_log)
+        result = detach_receipt(self.merge_log)
+        self.assertIsNone(result)
+
+
+class ReplaceReceiptTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="replace_test", password="pass")
+        self.plaid = _make_plaid_record(self.user, "Costco")
+        self.old_doc = _make_doc_record(
+            self.user, "Costco", products="Bulk items", notes="Shopping trip"
+        )
+        self.new_doc = _make_doc_record(
+            self.user, "Costco Receipt", products="Electronics", notes="TV purchase"
+        )
+        self.merge_log = MergeLog.objects.create(
+            plaid_record=self.plaid,
+            document_record=self.old_doc,
+            plaid_snapshot=_record_snapshot(self.plaid),
+            document_snapshot=_record_snapshot(self.old_doc),
+        )
+        self.plaid.products = "Bulk items"
+        self.plaid.notes = "Shopping trip"
+        self.plaid.save()
+        self.old_doc.is_active = False
+        self.old_doc.save()
+
+        self.old_doc_data = DocumentData.objects.create(
+            user=self.user, filepath="users/1/old.pdf", file_hash="old_hash"
+        )
+        self.old_doc_data.associated_record = self.old_doc
+        self.old_doc_data.save(update_fields=["associated_record"])
+        self.new_doc_data = DocumentData.objects.create(
+            user=self.user, filepath="users/1/new.pdf", file_hash="new_hash"
+        )
+        self.new_doc_data.associated_record = self.new_doc
+        self.new_doc_data.save(update_fields=["associated_record"])
+
+    def test_replace_restores_old_doc(self):
+        result = replace_receipt(self.merge_log, self.new_doc)
+        self.assertIsNotNone(result)
+        self.old_doc.refresh_from_db()
+        self.assertTrue(self.old_doc.is_active)
+        self.assertIsNone(self.old_doc.plaid_transaction_id)
+
+    def test_replace_old_doc_keeps_its_files(self):
+        replace_receipt(self.merge_log, self.new_doc)
+        self.assertTrue(DocumentData.objects.filter(associated_record=self.old_doc).exists())
+
+    def test_replace_attaches_new_doc_to_plaid(self):
+        replace_receipt(self.merge_log, self.new_doc)
+        self.new_doc.refresh_from_db()
+        self.assertFalse(self.new_doc.is_active)
+
+    def test_replace_moves_only_new_doc_files(self):
+        replace_receipt(self.merge_log, self.new_doc)
+        plaid_files = DocumentData.objects.filter(associated_record=self.plaid)
+        self.assertEqual(plaid_files.count(), 1)
+        self.assertEqual(plaid_files.first().pk, self.new_doc_data.pk)
+
+    def test_replace_creates_new_merge_log(self):
+        replace_receipt(self.merge_log, self.new_doc)
+        new_log = MergeLog.objects.filter(
+            plaid_record=self.plaid,
+            document_record=self.new_doc,
+            undone_at__isnull=True,
+        ).first()
+        self.assertIsNotNone(new_log)
+
+    def test_replace_marks_old_log_undone(self):
+        replace_receipt(self.merge_log, self.new_doc)
+        self.merge_log.refresh_from_db()
+        self.assertIsNotNone(self.merge_log.undone_at)
+
+    def test_replace_rejects_inactive_doc(self):
+        self.new_doc.is_active = False
+        self.new_doc.save()
+        result = replace_receipt(self.merge_log, self.new_doc)
+        self.assertIsNone(result)
+
+    def test_replace_rejects_plaid_doc(self):
+        self.new_doc.plaid_transaction_id = "txn_999"
+        self.new_doc.save()
+        result = replace_receipt(self.merge_log, self.new_doc)
+        self.assertIsNone(result)
 
 
 class MergeLogModelTest(TestCase):

@@ -1,13 +1,22 @@
 from .folders import CreateFolder, FolderDeleteView, FolderListView, FolderUpdateView
 from .merges import (
+    DetachReceiptView,
     ManualMergeModalView,
     ManualMergeSearchView,
     ManualMergeView,
     MergeListView,
+    ReplaceReceiptView,
     UndoMergeView,
 )
 from .record_state import ArchiveRecord, UnarchiveRecord
-from .records import AddRecordView, CheckOCRStatus, HardDeleteRecordView, RecordDetailView, RecordHistoryView, RecordListView
+from .records import (
+    AddRecordView,
+    CheckOCRStatus,
+    HardDeleteRecordView,
+    RecordDetailView,
+    RecordHistoryView,
+    RecordListView,
+)
 
 __all__ = [
     "RecordListView",
@@ -27,4 +36,6 @@ __all__ = [
     "ManualMergeModalView",
     "MergeListView",
     "UndoMergeView",
+    "DetachReceiptView",
+    "ReplaceReceiptView",
 ]

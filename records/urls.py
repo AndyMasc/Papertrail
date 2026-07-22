@@ -9,7 +9,6 @@ urlpatterns = [
         views.RecordHistoryView.as_view(),
         name="record_history",
     ),
-
     path("view_all_records/", views.RecordListView.as_view(), name="view_all_records"),
     path(
         "add_record/<int:document_id>/",
@@ -27,7 +26,6 @@ urlpatterns = [
         views.ArchiveRecord.as_view(),
         name="archive_record",
     ),
-    path("archive/<int:record_id>/", views.ArchiveRecord.as_view(), name="archive_view"),
     path(
         "unarchive/<int:record_id>/",
         views.UnarchiveRecord.as_view(),
@@ -63,5 +61,11 @@ urlpatterns = [
         name="manual_merge_modal",
     ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
+    path("merges/<int:merge_id>/detach/", views.DetachReceiptView.as_view(), name="detach_receipt"),
+    path(
+        "merges/<int:merge_id>/replace/",
+        views.ReplaceReceiptView.as_view(),
+        name="replace_receipt",
+    ),
     path("hard-delete/<int:pk>/", views.HardDeleteRecordView.as_view(), name="hard_delete_record"),
 ]

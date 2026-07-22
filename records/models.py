@@ -53,6 +53,12 @@ def _month_range(year: int, month: int) -> tuple[datetime.date, datetime.date]:
 
 
 class RecordQuerySet(models.QuerySet):
+    def delete(self):
+        raise TypeError(
+            "Use record.delete() for soft-delete or record.hard_delete() for permanent deletion. "
+            "QuerySet.delete() is not allowed on Record to prevent accidental data loss."
+        )
+
     def for_user(self, user: User) -> "RecordQuerySet":
         return self.filter(user=user)
 
@@ -201,7 +207,7 @@ class Record(models.Model):
     expiry_date = models.DateField(null=True, blank=True, db_index=True)
     notes = models.TextField(blank=True, default="")
     payment_method = models.CharField(max_length=255, blank=True, default="")
-    payment_method_locked = models.BooleanField(default=False)
+    nickname = models.CharField(max_length=255, blank=True, default="")
     record_type = models.CharField(
         max_length=30,
         choices=RecordTypes.choices,
@@ -274,6 +280,10 @@ class Record(models.Model):
         return self.COLOR_MAP.get(self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value])
 
     @property
+    def is_plaid_record(self) -> bool:
+        return bool(self.plaid_transaction_id)
+
+    @property
     def is_expired(self) -> bool:
         if self.expiry_date:
             return self.expiry_date < timezone.now().date()
@@ -284,6 +294,13 @@ class Record(models.Model):
         if self.expiry_date:
             return self.expiry_date <= (timezone.now().date() + datetime.timedelta(days=days))
         return False
+
+    def save(self, *args, **kwargs):
+        if self.pk and self.is_plaid_record:
+            protected = {"plaid_transaction_id", "plaid_item"}
+            if update_fields := kwargs.get("update_fields"):
+                kwargs["update_fields"] = [f for f in update_fields if f not in protected]
+        super().save(*args, **kwargs)
 
 
 class MergeLog(models.Model):

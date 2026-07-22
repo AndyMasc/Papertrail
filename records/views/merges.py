@@ -18,7 +18,12 @@ from documents.models import DocumentData
 
 from ..filters import MergeLogFilter, RecordFilter
 from ..forms import ManualMergeForm
-from ..matching import merge_document_into_plaid, undo_merge
+from ..matching import (
+    detach_receipt,
+    merge_document_into_plaid,
+    replace_receipt,
+    undo_merge,
+)
 from ..models import MergeLog, Record
 
 logger = logging.getLogger(__name__)
@@ -158,6 +163,7 @@ class MergeListView(LoginRequiredMixin, FilterView):
 
 
 class UndoMergeView(LoginRequiredMixin, View):
+    @method_decorator(ratelimit(key="user", rate="10/m", method="POST", block=True))
     def post(self, request, merge_id: int) -> HttpResponse:
         merge_log = get_object_or_404(
             MergeLog.objects.select_related("plaid_record", "document_record", "document"),
@@ -176,3 +182,63 @@ class UndoMergeView(LoginRequiredMixin, View):
             )
             return response
         return redirect("records:merge_list")
+
+
+class DetachReceiptView(LoginRequiredMixin, View):
+    @method_decorator(ratelimit(key="user", rate="10/m", method="POST", block=True))
+    def post(self, request, merge_id: int) -> HttpResponse:
+        merge_log = get_object_or_404(
+            MergeLog.objects.select_related("plaid_record", "document_record"),
+            pk=merge_id,
+            plaid_record__user=request.user,
+            undone_at__isnull=True,
+        )
+        result = detach_receipt(merge_log)
+        if result is None:
+            messages.info(request, "This merge was already detached.")
+        else:
+            messages.success(request, "Receipt detached. Bank transaction remains.")
+        if request.headers.get("HX-Request"):
+            response = HttpResponse(status=204)
+            response["HX-Trigger"] = json.dumps(
+                {"showToast": {"text": "Receipt detached.", "tags": "success"}}
+            )
+            return response
+        return redirect("records:merge_list")
+
+
+class ReplaceReceiptView(LoginRequiredMixin, FormView):
+    template_name = "records/partials/replace_receipt_modal.html"
+    form_class = ManualMergeForm
+    success_url = reverse_lazy("records:merge_list")
+
+    @method_decorator(ratelimit(key="user", rate="10/m", method="POST", block=True))
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        merge_id = self.kwargs["merge_id"]
+        merge_log = get_object_or_404(
+            MergeLog.objects.select_related("plaid_record", "document_record"),
+            pk=merge_id,
+            plaid_record__user=self.request.user,
+            undone_at__isnull=True,
+        )
+        new_document_record = get_object_or_404(
+            Record,
+            pk=form.cleaned_data["document_record_id"],
+            user=self.request.user,
+            plaid_transaction_id__isnull=True,
+            is_active=True,
+        )
+        result = replace_receipt(merge_log, new_document_record)
+        if result is None:
+            messages.error(self.request, "Could not replace receipt.")
+        else:
+            messages.success(self.request, "Receipt replaced successfully.")
+        return redirect(self.success_url)

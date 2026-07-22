@@ -1,0 +1,26 @@
+<div class="p-4 bg-zinc-50/60 dark:bg-zinc-950/20 border border-zinc-200/60 dark:border-zinc-800/40 rounded-xl space-y-3">
+    <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="{{ icon_path }}" />
+        </svg>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{{ label }}</span>
+    </div>
+    <div class="space-y-2 text-xs">
+        <div>
+            <span class="text-zinc-400 dark:text-zinc-500">Title</span>
+            <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ snapshot.title|default:"—" }}</p>
+        </div>
+        <div>
+            <span class="text-zinc-400 dark:text-zinc-500">Merchant</span>
+            <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ snapshot.merchant|default:"—" }}</p>
+        </div>
+        <div>
+            <span class="text-zinc-400 dark:text-zinc-500">Amount</span>
+            <p class="font-semibold text-zinc-800 dark:text-zinc-200">${{ snapshot.balance|default:"—" }}</p>
+        </div>
+        <div>
+            <span class="text-zinc-400 dark:text-zinc-500">Payment</span>
+            <p class="font-semibold text-zinc-800 dark:text-zinc-200">{{ snapshot.payment_method|default:"—" }}</p>
+        </div>
+    </div>
+</div>

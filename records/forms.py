@@ -37,6 +37,7 @@ _MAXLENGTH_HELP = {
     "merchant": 255,
     "notes": 500,
     "payment_method": 255,
+    "nickname": 255,
 }
 
 
@@ -70,6 +71,11 @@ class BaseRecordForm(forms.ModelForm):
         max_length=255,
         required=False,
     )
+    nickname = forms.CharField(
+        max_length=255,
+        required=False,
+        label="Nickname",
+    )
     folder = forms.ModelChoiceField(
         queryset=Folder.objects.none(),
         required=False,
@@ -92,6 +98,7 @@ class BaseRecordForm(forms.ModelForm):
             "record_type",
             "notes",
             "payment_method",
+            "nickname",
             "folder",
         ]
 
@@ -159,7 +166,7 @@ class RecordUpdateForm(BaseRecordForm):
             self.fields["folder"].required = False
             self.fields["folder"].empty_label = "Unfiled"
         instance = getattr(self, "instance", None)
-        if instance and instance.pk and instance.payment_method_locked:
+        if instance and instance.pk and instance.is_plaid_record:
             self.fields["payment_method"].disabled = True
 
 
