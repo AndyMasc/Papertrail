@@ -132,7 +132,7 @@ def _call_gemini(image_part: types.Part, folder_names: list[str]) -> dict[str, A
     contents.append(image_part)
 
     result = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
+        model="gemini-3.5-flash-lite",
         contents=contents,
         config=CONFIG,
     )

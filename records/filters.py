@@ -117,12 +117,21 @@ class RecordFilter(django_filters.FilterSet):
         return queryset
 
     def filter_this_month(self, queryset, name, value):  # noqa: ARG002
-        """Filter to records whose transaction date falls in the current calendar month."""
+        """Filter to records whose transaction date falls in the current calendar month.
+
+        Uses explicit date boundaries instead of ``__month``/``__year`` lookups
+        so that PostgreSQL can leverage the B-tree index on ``transaction_date``.
+        """
         if value:
             now = timezone.now()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if month_start.month == 12:
+                month_end = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                month_end = month_start.replace(month=month_start.month + 1)
             return queryset.filter(
-                transaction_date__month=now.month,
-                transaction_date__year=now.year,
+                transaction_date__gte=month_start,
+                transaction_date__lt=month_end,
             )
         return queryset
 

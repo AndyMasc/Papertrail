@@ -166,7 +166,7 @@ SOCIALACCOUNT_PROVIDERS = {
     },
 }
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
+    "core.backends.SelectRelatedModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 

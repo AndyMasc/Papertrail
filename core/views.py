@@ -30,6 +30,8 @@ from .services.dashboard import get_dashboard_context, get_webpush_warning
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 def index(request: HttpRequest) -> HttpResponse:
     """Redirect authenticated users to the dashboard; serve the landing page otherwise."""

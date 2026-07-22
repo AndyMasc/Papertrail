@@ -1,10 +1,13 @@
-"""Custom email backend that sends messages asynchronously via QStash.
+"""Custom backends for email delivery and optimized user loading.
 
-Replaces Django's synchronous SMTP backend with a task-queue approach so
-that email delivery never blocks the request/response cycle.
+``QStashEmailBackend`` sends messages asynchronously via QStash.
+``SelectRelatedModelBackend`` prefetches ``user.settings`` on every
+auth lookup to avoid per-view lazy FK queries.
 """
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import ModelBackend
 from django.core.mail.backends.base import BaseEmailBackend
 
 from .tasks import send_background_email
@@ -39,3 +42,19 @@ class QStashEmailBackend(BaseEmailBackend):
             sent_count += 1
 
         return sent_count
+
+
+class SelectRelatedModelBackend(ModelBackend):
+    """Auth backend that attaches ``UserSettings`` via ``select_related``.
+
+    This eliminates the lazy FK query when templates or views access
+    ``request.user.settings`` — the join happens once during the initial
+    user load instead of on every access.
+    """
+
+    def get_user(self, user_id):
+        User = get_user_model()
+        try:
+            return User.objects.select_related("settings").get(pk=user_id)
+        except User.DoesNotExist:
+            return None

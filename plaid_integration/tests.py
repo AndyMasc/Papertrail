@@ -320,9 +320,11 @@ class WebhookVerificationTest(TestCase):
 
         def _int_to_base64url(n):
             byte_length = (n.bit_length() + 7) // 8
-            return base64.urlsafe_b64encode(
-                n.to_bytes(byte_length, byteorder='big')
-            ).rstrip(b'=').decode()
+            return (
+                base64.urlsafe_b64encode(n.to_bytes(byte_length, byteorder="big"))
+                .rstrip(b"=")
+                .decode()
+            )
 
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         public_key = private_key.public_key()

@@ -44,7 +44,14 @@ async def get_dashboard_context(user) -> dict:
     all_user_records = Record.objects.for_user(user)
     active_records_qs = all_user_records.active()
 
-    merge_count, monthly_expenses, orphaned_count, pending_ocr_count, recent_records, expiring_soon = await asyncio.gather(
+    (
+        merge_count,
+        monthly_expenses,
+        orphaned_count,
+        pending_ocr_count,
+        recent_records,
+        expiring_soon,
+    ) = await asyncio.gather(
         MergeLog.objects.filter(plaid_record__user=user, undone_at__isnull=True).acount(),
         all_user_records.filter(
             transaction_date__gte=start_of_month,
@@ -66,16 +73,44 @@ async def get_dashboard_context(user) -> dict:
         .acount(),
         _fetch_records(
             active_records_qs.order_by("-last_edited")
-            .select_related("folder", "plaid_item")
-            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited", "user_id", "folder_id", "plaid_item_id")[:5]
+            .only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
+                "user_id",
+                "is_active",
+                "record_type",
+                "transaction_date",
+                "notes",
+                "nickname",
+                "payment_method",
+            )[:5]
         ),
         _fetch_records(
             active_records_qs.filter(
                 expiry_date__gte=now.date(), expiry_date__lte=expiring_cutoff.date()
             )
             .order_by("expiry_date")
-            .select_related("folder", "plaid_item")
-            .only("id", "title", "merchant", "balance", "expiry_date", "date_added", "last_edited", "user_id", "folder_id", "plaid_item_id")
+            .only(
+                "id",
+                "title",
+                "merchant",
+                "balance",
+                "expiry_date",
+                "date_added",
+                "last_edited",
+                "user_id",
+                "is_active",
+                "record_type",
+                "transaction_date",
+                "notes",
+                "nickname",
+                "payment_method",
+            )
         ),
     )
 

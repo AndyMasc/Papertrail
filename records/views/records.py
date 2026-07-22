@@ -38,6 +38,7 @@ LIST_FIELDS = (
     "last_edited",
     "payment_method",
     "nickname",
+    "notes",
 )
 
 
