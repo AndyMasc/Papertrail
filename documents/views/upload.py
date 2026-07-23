@@ -15,8 +15,7 @@ from django_ratelimit.decorators import ratelimit
 from records.models import Record
 
 from ..models import DocumentData, DocumentStatus
-from ..services import UploadService
-from ..storage import gatekeeper_validate_r2_object, verify_r2_object_exists
+from ..services import ConfirmUploadService, UploadService
 
 logger = logging.getLogger(__name__)
 
@@ -110,32 +109,11 @@ class ConfirmUploadView(LoginRequiredMixin, View):
                     status=409,
                 )
 
-            if document.filepath != key:
-                logger.warning(
-                    "Key mismatch for doc %s: expected=%s, received=%s",
-                    document_id,
-                    document.filepath,
-                    key,
-                )
-                return JsonResponse({"error": "Key mismatch."}, status=400)
+            service = ConfirmUploadService(document=document, key=key)
+            result = service.confirm()
 
-            if not verify_r2_object_exists(key):
-                document.status = DocumentStatus.ERROR
-                document.save(update_fields=["status"])
-                return JsonResponse({"error": "File not found in storage."}, status=404)
-
-            validation = gatekeeper_validate_r2_object(key)
-            if not validation["valid"]:
-                document.status = DocumentStatus.ERROR
-                document.notes = (
-                    (document.notes or "") + f"\n[Gatekeeper] {validation['error']}"
-                ).strip()
-                document.save(update_fields=["status", "notes"])
-                logger.warning("Gatekeeper rejected doc %s: %s", document_id, validation["error"])
-                return JsonResponse({"error": validation["error"]}, status=422)
-
-            document.status = DocumentStatus.UPLOADED
-            document.save(update_fields=["status"])
+            if not result.success:
+                return JsonResponse({"error": result.error}, status=result.status_code)
 
         return JsonResponse({"status": "confirmed", "document_id": document.id})
 

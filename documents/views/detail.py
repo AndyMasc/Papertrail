@@ -1,29 +1,22 @@
 """Document detail, delete, undo-delete, and hard-delete views."""
 
-import logging
-from datetime import timedelta
 from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
-from django.db import DatabaseError, transaction
-from django.db.models import ProtectedError
+from django.contrib.messages import constants as message_constants
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils import timezone
 from django.views import View
 from django.views.generic import UpdateView
 
 from Papertrail.views import htmx_response
-from records.models import Record
 
 from ..forms import DocumentUpdateForm
 from ..models import DocumentData
-from ..storage import generate_read_presigned_url
-
-logger = logging.getLogger(__name__)
+from ..services import DocumentDeletionService, DocumentDetailService
 
 
 class ViewDocument(LoginRequiredMixin, UpdateView):
@@ -52,44 +45,19 @@ class ViewDocument(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["view_url"] = generate_read_presigned_url(self.object.filepath)
-        seven_years_ago = timezone.now() - timedelta(days=365 * 7)
-        context["seven_years_ago_unix"] = seven_years_ago.timestamp()
-
-        records_list = self._search_records()
-        paginator = Paginator(records_list, 5)
-        page = self.request.GET.get("page", 1)
-
-        try:
-            page_obj = paginator.page(page)
-        except PageNotAnInteger:
-            page_obj = paginator.page(1)
-        except EmptyPage:
-            page_obj = paginator.page(paginator.num_pages)
-
-        context["records"] = page_obj.object_list
-        context["page_obj"] = page_obj
-        context["is_paginated"] = page_obj.has_other_pages()
-
+        ctx = DocumentDetailService.build_context(self.object, self.request)
+        context["view_url"] = ctx.view_url
+        context["seven_years_ago_unix"] = ctx.seven_years_ago_unix
+        context["records"] = ctx.records
+        context["page_obj"] = ctx.page_obj
+        context["is_paginated"] = ctx.is_paginated
         return context
-
-    def _search_records(self):
-        """Return user records matching the current search query for association."""
-        queryset = Record.objects.for_user(self.request.user).active().only("id", "title")
-        search_query = self.request.GET.get("search", "").strip()
-        if search_query:
-            queryset = queryset.smart_search(search_query)
-        return queryset
 
     @transaction.atomic
     def form_valid(self, form) -> HttpResponse:
         if "associated_record" in self.request.POST:
             record_id = self.request.POST.get("associated_record", "").strip()
-            if not record_id:
-                form.instance.associated_record = None
-            else:
-                record = get_object_or_404(Record, pk=record_id, user=self.request.user)
-                form.instance.associated_record = record
+            DocumentDetailService.associate_record(form.instance, record_id, self.request.user)
 
         form.save()
         messages.success(self.request, "Updated successfully.")
@@ -120,27 +88,10 @@ class DeleteDocument(LoginRequiredMixin, View):
             pk=document_id,
         )
         record = document.associated_record
-        try:
-            document.delete()
-            if document.did_ocr:
-                messages.info(
-                    request,
-                    "Document removed from record. Critical documents are preserved for compliance.",
-                )
-            else:
-                messages.success(request, "Document deleted permanently.")
-        except (ProtectedError, DatabaseError) as e:
-            logger.error(
-                "Failed to delete document %s for user %s: %s",
-                document.pk,
-                request.user.pk,
-                e,
-                exc_info=True,
-            )
-            messages.error(
-                request,
-                "Failed to complete deletion safely due to a system error.",
-            )
+        result = DocumentDeletionService.soft_delete(document)
+
+        if not result.success:
+            messages.error(request, result.error or "An error occurred.")
             resp = htmx_response(request)
             if resp is not None:
                 resp["HX-Refresh"] = "true"
@@ -151,6 +102,13 @@ class DeleteDocument(LoginRequiredMixin, View):
                 else reverse("records:view_all_records")
             )
 
+        messages.add_message(
+            request,
+            message_constants.SUCCESS
+            if result.message_tag == "success"
+            else message_constants.INFO,
+            result.message,
+        )
         url = (
             reverse("records:record_detail", kwargs={"pk": record.id})
             if record
@@ -164,11 +122,11 @@ class UndoDeleteDocument(LoginRequiredMixin, View):
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         document = get_object_or_404(DocumentData, pk=pk, user=request.user, is_active=False)
-        document.undo_delete()
-        resp = htmx_response(request, toast="Document restored.")
+        result = DocumentDeletionService.undo_delete(document)
+        resp = htmx_response(request, toast=result.message)
         if resp is not None:
             return resp
-        messages.success(request, "Document restored.")
+        messages.success(request, result.message)
         return redirect("documents:trash_list")
 
 
@@ -177,8 +135,8 @@ class HardDeleteDocumentView(LoginRequiredMixin, View):
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         document = get_object_or_404(DocumentData, pk=pk, user=request.user)
-        seven_years_ago = timezone.now() - timedelta(days=365 * 7)
-        if document.date_added > seven_years_ago:
+
+        if not DocumentDeletionService.is_eligible_for_hard_delete(document):
             resp = htmx_response(
                 request,
                 toast="This document is not old enough for permanent deletion.",
@@ -189,19 +147,18 @@ class HardDeleteDocumentView(LoginRequiredMixin, View):
             messages.error(request, "This document is not old enough for permanent deletion.")
             return redirect("documents:view_document", pk=pk)
 
-        filepath = document.filepath
-        document.hard_delete()
-        if filepath:
+        result = DocumentDeletionService.hard_delete(document)
+        if result.filepath:
             from ..tasks import delete_document
 
-            delete_document(filepath)
+            delete_document(result.filepath)
 
         resp = htmx_response(
             request,
-            toast="Document permanently deleted.",
+            toast=result.message,
             redirect_url=reverse("documents:trash_list"),
         )
         if resp is not None:
             return resp
-        messages.success(request, "Document permanently deleted.")
+        messages.success(request, result.message)
         return redirect("documents:trash_list")

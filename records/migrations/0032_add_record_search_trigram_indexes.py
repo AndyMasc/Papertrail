@@ -22,9 +22,7 @@ class CreateRecordSearchTrigramIndexes(migrations.RunSQL):
         reverse_parts = []
         for field in self._FIELDS:
             name = f"idx_record_{field}_trgm"
-            sql_parts.append(
-                self._SQL_TEMPLATE.format(name=name, field=field)
-            )
+            sql_parts.append(self._SQL_TEMPLATE.format(name=name, field=field))
             reverse_parts.append(self._DROP_TEMPLATE.format(name=name))
 
         super().__init__(
