@@ -1,0 +1,92 @@
+{# Reusable bulk action bar for record selection. #}
+{# Requires Alpine.js x-data with recordBulkActions() scope. #}
+<div x-show="selectedIds.length > 0"
+     x-cloak
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="translate-y-4 opacity-0"
+     x-transition:enter-end="translate-y-0 opacity-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="translate-y-0 opacity-100"
+     x-transition:leave-end="translate-y-4 opacity-0"
+     class="fixed bottom-0 inset-x-0 z-50 sm:bottom-8 sm:left-1/2 sm:inset-x-auto sm:-translate-x-1/2"
+     @keydown.escape.window="clearSelection()">
+
+    <div class="sm:flex sm:items-center sm:gap-3 sm:px-4 sm:py-2.5 sm:bg-zinc-900 sm:text-zinc-300 sm:dark:bg-[#111] sm:dark:text-zinc-400 sm:rounded-xl sm:shadow-xl sm:border sm:border-zinc-800 sm:dark:border-white/10">
+
+        {# Mobile: full-width bar with safe-area padding #}
+        <div class="flex items-center justify-between gap-2 px-4 py-3 bg-zinc-900 text-zinc-300 dark:bg-[#111] dark:text-zinc-400 border-t border-zinc-800 dark:border-white/10 sm:hidden safe-area-pb">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="flex items-center justify-center w-5 h-5 rounded bg-zinc-800 dark:bg-zinc-800 text-zinc-100 text-[11px] font-medium shrink-0" x-text="selectedIds.length"></span>
+                <span class="text-[13px] font-medium whitespace-nowrap text-zinc-100 dark:text-zinc-200">selected</span>
+            </div>
+
+            <div class="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                <button type="button"
+                        @click="toggleSelectAll()"
+                        class="px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer"
+                        x-text="allVisibleSelected ? 'Deselect All' : 'Select All'">
+                </button>
+
+                <button type="button"
+                        @click="bulkArchive()"
+                        :disabled="archiving"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="archiving ? 'Archiving...' : 'Archive'"></span>
+                </button>
+
+                <button type="button"
+                        @click="bulkUnarchive()"
+                        :disabled="unarchiving"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="unarchiving ? 'Restoring...' : 'Restore'"></span>
+                </button>
+
+                <button type="button"
+                        @click="exportSelected()"
+                        :disabled="exporting"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="exporting ? 'Exporting...' : 'Export'"></span>
+                </button>
+            </div>
+        </div>
+
+        {# Desktop: centered floating bar #}
+        <div class="hidden sm:flex sm:items-center sm:gap-3">
+            <div class="flex items-center gap-2">
+                <span class="flex items-center justify-center w-5 h-5 rounded bg-zinc-800 dark:bg-zinc-800 text-zinc-100 text-[11px] font-medium" x-text="selectedIds.length"></span>
+                <span class="text-[13px] font-medium whitespace-nowrap pr-2 text-zinc-100 dark:text-zinc-200">selected</span>
+            </div>
+
+            <div class="w-px h-4 bg-zinc-700 dark:bg-zinc-700"></div>
+
+            <div class="flex items-center gap-1">
+                <button type="button"
+                        @click="toggleSelectAll()"
+                        class="px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer"
+                        x-text="allVisibleSelected ? 'Deselect All' : 'Select All'">
+                </button>
+
+                <button type="button"
+                        @click="bulkArchive()"
+                        :disabled="archiving"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="archiving ? 'Archiving...' : 'Archive'"></span>
+                </button>
+
+                <button type="button"
+                        @click="bulkUnarchive()"
+                        :disabled="unarchiving"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="unarchiving ? 'Restoring...' : 'Restore'"></span>
+                </button>
+
+                <button type="button"
+                        @click="exportSelected()"
+                        :disabled="exporting"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[13px] font-medium rounded hover:bg-zinc-800 dark:hover:bg-zinc-800 hover:text-white dark:hover:text-zinc-100 transition-colors duration-200 whitespace-nowrap cursor-pointer disabled:opacity-50">
+                    <span x-text="exporting ? 'Exporting...' : 'Export'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

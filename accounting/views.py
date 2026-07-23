@@ -1,12 +1,65 @@
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+import json
+import logging
 
-from .services import export_to_excel
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse
+from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
+
+from records.models import Record
+
+from .services import export_records_to_excel, export_to_excel
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
-def ExportExcel(request):
-    excel_data = export_to_excel()
+@ratelimit(key="user", rate="5/h", method="GET", block=True)
+def ExportExcelAll(request: HttpRequest) -> HttpResponse:
+    try:
+        excel_data = export_to_excel(user=request.user)  # type: ignore[arg-type]
+    except Exception:
+        logger.exception("Failed to export records for user %s", request.user.pk)
+        return HttpResponse("Export failed. Please try again later.", status=500)
+
+    response = HttpResponse(
+        excel_data,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="Record_export.xlsx"'
+    return response
+
+
+@login_required
+@ratelimit(key="user", rate="10/h", method="POST", block=True)
+@require_POST
+def ExportSelectedExcel(request: HttpRequest) -> HttpResponse:
+    """Export a subset of records to xlsx.
+
+    Accepts a JSON body with ``{"record_ids": [1, 2, 3]}`` and exports
+    only those records belonging to the user.
+    """
+    try:
+        data = json.loads(request.body)
+        record_ids = data.get("record_ids", [])
+    except (json.JSONDecodeError, AttributeError):
+        return HttpResponse(
+            '{"error": "Invalid request body"}', status=400, content_type="application/json"
+        )
+
+    if not isinstance(record_ids, list) or not all(isinstance(rid, int) for rid in record_ids):
+        return HttpResponse(
+            '{"error": "record_ids must be a list of integers"}',
+            status=400,
+            content_type="application/json",
+        )
+
+    try:
+        queryset = Record.objects.filter(id__in=record_ids, user=request.user)
+        excel_data = export_records_to_excel(queryset=queryset)
+    except Exception:
+        logger.exception("Failed to export selected records for user %s", request.user.pk)
+        return HttpResponse("Export failed. Please try again later.", status=500)
 
     response = HttpResponse(
         excel_data,

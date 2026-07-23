@@ -1,0 +1,117 @@
+{# Reusable Alpine.js data function for bulk record actions. #}
+{# Must be included inside a <script> tag. Uses Django template tags for URLs. #}
+<script>
+    function recordBulkActions() {
+        return {
+            selectedIds: [],
+            allVisibleIds: [],
+            archiving: false,
+            unarchiving: false,
+            exporting: false,
+
+            get allVisibleSelected() {
+                return this.allVisibleIds.length > 0 && this.allVisibleIds.every(id => this.selectedIds.includes(id));
+            },
+
+            toggleSelect(id) {
+                if (this.selectedIds.includes(id)) {
+                    this.selectedIds = this.selectedIds.filter(i => i !== id);
+                } else {
+                    this.selectedIds.push(id);
+                }
+            },
+
+            toggleSelectAll() {
+                if (this.allVisibleSelected) {
+                    this.selectedIds = this.selectedIds.filter(id => !this.allVisibleIds.includes(id));
+                } else {
+                    this.selectedIds = [...new Set([...this.selectedIds, ...this.allVisibleIds])];
+                }
+            },
+
+            clearSelection() {
+                this.selectedIds = [];
+            },
+
+            updateVisibleIds(ids) {
+                this.allVisibleIds = ids;
+            },
+
+            _getCsrfToken() {
+                return document.querySelector('meta[name="csrf-token"]')?.content || '';
+            },
+
+            async bulkArchive() {
+                if (!confirm('Archive ' + this.selectedIds.length + ' record(s)?')) return;
+                this.archiving = true;
+                try {
+                    const response = await fetch("{% url 'records:bulk_archive' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this._getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ record_ids: this.selectedIds.map(Number) }),
+                    });
+                    if (response.ok) {
+                        this.selectedIds = [];
+                        document.body.dispatchEvent(new Event('recordChanged'));
+                    }
+                } finally {
+                    this.archiving = false;
+                }
+            },
+
+            async bulkUnarchive() {
+                if (!confirm('Restore ' + this.selectedIds.length + ' record(s)?')) return;
+                this.unarchiving = true;
+                try {
+                    const response = await fetch("{% url 'records:bulk_unarchive' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this._getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ record_ids: this.selectedIds.map(Number) }),
+                    });
+                    if (response.ok) {
+                        this.selectedIds = [];
+                        document.body.dispatchEvent(new Event('recordChanged'));
+                    }
+                } finally {
+                    this.unarchiving = false;
+                }
+            },
+
+            async exportSelected() {
+                this.exporting = true;
+                try {
+                    const response = await fetch("{% url 'accounting:export_selected_to_excel' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this._getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ record_ids: this.selectedIds.map(Number) }),
+                    });
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'Record_export.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                    }
+                } finally {
+                    this.exporting = false;
+                }
+            },
+        };
+    }
+</script>

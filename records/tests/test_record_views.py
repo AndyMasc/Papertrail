@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -529,3 +530,133 @@ class ArchiveViewHTTPTest(TestCase):
         ).first()
         self.assertIsNotNone(audit)
         self.assertEqual(audit.record_id, record.pk)
+
+
+class BulkArchiveViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="bulkarch", password="pass")
+        self.url = reverse("records:bulk_archive")
+        self.records = [
+            Record.objects.create(
+                user=self.user,
+                title=f"Bulk {i}",
+                record_type="expense_receipt",
+                transaction_date=date(2024, 6, 15),
+            )
+            for i in range(3)
+        ]
+
+    def test_login_required(self):
+        response = self.client.post(
+            self.url,
+            data='{"record_ids": []}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_not_allowed_without_json(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.url, data="not json", content_type="text/plain")
+        self.assertEqual(response.status_code, 400)
+
+    def test_bulk_archive_archives_records(self):
+        self.client.force_login(self.user)
+        ids = [r.pk for r in self.records[:2]]
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": ids}),
+            content_type="application/json",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        for r in Record.objects.filter(pk__in=ids):
+            self.assertFalse(r.is_active)
+        self.assertTrue(Record.objects.filter(pk=self.records[2].pk, is_active=True).exists())
+
+    def test_bulk_archive_creates_audit_logs(self):
+        self.client.force_login(self.user)
+        ids = [r.pk for r in self.records[:2]]
+        self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": ids}),
+            content_type="application/json",
+        )
+        audit_count = AuditLog.objects.filter(
+            user=self.user,
+            action=AuditLog.Action.ARCHIVE,
+        ).count()
+        self.assertEqual(audit_count, 2)
+
+    def test_bulk_archive_skips_already_archived(self):
+        self.records[0].is_active = False
+        self.records[0].save(update_fields=["is_active"])
+        self.client.force_login(self.user)
+        ids = [r.pk for r in self.records]
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": ids}),
+            content_type="application/json",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        audit_count = AuditLog.objects.filter(
+            user=self.user,
+            action=AuditLog.Action.ARCHIVE,
+        ).count()
+        self.assertEqual(audit_count, 2)
+
+    def test_bulk_archive_ignores_other_users_records(self):
+        other = User.objects.create_user(username="bulkother", password="pass")
+        other_record = Record.objects.create(
+            user=other,
+            title="Not mine",
+            record_type="expense_receipt",
+            transaction_date=date(2024, 6, 15),
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": [other_record.pk]}),
+            content_type="application/json",
+        )
+        other_record.refresh_from_db()
+        self.assertTrue(other_record.is_active)
+
+    def test_bulk_archive_htmx_returns_trigger_header(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": [self.records[0].pk]}),
+            content_type="application/json",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        trigger = json.loads(response["HX-Trigger"])
+        self.assertIn("recordChanged", trigger)
+        self.assertIn("showToast", trigger)
+
+    def test_bulk_archive_invalid_json(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            data="not json",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_bulk_archive_empty_list(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self.url,
+            data=json.dumps({"record_ids": []}),
+            content_type="application/json",
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        trigger = json.loads(response["HX-Trigger"])
+        self.assertEqual(trigger["showToast"]["message"], "0 records archived.")
+
+    def test_get_not_allowed(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)

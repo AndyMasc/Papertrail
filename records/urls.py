@@ -73,5 +73,19 @@ urlpatterns = [
         name="manual_merge_modal",
     ),
     path("merges/<int:merge_id>/undo/", views.UndoMergeView.as_view(), name="undo_merge"),
-    path("hard-delete/<int:pk>/", views.HardDeleteRecordView.as_view(), name="hard_delete_record"),
+    path(
+        "hard-delete/<int:pk>/",
+        views.HardDeleteRecordView.as_view(),
+        name="hard_delete_record",
+    ),
+    path(
+        "bulk-archive/",
+        views.BulkArchiveView,
+        name="bulk_archive",
+    ),
+    path(
+        "bulk-unarchive/",
+        views.BulkUnarchiveView,
+        name="bulk_unarchive",
+    ),
 ]

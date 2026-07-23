@@ -14,7 +14,13 @@ from .merges import (
     MergeListView,
     UndoMergeView,
 )
-from .record_state import ArchiveRecord, DeleteRecordView, UnarchiveRecord
+from .record_state import (
+    ArchiveRecord,
+    BulkArchiveView,
+    BulkUnarchiveView,
+    DeleteRecordView,
+    UnarchiveRecord,
+)
 from .records import HardDeleteRecordView, RecordDetailView, RecordListView
 
 __all__ = [
@@ -25,6 +31,8 @@ __all__ = [
     "CheckOCRStatus",
     "HardDeleteRecordView",
     "ArchiveRecord",
+    "BulkArchiveView",
+    "BulkUnarchiveView",
     "UnarchiveRecord",
     "DeleteRecordView",
     "FolderListView",
