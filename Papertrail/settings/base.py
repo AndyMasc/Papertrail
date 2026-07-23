@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     "core.apps.CoreConfig",
     "documents.apps.DocumentsConfig",
     "records.apps.RecordsConfig",
+    "accounting.apps.AccountingConfig",
     # Webpush
     "webpush",
     # Plaid
@@ -356,3 +357,8 @@ PLAID_CLIENT_ID = env("PLAID_CLIENT_ID")
 PLAID_SECRET = env("PLAID_SECRET")
 PLAID_ENV = env("PLAID_ENV")
 PLAID_WEBHOOK_URL = env("PLAID_WEBHOOK_URL")
+
+# Accounting
+IMPORT_EXPORT_ESCAPE_FORMULAE_ON_EXPORT = (
+    True  # Force Excel cell formulas to automatically escape (security measure)
+)

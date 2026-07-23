@@ -109,6 +109,13 @@
                             </div>
                         </div>
                     </div>
+                    <div class="w-full mt-5">
+                        <a 
+                            href="{% url 'accounting:export_to_excel' %}" 
+                            class="text-center dark:bg-white bg-black text-white dark:text-black font-bold w-full py-2 text-xs px-4 rounded-4xl">
+                            Download all data
+                        </a>
+                    </div>
                 </div>
 
                 {# Tab 2: Preferences (Form Auto-Saves via HTMX) #}

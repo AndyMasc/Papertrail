@@ -30,8 +30,10 @@ urlpatterns = [
     path("accounts/password/reset/", forbidden_view),
     # Include allauth normally for everything else
     path("accounts/", include("allauth.urls")),
+    # Local app urls
     path("documents/", include("documents.urls")),
     path("records/", include("records.urls")),
+    path("accounting/", include("accounting.urls")),
     # Webpush
     path(
         "webpush/save_information", safe_webpush_save_info, name="save_webpush_info"
