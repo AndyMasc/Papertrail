@@ -162,15 +162,16 @@ class HardDeleteRecordView(LoginRequiredMixin, View):
 
         from documents.models import DocumentData
 
-        for doc in DocumentData.objects.filter(associated_record=record):
-            doc.hard_delete()
-        AuditLog.objects.create(
-            user=request.user,
-            action=AuditLog.Action.HARD_DELETE,
-            record=record,
-            details={"title": record.title},
-        )
-        record.hard_delete()
+        with transaction.atomic():
+            for doc in DocumentData.objects.filter(associated_record=record):
+                doc.hard_delete()
+            AuditLog.objects.create(
+                user=request.user,
+                action=AuditLog.Action.HARD_DELETE,
+                record=record,
+                details={"title": record.title},
+            )
+            record.hard_delete()
 
         resp = htmx_response(
             request,

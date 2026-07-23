@@ -18,6 +18,8 @@ from django.db.models import Q
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
+from .constants import RECORD_TYPE_COLOR_MAP
+
 User = get_user_model()
 
 _MONTH_MAP = {
@@ -213,25 +215,6 @@ class Record(models.Model):
         INSURANCE_POLICY = "insurance_policy", "Insurance Policy"
         OTHER = "other", "Other"
 
-    COLOR_MAP = {
-        RecordTypes.EXPENSE_RECEIPT.value: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 backdrop-blur-md dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30",
-        RecordTypes.FINANCIAL_DOCUMENT.value: "bg-indigo-900/10 text-indigo-900 border border-indigo-500/30 backdrop-blur-md dark:bg-indigo-400/10 dark:text-indigo-300 dark:border-indigo-500/40",
-        RecordTypes.VOUCHER.value: "bg-amber-500/10 text-amber-700 border border-amber-500/20 backdrop-blur-md dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30",
-        RecordTypes.WARRANTY_CERTIFICATE.value: "bg-green-500/10 text-green-700 border border-green-500/20 backdrop-blur-md dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/30",
-        RecordTypes.VENDOR_INVOICE.value: "bg-blue-500/10 text-blue-700 border border-blue-500/20 backdrop-blur-md dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30",
-        RecordTypes.CUSTOMER_INVOICE.value: "bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 backdrop-blur-md dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30",
-        RecordTypes.LOAN_DOCUMENT.value: "bg-red-500/10 text-red-700 border border-red-500/20 backdrop-blur-md dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30",
-        RecordTypes.CREDIT_CARD_STATEMENT.value: "bg-sky-500/10 text-sky-700 border border-sky-500/20 backdrop-blur-md dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/30",
-        RecordTypes.BANK_STATEMENT.value: "bg-cyan-500/10 text-cyan-700 border border-cyan-500/20 backdrop-blur-md dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/30",
-        RecordTypes.PURCHASE_ORDER.value: "bg-violet-500/10 text-violet-700 border border-violet-500/20 backdrop-blur-md dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/30",
-        RecordTypes.PAYSLIP.value: "bg-lime-500/10 text-lime-700 border border-lime-500/20 backdrop-blur-md dark:bg-lime-500/10 dark:text-lime-400 dark:border-lime-500/30",
-        RecordTypes.TAX_DOCUMENT.value: "bg-purple-500/10 text-purple-700 border border-purple-500/20 backdrop-blur-md dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30",
-        RecordTypes.SERVICE_CONTRACT.value: "bg-teal-500/10 text-teal-700 border border-teal-500/20 backdrop-blur-md dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/30",
-        RecordTypes.LEASE_AGREEMENT.value: "bg-orange-500/10 text-orange-700 border border-orange-500/20 backdrop-blur-md dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30",
-        RecordTypes.INSURANCE_POLICY.value: "bg-rose-500/10 text-rose-700 border border-rose-500/20 backdrop-blur-md dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30",
-        RecordTypes.OTHER.value: "bg-slate-500/10 text-slate-700 border border-slate-500/20 backdrop-blur-md dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/30",
-    }
-
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(
         User,
@@ -325,7 +308,7 @@ class Record(models.Model):
     @property
     def badge_classes(self) -> str:
         """Return Tailwind CSS classes for the record-type badge in the UI."""
-        return self.COLOR_MAP.get(self.record_type, self.COLOR_MAP[self.RecordTypes.OTHER.value])
+        return RECORD_TYPE_COLOR_MAP.get(self.record_type, RECORD_TYPE_COLOR_MAP["other"])
 
     @property
     def is_plaid_record(self) -> bool:
@@ -339,7 +322,6 @@ class Record(models.Model):
             return self.expiry_date < timezone.now().date()
         return False
 
-    @property
     def is_expiring_soon(self, days: int = 30) -> bool:
         """True when the expiry date falls within the next *days* days."""
         if self.expiry_date:

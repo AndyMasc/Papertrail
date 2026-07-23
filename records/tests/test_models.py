@@ -48,15 +48,15 @@ class RecordModelTest(TestCase):
     def test_is_expiring_soon_30_days(self):
         self.record.expiry_date = timezone.now().date() + timedelta(days=29)
         self.record.save()
-        self.assertTrue(self.record.is_expiring_soon)
+        self.assertTrue(self.record.is_expiring_soon())
 
     def test_is_not_expiring_soon_beyond_30(self):
         self.record.expiry_date = timezone.now().date() + timedelta(days=31)
         self.record.save()
-        self.assertFalse(self.record.is_expiring_soon)
+        self.assertFalse(self.record.is_expiring_soon())
 
     def test_is_not_expiring_soon_no_expiry(self):
-        self.assertFalse(self.record.is_expiring_soon)
+        self.assertFalse(self.record.is_expiring_soon())
 
     def test_date_added_auto_now(self):
         self.assertIsNotNone(self.record.date_added)
@@ -302,9 +302,10 @@ class RecordModelTest(TestCase):
         self.assertEqual(qs.count(), 0)
 
     def test_smart_search_year_trumps_month(self):
-        self.record.transaction_date = date(2024, 3, 15)
+        today = timezone.now().date()
+        self.record.transaction_date = date(today.year, 3, 15)
         self.record.save()
-        qs = Record.objects.smart_search(f"{timezone.now().date().year}")
+        qs = Record.objects.smart_search(str(today.year))
         self.assertEqual(qs.count(), 1)
 
 

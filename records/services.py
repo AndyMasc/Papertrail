@@ -5,27 +5,21 @@ signals, tasks, or management commands without duplicating business rules.
 """
 
 from django.contrib.auth.models import User
-from django.http import HttpRequest, HttpResponse
+from django.db import transaction
 
 from .models import AuditLog, Record
 
+BULK_LIMIT = 200
 
-def archive_record(record: Record, request: HttpRequest | None = None) -> HttpResponse | None:
-    """Soft-delete *record* by marking it inactive.
 
-    When called from an HTMX request, returns a 204 response with an
-    ``HX-Trigger`` header so the front-end can react. For standard requests
-    the caller should handle the redirect itself.
-    """
+class BulkLimitExceededError(Exception):
+    """Raised when a bulk operation exceeds the maximum allowed size."""
+
+
+def archive_record(record: Record) -> None:
+    """Soft-delete *record* by marking it inactive."""
     record.is_active = False
     record.save(update_fields=["is_active"])
-
-    if request and request.headers.get("HX-Request") == "true":
-        response = HttpResponse(status=200)
-        response["HX-Trigger"] = "recordChanged"
-        return response
-
-    return None
 
 
 def unarchive_record(record: Record) -> None:
@@ -34,41 +28,51 @@ def unarchive_record(record: Record) -> None:
     record.save(update_fields=["is_active"])
 
 
-def bulk_archive_records(record_ids: list[int], user: User) -> int:
-    """Archive multiple records by ID, scoped to the given user.
+def bulk_toggle_archive(
+    record_ids: list[int],
+    user: User,
+    *,
+    archive: bool,
+) -> int:
+    """Bulk archive or unarchive records for *user*.
 
-    Returns the number of records successfully archived.
-    Each archived record creates an AuditLog entry.
+    Uses ``QuerySet.update()`` and ``bulk_create()`` to avoid N+1 queries.
+    Wraps everything in a single transaction so partial failures roll back.
+
+    Args:
+        record_ids: List of record IDs to toggle.
+        user: The owning user (scoped for safety).
+        archive: ``True`` to archive, ``False`` to unarchive.
+
+    Returns:
+        Number of records affected.
+
+    Raises:
+        BulkLimitExceededError: If *record_ids* contains more than ``BULK_LIMIT`` IDs.
     """
-    records = Record.objects.filter(id__in=record_ids, user=user, is_active=True)
-    count = 0
-    for record in records:
-        record.is_active = False
-        record.save(update_fields=["is_active"])
-        AuditLog.objects.create(
-            user=user,
-            action=AuditLog.Action.ARCHIVE,
-            record=record,
+    if len(record_ids) > BULK_LIMIT:
+        raise BulkLimitExceededError(
+            f"Bulk operations are limited to {BULK_LIMIT} records. Received {len(record_ids)}."
         )
-        count += 1
-    return count
 
+    action = AuditLog.Action.ARCHIVE if archive else AuditLog.Action.UNARCHIVE
 
-def bulk_unarchive_records(record_ids: list[int], user: User) -> int:
-    """Unarchive multiple records by ID, scoped to the given user.
-
-    Returns the number of records successfully restored.
-    Each restored record creates an AuditLog entry.
-    """
-    records = Record.objects.filter(id__in=record_ids, user=user, is_active=False)
-    count = 0
-    for record in records:
-        record.is_active = True
-        record.save(update_fields=["is_active"])
-        AuditLog.objects.create(
-            user=user,
-            action=AuditLog.Action.UNARCHIVE,
-            record=record,
+    with transaction.atomic():
+        records = list(
+            Record.objects.filter(
+                id__in=record_ids,
+                user=user,
+                is_active=archive,
+            )
         )
-        count += 1
-    return count
+        if not records:
+            return 0
+
+        record_ids_found = [r.id for r in records]
+        Record.objects.filter(id__in=record_ids_found).update(is_active=not archive)
+
+        AuditLog.objects.bulk_create(
+            [AuditLog(user=user, action=action, record=record) for record in records]
+        )
+
+    return len(records)

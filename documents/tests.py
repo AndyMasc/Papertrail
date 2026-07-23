@@ -51,7 +51,7 @@ class DocumentDataModelTest(TestCase):
         self.assertEqual(doc.status, DocumentStatus.PENDING_UPLOAD)
         self.assertEqual(doc.file_extension, "pdf")
         self.assertEqual(doc.title, "Untitled")
-        self.assertIsNotNone(doc.created_at)
+        self.assertIsNotNone(doc.date_added)
 
     def test_create_document_data_with_record(self):
         doc = DocumentData.objects.create(

@@ -1,32 +1,49 @@
 -r requirements.txt
 
-# Dev / Tooling
+# Code quality / linting
 bandit==1.9.4
 black==26.5.1
 cssbeautifier==2.0.3
 curlylint==0.13.1
-django-browser-reload==1.21.0
-django-stubs-ext==6.0.6
-django-upgrade==1.31.1
 djhtml==3.0.11
 djlint==1.40.2
 EditorConfig==0.17.1
-execnet==2.1.2
-iniconfig==2.3.0
 jsbeautifier==2.0.3
-libcst==1.8.6
+ruff==0.15.21
+
+# Type checking
+mypy==2.3.0
+mypy_extensions==1.1.0
+types-PyYAML==6.0.12.20260518
+
+# Testing
+pytest==9.1.1
+pytest-django==4.12.0
+pytest-xdist==3.8.0
+
+# Dev tooling
+cookiecutter==2.7.1
 MonkeyType==23.3.0
 pip-check-reqs==2.5.6
 pip-requirements-parser==32.0.1
 pip_audit==2.10.1
-platformdirs==4.10.0
-pluggy==1.6.0
-pytest==9.1.1
-pytest-django==4.12.0
-pytest-xdist==3.8.0
-ruff==0.15.21
+pipreqs==0.4.13
 tokenize_rt==6.2.0
 toml==0.10.2
 tomli==2.4.1
 typeguard==2.13.3
 uv==0.11.28
+
+# Django dev tools (debug toolbar, browser reload)
+django-browser-reload==1.21.0
+django-stubs-ext==6.0.6
+django-upgrade==1.31.1
+
+# Formatting / beautifying
+libcst==1.8.6
+
+# CI / pre-commit
+execnet==2.1.2
+iniconfig==2.3.0
+platformdirs==4.10.0
+pluggy==1.6.0

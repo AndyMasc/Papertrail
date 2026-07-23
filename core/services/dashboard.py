@@ -123,7 +123,6 @@ async def get_dashboard_context(user) -> dict:
         "pending_ocr_count": pending_ocr_count,
     }
 
-    await cache.aset(cache_key, context, timeout=DASHBOARD_CACHE_TTL)
     return context
 
 

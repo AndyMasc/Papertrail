@@ -134,7 +134,6 @@ class DocumentData(models.Model):
         db_index=True,
     )
     is_active = models.BooleanField(default=True, db_index=True)
-    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
