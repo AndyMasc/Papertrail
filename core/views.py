@@ -7,6 +7,8 @@ caches the result to reduce database load on repeated visits.
 import json
 import logging
 import time as _time
+from calendar import month_name
+from datetime import timedelta
 from typing import Any
 
 from asgiref.sync import async_to_sync
@@ -15,18 +17,21 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
 from django.db import DatabaseError, connection
+from django.db.models import Sum
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import TemplateView, UpdateView
+from django_ratelimit.decorators import ratelimit
 from webpush.models import SubscriptionInfo
 from webpush.views import save_info
 
 from .forms import UpdateUserSettingsForm
 from .models import UserSettings
-from .services.dashboard import get_dashboard_context, get_webpush_warning
+from .services.dashboard import get_dashboard_context
 
 logger = logging.getLogger(__name__)
 
@@ -121,22 +126,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:  # noqa: ARG002
         return async_to_sync(self._get_async)(request)
 
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ARG002
-        return async_to_sync(self._context_data_async)()
-
     async def _get_async(self, request: HttpRequest) -> HttpResponse:
         from django.contrib.auth import get_user_model
 
         user = await get_user_model().objects.select_related("settings").aget(pk=request.user.pk)
-        warning = await get_webpush_warning(user)
-        if warning:
-            messages.warning(self.request, warning)
-
-        context = await self._context_data_async()
+        context = await get_dashboard_context(user)
+        if context.get("webpush_warning"):
+            messages.warning(self.request, context["webpush_warning"])
         return self.render_to_response(context)
-
-    async def _context_data_async(self) -> dict[str, Any]:
-        return await get_dashboard_context(self.request.user)
 
 
 class ProfilePageView(LoginRequiredMixin, UpdateView):
@@ -184,3 +181,62 @@ class ProfilePageView(LoginRequiredMixin, UpdateView):
             )
             return response
         return super().form_invalid(form)
+
+
+PERIOD_MONTHS = {"3m": 3, "6m": 6, "1y": 12, "all": None}
+
+
+@require_GET
+@ratelimit(key="user", rate="30/m", method="GET", block=True)
+def expense_chart_data(request: HttpRequest) -> JsonResponse:
+    """Return monthly expense aggregates for the expense chart.
+
+    Query params:
+        period – ``3m``, ``6m``, ``1y``, or ``all`` (default ``1y``).
+
+    Response:
+        ``{"months": [{"label": "Jan 24", "total": 1234.56}, ...], "currency": "$"}``
+    """
+    from django.db.models.functions import TruncMonth
+
+    from records.models import Record
+
+    period = request.GET.get("period", "1y")
+    months_back = PERIOD_MONTHS.get(period)
+
+    now = timezone.now()
+    if months_back is not None:
+        start = now - timedelta(days=months_back * 30)
+    else:
+        earliest = (
+            Record.objects.filter(user=request.user, balance__isnull=False)
+            .order_by("transaction_date")
+            .values_list("transaction_date", flat=True)
+            .first()
+        )
+        start = earliest or (now - timedelta(days=365))
+
+    expenses = (
+        Record.objects.filter(
+            user=request.user,
+            transaction_date__gte=start.date(),
+            transaction_date__lte=now.date(),
+            balance__isnull=False,
+        )
+        .annotate(month=TruncMonth("transaction_date"))
+        .values("month")
+        .annotate(total=Sum("balance"))
+        .order_by("month")
+    )
+
+    months = []
+    for row in expenses:
+        dt = row["month"]
+        months.append(
+            {
+                "label": f"{month_name[dt.month][:3]} {dt.strftime('%y')}",
+                "total": float(row["total"]),
+            }
+        )
+
+    return JsonResponse({"months": months, "currency": "$"})

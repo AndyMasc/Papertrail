@@ -1,0 +1,394 @@
+<div
+    x-data="expenseChart()"
+    x-init="init()"
+    class="relative rounded-2xl bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.04] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden"
+>
+    <div class="p-6 pb-2">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-[14px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+                    Monthly Expenses
+                </h3>
+                <p class="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mt-1 tracking-tight" x-text="summary"></p>
+            </div>
+
+            <div class="flex items-center gap-0.5 p-1 rounded-xl bg-zinc-100/80 dark:bg-zinc-800/50 backdrop-blur-sm ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.06]">
+                <template x-for="p in periods" :key="p.value">
+                    <button
+                        @click="load(p.value)"
+                        :class="period === p.value
+                                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-[0_1px_3px_rgba(0,0,0,0.05)] ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.04]'
+                                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
+                        class="px-3.5 py-1 text-[12px] font-medium tracking-tight rounded-[8px] transition-all duration-200 active:scale-[0.96]"
+                        x-text="p.label"
+                    ></button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <div class="relative px-6 pb-6 mt-4">
+        <div class="relative" style="height: 270px;">
+            <canvas
+                x-ref="canvas"
+                class="absolute inset-0 w-full h-full cursor-crosshair"
+                @mousemove="onHover($event)"
+                @mouseleave="tooltip.visible = false"
+            ></canvas>
+
+            <div
+                x-show="tooltip.visible"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                x-cloak
+                class="absolute z-20 pointer-events-none"
+                :style="`left: ${tooltip.x}px; top: ${tooltip.y}px; transform: translate(-50%, -100%) translateY(-16px);`"
+            >
+                <div class="px-3.5 py-2.5 rounded-xl bg-white/90 dark:bg-zinc-800/90 backdrop-blur-xl text-zinc-900 dark:text-zinc-50 shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.1]">
+                    <div class="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 mb-0.5 tracking-tight uppercase" x-text="tooltip.label"></div>
+                    <div class="text-[14px] font-semibold tracking-tighter tabular-nums" x-text="tooltip.value"></div>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="loading" class="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-[#0a0a0a]/50 backdrop-blur-md z-10 rounded-b-2xl transition-opacity duration-300">
+            <div class="flex items-center gap-2.5 text-[12px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 px-4 py-2 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-xl rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.08)] ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.08]">
+                <svg class="animate-spin h-3.5 w-3.5 text-zinc-900 dark:text-zinc-50" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                    <path class="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Syncing...
+            </div>
+        </div>
+
+        <div x-show="!loading && data.length === 0" x-cloak class="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+            <div class="text-center">
+                <p class="text-[13px] text-zinc-400 dark:text-zinc-600 font-medium tracking-tight">No expense data recorded</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function expenseChart() {
+        return {
+            data: [],
+            period: '1y',
+            loading: true,
+            periods: [
+                { label: '3M', value: '3m' },
+                { label: '6M', value: '6m' },
+                { label: '1Y', value: '1y' },
+                { label: 'All', value: 'all' },
+            ],
+            tooltip: { visible: false, x: 0, y: 0, label: '', value: '' },
+            animation: { progress: 0, frame: null },
+            points: [],
+
+            get summary() {
+                if (this.data.length === 0) return '';
+                const total = this.data.reduce((s, d) => s + d.total, 0);
+                const avg = total / this.data.length;
+                return `${this.data.length} mo · $${this.formatNum(total)} total · $${this.formatNum(avg)}/mo avg`;
+            },
+
+            formatNum(n) {
+                if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+                if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                return n.toFixed(2);
+            },
+
+            formatCurrency(n) {
+                return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            async init() {
+                await this.load(this.period);
+                window.addEventListener('resize', () => this.draw());
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.draw());
+            },
+
+            async load(period) {
+                this.period = period;
+                this.loading = true;
+                this.tooltip.visible = false;
+                try {
+                    const resp = await fetch(`/api/expense-chart/?period=${period}`);
+                    const json = await resp.json();
+                    this.data = json.months;
+                    this.animateIn();
+                } catch (e) {
+                    console.error('Chart load failed:', e);
+                    this.data = [];
+                }
+                this.loading = false;
+            },
+
+            animateIn() {
+                if (this.animation.frame) cancelAnimationFrame(this.animation.frame);
+                this.animation.progress = 0;
+                const start = performance.now();
+                const duration = 800; // slightly longer, smoother ease
+                const tick = (now) => {
+                    const elapsed = now - start;
+                    this.animation.progress = Math.min(elapsed / duration, 1);
+                    this.draw();
+                    if (this.animation.progress < 1) {
+                        this.animation.frame = requestAnimationFrame(tick);
+                    }
+                };
+                this.animation.frame = requestAnimationFrame(tick);
+            },
+
+            draw() {
+                const canvas = this.$refs.canvas;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                const w = rect.width;
+                const h = rect.height;
+
+                canvas.width = w * dpr;
+                canvas.height = h * dpr;
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+                ctx.scale(dpr, dpr);
+
+                ctx.clearRect(0, 0, w, h);
+
+                if (this.data.length === 0) return;
+
+                const padTop = 10;
+                const padBottom = 28;
+                const padLeft = 0;
+                const padRight = 0;
+                const chartW = w - padLeft - padRight;
+                const chartH = h - padTop - padBottom;
+
+                const maxVal = Math.max(...this.data.map(d => d.total), 1);
+                const niceMax = this.niceNum(maxVal);
+
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Ultra-restrained Linear color palette
+                const textColor = isDark ? '#71717a' : '#a1a1aa';
+                const gridColor = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)';
+                const lineColor = isDark ? '#ffffff' : '#09090b';
+
+                const step = chartW / Math.max(this.data.length - 1, 1);
+                const ease = this.easeOutExpo(this.animation.progress);
+
+                this.points = [];
+
+                for (let i = 0; i < this.data.length; i++) {
+                    const x = this.data.length === 1 ? chartW / 2 : padLeft + i * step;
+                    const val = this.data[i].total * ease;
+                    const y = padTop + chartH - (val / niceMax) * chartH;
+                    this.points.push({ x, y, data: this.data[i] });
+                }
+
+                ctx.save();
+
+            // Background Grid Lines
+                const gridSteps = 4;
+                for (let i = 0; i <= gridSteps; i++) {
+                    const y = padTop + (chartH / gridSteps) * i;
+                    ctx.beginPath();
+                    ctx.strokeStyle = gridColor;
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(padLeft, y);
+                    ctx.lineTo(w - padRight, y);
+                    ctx.stroke();
+
+                    const val = niceMax - (niceMax / gridSteps) * i;
+                    ctx.fillStyle = textColor;
+                    ctx.font = '500 10px "Inter", system-ui, sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'middle';
+                // Move text up slightly to sit exactly on the line
+                    ctx.fillText(this.formatNum(val), padLeft + chartW, y - 6);
+                }
+
+            // Single Point State
+                if (this.points.length < 2) {
+                    if (this.points.length === 1) {
+                        const p = this.points[0];
+
+                        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 50);
+                        if (isDark) {
+                            glow.addColorStop(0, 'rgba(255,255,255,0.15)');
+                            glow.addColorStop(1, 'rgba(255,255,255,0)');
+                        } else {
+                            glow.addColorStop(0, 'rgba(0,0,0,0.08)');
+                            glow.addColorStop(1, 'rgba(0,0,0,0)');
+                        }
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 50, 0, Math.PI * 2);
+                        ctx.fillStyle = glow;
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = lineColor;
+                        ctx.fill();
+
+                        ctx.fillStyle = textColor;
+                        ctx.font = '500 11px "Inter", system-ui, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(p.data.label, p.x, padTop + chartH + 10);
+                    }
+                    ctx.restore();
+                    return;
+                }
+
+            // Gradient Fill beneath the line
+                const grad = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
+                if (isDark) {
+                    grad.addColorStop(0, 'rgba(255,255,255,0.1)');
+                    grad.addColorStop(1, 'rgba(255,255,255,0)');
+                } else {
+                    grad.addColorStop(0, 'rgba(0,0,0,0.06)');
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(this.points[0].x, padTop + chartH);
+                for (let i = 0; i < this.points.length; i++) {
+                    const p = this.points[i];
+                    if (i === 0) {
+                        ctx.lineTo(p.x, p.y);
+                    } else {
+                        const prev = this.points[i - 1];
+                        const cpx1 = prev.x + step * 0.4;
+                        const cpx2 = p.x - step * 0.4;
+                        ctx.bezierCurveTo(cpx1, prev.y, cpx2, p.y, p.x, p.y);
+                    }
+                }
+                ctx.lineTo(this.points[this.points.length - 1].x, padTop + chartH);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+            // Main Spline
+                ctx.beginPath();
+                for (let i = 0; i < this.points.length; i++) {
+                    const p = this.points[i];
+                    if (i === 0) {
+                        ctx.moveTo(p.x, p.y);
+                    } else {
+                        const prev = this.points[i - 1];
+                        const cpx1 = prev.x + step * 0.4;
+                        const cpx2 = p.x - step * 0.4;
+                        ctx.bezierCurveTo(cpx1, prev.y, cpx2, p.y, p.x, p.y);
+                    }
+                }
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 2; // Slightly thicker for the Linear bold feel
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+            // X-Axis Labels
+                const maxLabels = Math.min(this.data.length, Math.floor(chartW / 70));
+                const labelInterval = Math.max(1, Math.ceil(this.data.length / maxLabels));
+                ctx.fillStyle = textColor;
+                ctx.font = '500 11px "Inter", system-ui, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                for (let i = 0; i < this.data.length; i += labelInterval) {
+                    ctx.fillText(this.data[i].label, this.points[i].x, padTop + chartH + 12);
+                }
+                if (this.data.length > 1 && (this.data.length - 1) % labelInterval !== 0) {
+                    const last = this.points[this.points.length - 1];
+                    ctx.fillText(this.data[this.data.length - 1].label, last.x, padTop + chartH + 12);
+                }
+
+                ctx.restore();
+            },
+
+            niceNum(val) {
+                if (val <= 0) return 100;
+                const mag = Math.pow(10, Math.floor(Math.log10(val)));
+                const lead = val / mag;
+                let nice;
+                if (lead <= 1) nice = 1;
+                else if (lead <= 2) nice = 2;
+                else if (lead <= 5) nice = 5;
+                else nice = 10;
+                return nice * mag * 1.1;
+            },
+
+            easeOutExpo(x) {
+                return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+            },
+
+            onHover(e) {
+                if (this.points.length === 0) return;
+                const canvas = this.$refs.canvas;
+                const rect = canvas.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+
+                let closest = null;
+                let minDist = Infinity;
+                for (const p of this.points) {
+                    const dist = Math.abs(p.x - mx);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = p;
+                    }
+                }
+
+                if (closest && minDist < 50) {
+                    const tipW = 140;
+                    let tx = closest.x;
+                    if (tx < tipW / 2) tx = tipW / 2;
+                    if (tx > rect.width - tipW / 2) tx = rect.width - tipW / 2;
+
+                    this.tooltip = {
+                        visible: true,
+                        x: tx,
+                        y: closest.y,
+                        label: closest.data.label,
+                        value: this.formatCurrency(closest.data.total),
+                    };
+
+                    this.draw(); // Redraw base
+                    const ctx = this.$refs.canvas.getContext('2d');
+                    const dpr = window.devicePixelRatio || 1;
+                    ctx.save();
+                    ctx.scale(dpr, dpr);
+                    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+                // Draw Vertical Guide Line (Raycast/Linear style)
+                    ctx.beginPath();
+                    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
+                    ctx.setLineDash([4, 4]);
+                    ctx.moveTo(closest.x, closest.y);
+                    ctx.lineTo(closest.x, rect.height - 28);
+                    ctx.stroke();
+
+                // Draw Hover Point Indicator
+                    ctx.beginPath();
+                    ctx.arc(closest.x, closest.y, 4.5, 0, Math.PI * 2);
+                    ctx.fillStyle = isDark ? '#ffffff' : '#09090b';
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.arc(closest.x, closest.y, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = isDark ? '#09090b' : '#ffffff';
+                    ctx.fill();
+
+                    ctx.restore();
+                } else {
+                    this.tooltip.visible = false;
+                    this.draw(); // Clear indicator
+                }
+            },
+        }
+    }
+</script>

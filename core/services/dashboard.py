@@ -51,6 +51,7 @@ async def get_dashboard_context(user) -> dict:
         pending_ocr_count,
         recent_records,
         expiring_soon,
+        webpush_warning,
     ) = await asyncio.gather(
         MergeLog.objects.filter(plaid_record__user=user, undone_at__isnull=True).acount(),
         all_user_records.filter(
@@ -111,6 +112,7 @@ async def get_dashboard_context(user) -> dict:
                 "payment_method",
             )
         ),
+        get_webpush_warning(user),
     )
 
     context = {
@@ -121,6 +123,7 @@ async def get_dashboard_context(user) -> dict:
         "monthly_expenses": monthly_expenses.get("total") or 0,
         "orphaned_document_count": orphaned_count,
         "pending_ocr_count": pending_ocr_count,
+        "webpush_warning": webpush_warning,
     }
 
     return context
