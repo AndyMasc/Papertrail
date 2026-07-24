@@ -1,7 +1,7 @@
 <div>
     {% for merge in merges %}
         <div class="relative last:mb-0 mb-3 group">
-            <div class="block relative rounded-2xl overflow-hidden border border-zinc-200/50 bg-white dark:border-zinc-800/40 dark:bg-zinc-900/10">
+            <div class="block relative rounded-2xl overflow-hidden border border-zinc-200/50 bg-white dark:border-zinc-800/50 dark:bg-zinc-900/20">
 
                 <div class="absolute left-0 top-0 bottom-0 w-[3px] bg-zinc-300 dark:bg-zinc-700"></div>
 
@@ -75,7 +75,7 @@
             </div>
 
             <div class="absolute bottom-3 left-6 top-auto translate-y-0 lg:bottom-auto lg:left-auto lg:right-4 lg:top-1/2 lg:-translate-y-1/2 flex items-center justify-end w-auto z-20 pointer-events-none">
-                <div class="flex items-center gap-1.5 pointer-events-auto lg:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all duration-250 ease-out bg-zinc-50 dark:bg-[#0c0c0e] lg:bg-transparent pr-2 lg:p-0">
+                <div class="flex items-center gap-1.5 pointer-events-auto lg:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all duration-250 ease-out bg-zinc-50 dark:bg-zinc-800/30 lg:bg-transparent pr-2 lg:p-0">
                     {% if not merge.undone_at and merge.plaid_record %}
                         <form method="POST" action="{% url 'records:undo_merge' merge.pk %}">
                             {% csrf_token %}

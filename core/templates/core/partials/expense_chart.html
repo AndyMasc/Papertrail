@@ -1,7 +1,7 @@
 <div
     x-data="expenseChart()"
     x-init="init()"
-    class="relative rounded-2xl bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.04] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden"
+    class="relative rounded-2xl bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl ring-1 ring-inset ring-black/[0.04] dark:ring-white/[0.04] shadow-[0_2px_12px_rgba(0,0,0,0.02)] overflow-hidden transition-all duration-300 hover:bg-white dark:hover:bg-zinc-900/60 hover:ring-black/[0.06] dark:hover:ring-white/[0.08] hover:shadow-[0_4px_20px_rgba(0,0,0,0.04)] active:scale-[0.99]"
 >
     <div class="p-6 pb-2">
         <div class="flex items-start justify-between gap-4">
@@ -175,7 +175,7 @@
 
                 const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-            // Ultra-restrained Linear color palette
+            // Restrained color palette
                 const textColor = isDark ? '#71717a' : '#a1a1aa';
                 const gridColor = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)';
                 const lineColor = isDark ? '#ffffff' : '#09090b';
@@ -289,7 +289,7 @@
                     }
                 }
                 ctx.strokeStyle = lineColor;
-                ctx.lineWidth = 2; // Slightly thicker for the Linear bold feel
+                ctx.lineWidth = 2; // Slightly thicker
                 ctx.lineCap = 'round';
                 ctx.stroke();
 
@@ -364,26 +364,6 @@
                     ctx.scale(dpr, dpr);
                     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-                // Draw Vertical Guide Line (Raycast/Linear style)
-                    ctx.beginPath();
-                    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
-                    ctx.setLineDash([4, 4]);
-                    ctx.moveTo(closest.x, closest.y);
-                    ctx.lineTo(closest.x, rect.height - 28);
-                    ctx.stroke();
-
-                // Draw Hover Point Indicator
-                    ctx.beginPath();
-                    ctx.arc(closest.x, closest.y, 4.5, 0, Math.PI * 2);
-                    ctx.fillStyle = isDark ? '#ffffff' : '#09090b';
-                    ctx.fill();
-
-                    ctx.beginPath();
-                    ctx.arc(closest.x, closest.y, 2, 0, Math.PI * 2);
-                    ctx.fillStyle = isDark ? '#09090b' : '#ffffff';
-                    ctx.fill();
-
-                    ctx.restore();
                 } else {
                     this.tooltip.visible = false;
                     this.draw(); // Clear indicator
