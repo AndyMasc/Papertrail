@@ -114,7 +114,9 @@ class CustomUser(AbstractUser):
     ) -> bool:
         """Cancel overlapping subscription if it has conflicting categories.
 
-        Returns True if a conflict was found and handled, False otherwise.
+        Returns False only when a conflicting plan was found but could not be
+        cancelled at Stripe; True when there was no conflict or the
+        cancellation succeeded.
         """
         for old_item in old_sub.items.select_related("price__product").all():
             old_product = old_item.price.product if old_item.price else None
@@ -138,13 +140,18 @@ class CustomUser(AbstractUser):
                     old_sub.id,
                     e,
                 )
+                return False
             return True
 
-        return False
+        return True
 
-    def handle_new_subscription(self, djstripe_subscription: Subscription) -> None:
+    def handle_new_subscription(self, djstripe_subscription: Subscription) -> bool:
         """Processes an incoming checkout, updating the primary subscription and
         canceling overlapping category subscriptions.
+
+        Returns True when every overlapping legacy subscription was cleared
+        successfully (or none existed), False when at least one could not be
+        cancelled at Stripe and the user may be billed twice.
         """
         if not self.customer:
             self.customer = djstripe_subscription.customer
@@ -156,6 +163,7 @@ class CustomUser(AbstractUser):
             self.subscription = djstripe_subscription
             self.save(update_fields=["subscription"])
 
+        overlaps_cleared = True
         active_subs = Subscription.objects.filter(customer=self.customer)
         for old_sub in active_subs:
             sub_status = (old_sub.stripe_data or {}).get("status")
@@ -165,9 +173,12 @@ class CustomUser(AbstractUser):
             if old_sub.id == djstripe_subscription.id:
                 continue
 
-            self._cancel_overlapping_subscription(
+            if not self._cancel_overlapping_subscription(
                 old_sub, djstripe_subscription.id, incoming_categories
-            )
+            ):
+                overlaps_cleared = False
+
+        return overlaps_cleared
 
 
 class ScanUsage(models.Model):

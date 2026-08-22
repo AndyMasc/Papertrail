@@ -17,7 +17,6 @@ from rest_framework.views import APIView
 
 from ..models import PlaidItem
 from ..plaid_client import client
-from ..tasks import sync_and_convert_for_item_task
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -107,8 +106,19 @@ class SyncTransactionsView(APIView):
                 )
                 return Response({"error": "Failed to trigger sync via Plaid"}, status=502)
         else:
-            # Direct background task dispatch for Live/Production
-            sync_and_convert_for_item_task.send(plaid_item.id)
+            # Route through the atomic per-item cooldown so a user hammering
+            # this button cannot overlap an in-flight webhook or periodic sync
+            # for the same item (duplicate cursors → IntegrityError churn).
+            from ..services import dispatch_sync
+
+            dispatched = dispatch_sync(plaid_item)
+            if not dispatched:
+                return Response(
+                    {
+                        "status": "sync_skipped",
+                        "detail": "A sync already ran recently. Try again in a minute.",
+                    }
+                )
 
         # Invalidate status cache on manual sync trigger
         cache.delete(f"plaid_status:{request.user.id}")
@@ -131,7 +141,17 @@ class DisconnectBankView(APIView):
         try:
             client.item_remove(ItemRemoveRequest(access_token=plaid_item.access_token))
         except plaid.ApiException:
-            logger.exception("Failed to remove Plaid item %s from Plaid dashboard", item_id)
+            logger.exception(
+                "Failed to remove Plaid item %s at Plaid; keeping local record", item_id
+            )
+            cache.delete(f"plaid_status:{request.user.id}")
+            return Response(
+                {
+                    "error": "We couldn't reach Plaid to disconnect your bank. "
+                    "No changes were made — please try again in a moment."
+                },
+                status=502,
+            )
 
         plaid_item.delete()
         cache.delete(f"plaid_status:{request.user.id}")

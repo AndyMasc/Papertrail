@@ -113,7 +113,7 @@ class StoragePackEntitlementTests(TestCase):
         )
         self.assertEqual(
             " + ".join(p.name for p in metadata.active_products_for_user(self.user)),
-            "Verity Pro + 100GB Storage Upgrade",
+            "Verity Pro + 50GB Storage Pack",
         )
 
     def test_limit_is_15_when_addon_shares_customer(self):
@@ -128,7 +128,7 @@ class StoragePackEntitlementTests(TestCase):
         )
         self.assertEqual(
             " + ".join(p.name for p in metadata.active_products_for_user(self.user)),
-            "Verity Pro + 25GB Storage Upgrade",
+            "Verity Pro + 10GB Storage Pack",
         )
 
     def test_limit_is_15_when_addon_on_stray_customer(self):
@@ -190,7 +190,17 @@ class StoragePackConfirmFlowTests(TestCase):
         self.user.subscription = self.pro_sub
         self.user.save()
 
-    def _run_confirm(self, storage_sub, session_customer):
+    def _run_confirm(
+        self,
+        storage_sub,
+        session_customer,
+        *,
+        items=None,
+        cancel_side_effect=None,
+        follow=False,
+    ):
+        if items is None:
+            items = {"data": []}
         patchers = [
             mock.patch(
                 "billing.services.retrieve_checkout_session",
@@ -201,22 +211,85 @@ class StoragePackConfirmFlowTests(TestCase):
             ),
             mock.patch(
                 "billing.services.retrieve_subscription",
-                return_value={"id": storage_sub.id, "items": {"data": []}},
+                return_value={"id": storage_sub.id, "items": items},
             ),
             mock.patch(
                 "billing.models.stripe.Subscription.retrieve",
-                return_value={"id": storage_sub.id, "items": {"data": []}},
+                return_value={"id": storage_sub.id, "items": items},
             ),
             mock.patch(
                 "billing.views.Subscription.sync_from_stripe_data",
                 return_value=storage_sub,
             ),
         ]
+        if cancel_side_effect is not None:
+            patchers.append(
+                mock.patch(
+                    "billing.services.cancel_subscription",
+                    side_effect=cancel_side_effect,
+                )
+            )
         for p in patchers:
             p.start()
         self.addCleanup(mock.patch.stopall)
         self.client.force_login(self.user)
-        return self.client.get(reverse("subscription_confirm"), {"session_id": "cs_storage"})
+        return self.client.get(
+            reverse("subscription_confirm"), {"session_id": "cs_storage"}, follow=follow
+        )
+
+    def _incoming_storage_sub(self, sub_id="sub_storage_incoming"):
+        incoming = Subscription.objects.create(
+            id=sub_id,
+            livemode=False,
+            created=timezone.now(),
+            customer=self.customer,
+            stripe_data={"status": "active"},
+        )
+        SubscriptionItem.objects.create(
+            id="si_" + sub_id,
+            livemode=False,
+            created=timezone.now(),
+            subscription=incoming,
+            price=Price.objects.get(id="price_storage"),
+        )
+        return incoming
+
+    def _storage_items(self):
+        return {"data": [{"price": {"product": metadata.STORAGE_UPGRADE_10.stripe_id}}]}
+
+    def test_confirm_cancels_overlapping_addon(self):
+        from django.contrib.messages import get_messages
+
+        self._make_storage_sub()
+        incoming = self._incoming_storage_sub()
+        with mock.patch("billing.services.cancel_subscription") as cancel_mock:
+            response = self._run_confirm(
+                incoming,
+                session_customer="cus_pro",
+                items=self._storage_items(),
+                follow=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        cancel_mock.assert_called_once_with("sub_storage")
+        messages = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertTrue(any("updated successfully" in m for m in messages))
+
+    def test_confirm_warns_when_overlap_cancel_fails(self):
+        from django.contrib.messages import get_messages
+
+        self._make_storage_sub()
+        incoming = self._incoming_storage_sub()
+        response = self._run_confirm(
+            incoming,
+            session_customer="cus_pro",
+            items=self._storage_items(),
+            cancel_side_effect=stripe.error.StripeError("boom"),
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        messages = [str(m) for m in get_messages(response.wsgi_request)]
+        self.assertFalse(any("updated successfully" in m for m in messages))
+        self.assertTrue(any("couldn't automatically cancel" in m for m in messages))
 
     def test_confirm_flow_adds_storage_limit(self):
         storage_sub = self._make_storage_sub()

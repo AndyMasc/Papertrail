@@ -42,7 +42,7 @@ def _mark_verified_in_session(request: HttpRequest, package: ReimbursementPackag
     request.session[f"{_VERIFIED_SESSION_PREFIX}:{package.uuid}"] = True
 
 
-@method_decorator(ratelimit(key="ip", rate="60/m", method="GET"), name="dispatch")
+@method_decorator(ratelimit(key="ip", rate="60/m", method="GET", block=True), name="dispatch")
 class PackagePayView(View):
     """Public view of a package for external payment.
 

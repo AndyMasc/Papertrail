@@ -75,6 +75,7 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: Verity.settings.ci
+      DJANGO_ENV: ci
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/verity
       DB_SSLMODE: disable
       REDIS_URL: redis://localhost:6379/0

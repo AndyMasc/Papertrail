@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from core.currencies import to_stripe_amount
-from core.exchange_rates import convert as convert_currency
+from core.exchange_rates import convert_strict as convert_currency
 from core.exchange_rates import get_rates
 from records.models import Record
 
@@ -105,8 +105,13 @@ def _line_item_for(record, payer_currency: str, rates) -> tuple[dict, Decimal] |
 
 
 def _fallback_line_item(package, payer_currency: str) -> CheckoutItems:
-    """A single whole-package line item, or empty items when nothing is payable."""
-    fallback_cents = converted_total_cents(package, payer_currency)
+    """A single whole-package line item, or empty items when nothing is payable.
+
+    Raises ExchangeRateUnavailableError when the total needs a rate we don't have —
+    same strictness as per-record conversion, since this amount is billed.
+    """
+    target_total = _strict_converted_total(package, payer_currency)
+    fallback_cents = to_stripe_amount(target_total, payer_currency)
     if fallback_cents <= 0:
         return CheckoutItems()
     return CheckoutItems(
@@ -121,8 +126,21 @@ def _fallback_line_item(package, payer_currency: str) -> CheckoutItems:
             }
         ],
         total_cents=fallback_cents,
-        total_amount=converted_total(package, payer_currency),
+        total_amount=target_total,
     )
+
+
+def _strict_converted_total(package, to_currency: str) -> Decimal:
+    """Sum of active record balances converted strictly to "to_currency"."""
+    cache = getattr(package, "_prefetched_objects_cache", {})
+    items = CurrencyConverter.get_active_record_items(cache, package.records)
+    if not items:
+        return Decimal("0.00")
+    rates = get_rates("USD")
+    total = Decimal("0")
+    for amount, from_currency in items:
+        total += convert_currency(amount, from_currency, to_currency, rates=rates)
+    return total
 
 
 def detail_items(package, user_currency: str) -> PackageDetailItems:

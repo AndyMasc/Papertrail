@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.dispatch import receiver
 
-from core.currencies import ZERO_DECIMAL_CURRENCIES
+from core.currencies import from_stripe_amount
 from records.models import AuditLog
 
 from . import services
@@ -136,9 +136,44 @@ def apply_paid_session(payment, session, *, source: str) -> bool:
     if not payment.amount_matches(session_data):
         return False
 
+    package = payment.package
+
+    # A deleted package must never move money: refund the payer instead of
+    # completing the settlement (the creator deleted it mid-checkout).
+    if package.is_deleted:
+        logger.warning(
+            "Package %s was deleted before settlement of session %s — auto-refunding",
+            package.uuid,
+            session_data.get("id"),
+        )
+        _refund_captured_payment(payment, event="package_deleted_before_settlement")
+        payment.mark_failed()
+        AuditLog.objects.create(
+            user=package.creator,
+            action=AuditLog.Action.UPDATE_RECORD,
+            details={
+                "event": "checkout_after_delete_refunded",
+                "package_uuid": str(package.uuid),
+                "stripe_session_id": session_data.get("id"),
+            },
+        )
+        return False
+
+    # Defense in depth against a second concurrent checkout settling after the
+    # first: only the package's own OPEN→PAID transition may complete a
+    # not-yet-completed payment.
+    if package.status == ReimbursementPackage.Status.PAID and not payment.is_completed:
+        logger.error(
+            "Package %s is already paid — refusing duplicate settlement of session %s",
+            package.uuid,
+            session_data.get("id"),
+        )
+        _refund_captured_payment(payment, event="duplicate_settlement")
+        payment.mark_failed()
+        return False
+
     already_completed = payment.is_completed
     payment.complete_from_session(session_data)
-    package = payment.package
     payer_currency = payment.payer_currency or "usd"
     package.mark_as_paid(payer=payment.payer, payer_currency=payer_currency)
 
@@ -221,8 +256,44 @@ def _payment_from_charge(charge_id: str):
     return _payment_for_payment_intent(payment_intent_id)
 
 
-def _revert_package_payment(payment, *, event: str, **extra) -> None:
-    """Mark a payment failed and revert its package to open, with an audit log."""
+def _revert_package_payment(payment, *, event: str, refund: bool = True, **extra) -> None:
+    """Mark a payment failed and revert its package to open, with an audit log.
+
+    Money safety: when the payer's charge was already CAPTURED (transfer.failed
+    leaves funds with the platform while the creator never gets paid), a refund
+    is issued BEFORE reopening. If that refund cannot be created, the package
+    stays settled and ops is flagged instead — reopening would let another
+    payer fund an open package while the original charge sits with us, which
+    previously meant the payer kept paying and was never paid back.
+    Refunds use deterministic idempotency keys, so retries never double-refund.
+
+    Set "refund=False" when the payer has already been made whole through
+    another rail (full external refund, lost chargeback).
+    """
+    refunded = False
+    if refund:
+        refunded = _refund_captured_payment(payment, event=event)
+        if not refunded and payment.is_completed:
+            AuditLog.objects.create(
+                user=payment.package.creator,
+                action=AuditLog.Action.UPDATE_RECORD,
+                details={
+                    "event": "auto_refund_failed",
+                    "package_uuid": str(payment.package.uuid),
+                    "payment_intent": payment.stripe_payment_intent_id,
+                    "trigger": event,
+                    **extra,
+                },
+            )
+            logger.critical(
+                "Package %s: captured charge %s could not be auto-refunded after %s — "
+                "package left settled; manual refund required",
+                payment.package.uuid,
+                payment.stripe_payment_intent_id,
+                event,
+            )
+            return
+
     payment.mark_failed()
     payment.package.mark_as_refunded()
     AuditLog.objects.create(
@@ -231,9 +302,41 @@ def _revert_package_payment(payment, *, event: str, **extra) -> None:
         details={
             "event": event,
             "package_uuid": str(payment.package.uuid),
+            "payer_refunded": refunded,
             **extra,
         },
     )
+
+
+def _refund_captured_payment(payment, *, event: str) -> bool:
+    """Refund a completed payment's captured charge via Stripe.
+
+    Returns True when the refund succeeded, False when there is nothing to
+    refund or the refund failed. Never raises: callers branch on the result.
+    """
+    if not payment.is_completed:
+        return False
+    payment_intent_id = payment.stripe_payment_intent_id
+    if not payment_intent_id:
+        return False
+    try:
+        services.create_refund(payment_intent_id, reason=event)
+    except stripe.error.InvalidRequestError as e:
+        # Typically "already refunded" / "charge not capturable" — nothing more to do.
+        logger.warning("Refund skipped for payment intent %s (%s): %s", payment_intent_id, event, e)
+        return False
+    except stripe.error.StripeError:
+        logger.exception(
+            "Auto-refund failed for payment intent %s after %s", payment_intent_id, event
+        )
+        return False
+    logger.warning(
+        "Payer auto-refunded for package %s after %s (payment_intent=%s)",
+        payment.package.uuid,
+        event,
+        payment_intent_id,
+    )
+    return True
 
 
 def _restore_paid_payment(payment, *, event: str, **extra) -> None:
@@ -353,14 +456,10 @@ def _handle_charge_refunded(event):
     amount_refunded_cents = charge.get("amount_refunded") or 0
     amount_captured_cents = charge.get("amount_captured") or 0
 
-    refunded_display = (
-        float(amount_refunded_cents)
-        if charge_currency.lower() in ZERO_DECIMAL_CURRENCIES
-        else amount_refunded_cents / 100
-    )
+    refunded_display = from_stripe_amount(amount_refunded_cents, charge_currency)
 
     logger.warning(
-        "Charge refunded — payment_intent: %s, amount: %s %.2f",
+        "Charge refunded — payment_intent: %s, amount: %s %s",
         payment_intent_id,
         charge_currency.upper(),
         refunded_display,
@@ -373,9 +472,12 @@ def _handle_charge_refunded(event):
 
     is_full_refund = amount_refunded_cents >= amount_captured_cents
     if is_full_refund:
+        # The payer already received this money back via the external refund;
+        # issuing another would pay out twice. Revert only.
         _revert_package_payment(
             payment,
             event="charge_refunded",
+            refund=False,
             payment_intent=payment_intent_id,
             amount_refunded_cents=amount_refunded_cents,
             amount_captured_cents=amount_captured_cents,
@@ -428,11 +530,37 @@ def _handle_dispute(event):
         )
         return
 
-    _revert_package_payment(
-        payment,
-        event="charge_dispute",
-        dispute_id=dispute_id,
-        status=status,
+    if event["type"] == "charge.dispute.closed" and status == "lost":
+        # The chargeback has already returned funds to the cardholder; refunding
+        # again would pay out twice. Revert without a Stripe refund.
+        _revert_package_payment(
+            payment,
+            event="charge_dispute_lost",
+            refund=False,
+            dispute_id=dispute_id,
+            status=status,
+        )
+        return
+
+    # Non-terminal dispute (created / under_review / evidence submitted): the
+    # package previously reopened here, letting a third party fund it while the
+    # original charge was contested and platform funds sat in limbo. Freeze
+    # instead — the package stays settled until the dispute closes.
+    AuditLog.objects.create(
+        user=payment.package.creator,
+        action=AuditLog.Action.UPDATE_RECORD,
+        details={
+            "event": "charge_dispute_open",
+            "package_uuid": str(payment.package.uuid),
+            "dispute_id": dispute_id,
+            "status": status,
+        },
+    )
+    logger.critical(
+        "Dispute %s open (status=%s) on package %s — package frozen pending resolution",
+        dispute_id,
+        status,
+        payment.package.uuid,
     )
 
 

@@ -202,6 +202,10 @@ def _bulk_create_update_records(to_create: list[Record], to_update: list[Record]
                 "folder",
                 "payment_method",
                 "last_edited",
+                # Plaid corrections can re-add ("resurrect") a transaction that
+                # was previously removed; without this the record stays
+                # inactive forever with no recovery path.
+                "is_active",
             ],
         )
 

@@ -154,11 +154,13 @@ class BulkShareView(LoginRequiredMixin, View):
                 continue
             total_shares += len(shares)
 
+        resolved_recipients = [u for u in recipients if u.pk != request.user.pk]
         return JsonResponse(
             {
                 "success": True,
                 "shared": total_shares,
                 "records": len(owned),
+                "recipients": len(resolved_recipients),
                 "unknown": sorted(unknown),
                 "self_skipped": self_skipped,
             }

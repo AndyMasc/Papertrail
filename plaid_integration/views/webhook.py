@@ -89,7 +89,12 @@ def plaid_webhook(request: HttpRequest) -> HttpResponse:
     except (ValueError, TypeError):
         return HttpResponseBadRequest("Invalid JSON")
 
-    if settings.PLAID_ENV != "sandbox" and not verify_plaid_webhook(
+    # Signature verification is mandatory everywhere except a local sandbox
+    # run: any internet-reachable deployment (including staging left on
+    # PLAID_ENV=sandbox) must reject forged webhooks, which can otherwise
+    # trigger syncs, fake error states, and soft-delete records.
+    verification_required = not (settings.DEBUG and settings.PLAID_ENV == "sandbox")
+    if verification_required and not verify_plaid_webhook(
         request.body, request.headers.get("Plaid-Verification")
     ):
         logger.warning("Plaid webhook verification failed for %s", payload.get("item_id"))

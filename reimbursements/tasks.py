@@ -138,6 +138,21 @@ def reconcile_pending_payments_task() -> None:
             )
 
 
+@dramatiq.actor(max_retries=3, min_backoff=300, periodic=cron("30 4 * * *"))
+def daily_stripe_reconciliation_task() -> None:
+    """Compare local money state against Stripe once a day.
+
+    The 15-minute pending-payment sync catches missed settlement webhooks;
+    this is the wider drift net: settled amounts/currencies verified against
+    Stripe, PAID packages cross-checked against completed payments. Findings
+    log CRITICAL (Sentry) and land in the audit trail for manual review.
+    Transient Stripe failures raise so Dramatiq retries the whole run.
+    """
+    from .reconciliation import run_daily_reconciliation
+
+    run_daily_reconciliation()
+
+
 @dramatiq.actor
 def send_package_paid_notification_task(package_pk: int, payer_pk: int | None) -> None:
     from django.contrib.auth import get_user_model
@@ -155,6 +170,10 @@ def send_package_paid_notification_task(package_pk: int, payer_pk: int | None) -
         try:
             payer = get_user_model().objects.get(pk=payer_pk)
         except get_user_model().DoesNotExist:
-            pass
+            logger.warning(
+                "Payer %s for package %s no longer exists; sending anonymised notification",
+                payer_pk,
+                package_pk,
+            )
 
     send_package_paid_notification(package, payer)

@@ -65,7 +65,7 @@ VERITY_PRO = ProductMetadata(
 
 STORAGE_UPGRADE_10 = ProductMetadata(
     stripe_id="prod_V0dPTSMZjCZNuk",
-    name="25GB Storage Upgrade",
+    name="10GB Storage Pack",
     description="",
     category="storage_plan",
     features=[
@@ -76,7 +76,7 @@ STORAGE_UPGRADE_10 = ProductMetadata(
 
 STORAGE_UPGRADE_50 = ProductMetadata(
     stripe_id="prod_V1l2wc31fzcmgH",
-    name="100GB Storage Upgrade",
+    name="50GB Storage Pack",
     description="",
     category="storage_plan",
     features=[

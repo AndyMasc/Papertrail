@@ -315,6 +315,7 @@ class TestShareViews(SharingTestCase):
         assert response.status_code == 200, response.content
         data = response.json()
         assert data["shared"] == 2
+        assert data["recipients"] == 1
         assert data["unknown"] == []
         assert data["self_skipped"] == 0
 

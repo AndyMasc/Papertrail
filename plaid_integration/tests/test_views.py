@@ -83,10 +83,22 @@ class PlaidViewsTest(TestCase):
         response2 = self.client.get(reverse("plaid:status"))
         self.assertEqual(response1.json(), response2.json())
 
-    def test_disconnect_bank(self):
+    @patch("plaid_integration.views.status.client")
+    def test_disconnect_bank(self, mock_client):
         response = self.client.post(reverse("plaid:disconnect", args=["item-123"]))
         self.assertEqual(response.status_code, 200)
+        mock_client.item_remove.assert_called_once()
         self.assertFalse(PlaidItem.objects.filter(item_id="item-123").exists())
+
+    @patch("plaid_integration.views.status.client")
+    def test_disconnect_bank_plaid_failure_keeps_item(self, mock_client):
+        import plaid
+
+        mock_client.item_remove.side_effect = plaid.ApiException(status=502, reason="Bad Gateway")
+        response = self.client.post(reverse("plaid:disconnect", args=["item-123"]))
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("error", response.json())
+        self.assertTrue(PlaidItem.objects.filter(item_id="item-123").exists())
 
     def test_disconnect_bank_not_found(self):
         response = self.client.post(reverse("plaid:disconnect", args=["nonexistent"]))

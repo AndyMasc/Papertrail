@@ -150,16 +150,29 @@ class ExportSelectedExcelViewTest(TestCase):
 
     def test_does_not_export_other_users_records(self, _mock_rl):
         other_record = Record.objects.create(user=self.other_user, title="Their record")
+        own_record = Record.objects.create(user=self.user, title="My record")
         self.client.force_login(self.user)
         response = self.client.post(
             EXPORT_SELECTED_URL,
-            data=json.dumps({"record_ids": [other_record.pk]}),
+            data=json.dumps({"record_ids": [other_record.pk, own_record.pk]}),
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
         rows = _parse_xlsx_sheet_rows(response.content)
         titles = [row[rows[0].index("title")] for row in rows[1:] if "title" in rows[0]]
         self.assertNotIn("Their record", titles)
+        self.assertIn("My record", titles)
+
+    def test_no_exportable_records_returns_400(self, _mock_rl):
+        other_record = Record.objects.create(user=self.other_user, title="Their record")
+        self.client.force_login(self.user)
+        response = self.client.post(
+            EXPORT_SELECTED_URL,
+            data=json.dumps({"record_ids": [other_record.pk]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("error", response.json())
 
     def test_invalid_json_returns_400(self, _mock_rl):
         self.client.force_login(self.user)

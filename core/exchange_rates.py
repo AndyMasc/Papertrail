@@ -8,6 +8,16 @@ from core.currencies import get_currency_decimals
 
 logger = logging.getLogger(__name__)
 
+
+class ExchangeRateUnavailableError(Exception):
+    """A required exchange rate could not be obtained.
+
+    Raised by convert_strict() on money-moving paths where billing an
+    unconverted amount would charge the raw number in the wrong currency.
+    Display-only callers should keep using lenient convert().
+    """
+
+
 CACHE_KEY = "exchange_rates:v2"
 CACHE_KEY_STALE = "exchange_rates:v2:stale"
 CACHE_TTL = 86_400  # 24 hours
@@ -102,6 +112,37 @@ def convert(amount: Decimal, from_curr: str, to_curr: str, rates: dict[str, Deci
     decimals = get_currency_decimals(to_curr)
     quant_target = Decimal("1") if decimals == 0 else Decimal(f"0.{'0' * decimals}")
 
+    return converted.quantize(quant_target, rounding=ROUND_HALF_UP)
+
+
+def convert_strict(
+    amount: Decimal, from_curr: str, to_curr: str, rates: dict[str, Decimal]
+) -> Decimal:
+    """Convert like convert(), but raise instead of passing amounts through unchanged.
+
+    Money-moving paths (checkout line items, platform fees) must never bill a
+    raw unconverted number when rates are unavailable — e.g. a JPY 5,000 record
+    would otherwise be charged as USD 5,000.00 during an FX outage.
+    """
+    from_curr = _upper(from_curr)
+    to_curr = _upper(to_curr)
+
+    if from_curr == to_curr or not amount:
+        return Decimal(str(amount))
+
+    from_rate = rates.get(from_curr)
+    to_rate = rates.get(to_curr)
+
+    if from_rate is None:
+        raise ExchangeRateUnavailableError(f"No exchange rate available for {from_curr}")
+    if to_rate is None:
+        raise ExchangeRateUnavailableError(f"No exchange rate available for {to_curr}")
+    if from_rate == 0 or to_rate == 0:
+        raise ExchangeRateUnavailableError(f"Invalid zero exchange rate for {from_curr}/{to_curr}")
+
+    converted = Decimal(str(amount)) * (to_rate / from_rate)
+    decimals = get_currency_decimals(to_curr)
+    quant_target = Decimal("1") if decimals == 0 else Decimal(f"0.{'0' * decimals}")
     return converted.quantize(quant_target, rounding=ROUND_HALF_UP)
 
 

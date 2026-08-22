@@ -60,9 +60,17 @@ def subscription_confirm(request: HttpRequest) -> HttpResponse:
         return HttpResponseBadRequest("Invalid session payload.")
 
     djstripe_subscription = Subscription.sync_from_stripe_data(subscription)
-    subscription_holder.handle_new_subscription(djstripe_subscription)
+    overlaps_cleared = subscription_holder.handle_new_subscription(djstripe_subscription)
 
-    messages.success(request, "Your subscription has been updated successfully!")
+    if overlaps_cleared:
+        messages.success(request, "Your subscription has been updated successfully!")
+    else:
+        messages.warning(
+            request,
+            "Your new plan is active, but we couldn't automatically cancel your previous "
+            "overlapping plan at Stripe. Please cancel it from the billing portal or contact "
+            "support to avoid being charged twice.",
+        )
     return redirect("core:dashboard")
 
 

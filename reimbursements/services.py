@@ -6,7 +6,9 @@ tested in one place, and always use djstripe's mode-aware secret key.
 
 import hashlib
 import logging
+import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 import stripe
@@ -19,15 +21,18 @@ from billing.services import _configure
 from billing.services import (
     retrieve_checkout_session as _retrieve_billing_checkout_session,
 )
-from core.exchange_rates import get_rates
+from core.exchange_rates import ExchangeRateUnavailableError, get_rates
 from records.models import Record
 
 from .models import PackageDraft, PackagePayment, ReimbursementPackage
 
 logger = logging.getLogger(__name__)
 
-# Make idempotency keys unique per checkout attempt.
-_IDEMPOTENCY_PREFIX = "checkout"
+# Placeholder session-id prefix for a payment row claimed before its Stripe
+# Checkout Session exists. Lets concurrent checkouts detect an in-flight
+# attempt instead of racing to create duplicate sessions.
+PENDING_SESSION_PREFIX = "pending:"
+PENDING_SESSION_STALENESS = timedelta(minutes=15)
 
 
 @dataclass
@@ -88,6 +93,20 @@ def retrieve_payment_intent(payment_intent_id: str) -> stripe.PaymentIntent:
     return stripe.PaymentIntent.retrieve(str(payment_intent_id))
 
 
+def create_refund(payment_intent_id: str, *, reason: str) -> stripe.Refund:
+    """Refund a captured PaymentIntent with a deterministic idempotency key.
+
+    The key is stable per (reason, payment intent) so webhook/task retries can
+    never double-refund: Stripe replays the first refund's result instead.
+    Raises "stripe.error.StripeError" on failure.
+    """
+    _configure()
+    return stripe.Refund.create(
+        payment_intent=str(payment_intent_id),
+        idempotency_key=f"refund:{reason}:{payment_intent_id}",
+    )
+
+
 def get_payment_success_package(user, package_uuid: str) -> ReimbursementPackage | None:
     """Return the package referenced by a payment-success redirect, if visible to "user".
 
@@ -127,26 +146,72 @@ def create_package_checkout(
 ) -> CheckoutOutcome:
     """Create a Stripe Checkout Session for "package" and record the payment.
 
-    The package row is locked for the duration of the attempt so concurrent
-    checkouts cannot double-pay it. Returns the Stripe-hosted checkout URL on
-    success, or a user-facing error message when the package is no longer
-    payable or Stripe rejects the session.
+    Concurrency: the package row is locked while an attempt is claimed and a
+    PackagePayment row (with a "pending:" placeholder session id) is inserted.
+    A concurrent checkout therefore sees the in-flight attempt instead of
+    racing ahead to create a second session — previously two simultaneous
+    payers could both be charged with transfers on both PaymentIntents.
+
+    Idempotency: the Stripe key is derived from the payment row's primary key,
+    so a lost response retried by Dramatiq resolves to the SAME session at
+    Stripe rather than minting a duplicate. (Timestamp-salted keys were unique
+    per attempt and deduplicated nothing.)
+
+    Returns the Stripe-hosted checkout URL on success, or a user-facing error
+    message when the package is no longer payable, rates are unavailable, or
+    Stripe rejects the session.
     """
     ok, error = package.can_be_paid_by(payer)
     if not ok:
         return CheckoutOutcome(error=error)
 
-    with transaction.atomic():
-        locked = package.lock_for_payment()
-        if locked is None:
-            return CheckoutOutcome(error="This package is no longer available for payment.")
-        existing_url = package.resumable_session_url()
-        if existing_url:
-            return CheckoutOutcome(redirect_url=existing_url)
+    try:
+        with transaction.atomic():
+            locked = package.lock_for_payment()
+            if locked is None:
+                return CheckoutOutcome(error="This package is no longer available for payment.")
 
-    items = package.build_line_items(currency)
-    if not items.line_items:
-        return CheckoutOutcome(error="This package has no payable items.")
+            latest_incomplete = (
+                locked.payments.filter(is_completed=False).order_by("-created_at").first()
+            )
+            if latest_incomplete is not None:
+                if latest_incomplete.stripe_checkout_session_id.startswith(PENDING_SESSION_PREFIX):
+                    if timezone.now() - latest_incomplete.created_at < PENDING_SESSION_STALENESS:
+                        return CheckoutOutcome(
+                            error=(
+                                "A checkout is already being prepared for this package. "
+                                "Please wait a few seconds and try again."
+                            )
+                        )
+                    # Crashed attempt from a previous deploy: reclaim it.
+                    latest_incomplete.delete()
+                else:
+                    existing_url = locked.resumable_session_url()
+                    if existing_url:
+                        return CheckoutOutcome(redirect_url=existing_url)
+
+            items = locked.build_line_items(currency)
+            if not items.line_items:
+                return CheckoutOutcome(error="This package has no payable items.")
+
+            # Recorded before any Stripe call so exactly one attempt exists per
+            # claim; converted cents are stored for exact settlement matching.
+            payment = PackagePayment.objects.create(
+                package=locked,
+                payer=payer,
+                stripe_checkout_session_id=f"{PENDING_SESSION_PREFIX}{uuid.uuid4()}",
+                amount_paid=items.total_amount,
+                expected_amount_cents=items.total_cents,
+                payer_currency=currency,
+            )
+    except ExchangeRateUnavailableError as e:
+        logger.error("Checkout blocked for package %s: %s", package.uuid, e)
+        return CheckoutOutcome(
+            error=(
+                "Currency exchange rates are temporarily unavailable. "
+                "No charge was made — please try again shortly."
+            )
+        )
 
     checkout_args: dict[str, Any] = {
         "payment_method_types": ["card"],
@@ -174,30 +239,25 @@ def create_package_checkout(
             }
         )
 
+    # Stable per-attempt key: retries reuse it, concurrent attempts cannot.
+    idempotency_key = hashlib.sha256(f"checkout:{payment.pk}".encode()).hexdigest()
+
     try:
-        idempotency_key = hashlib.sha256(
-            (
-                f"{_IDEMPOTENCY_PREFIX}:{package.uuid}:"
-                f"{getattr(payer, 'id', 'external')}:{timezone.now().timestamp()}"
-            ).encode()
-        ).hexdigest()
         checkout_session = create_checkout_session(**checkout_args, idempotency_key=idempotency_key)
     except stripe.error.StripeError:
         logger.exception("Failed to create Stripe Checkout Session for package %s", package.uuid)
+        # Remove the claim so the next attempt starts clean; nothing financial
+        # was recorded yet.
+        payment.delete()
         return CheckoutOutcome(
             error="Unable to initiate payment session with Stripe. Please try again later."
         )
 
-    # Record the payment before redirecting so the row exists before Stripe can
-    # fire checkout.session.completed after the user finishes paying.
-    with transaction.atomic():
-        PackagePayment.objects.create(
-            package=package,
-            payer=payer,
-            stripe_checkout_session_id=checkout_session.id,
-            amount_paid=items.total_amount,
-            payer_currency=currency,
-        )
+    # Point the payment row at the real session. Until this save lands, webhook
+    # handlers that look the session up re-raise and retry, so settlement waits
+    # for the row instead of being lost.
+    payment.stripe_checkout_session_id = checkout_session.id
+    payment.save(update_fields=["stripe_checkout_session_id"])
 
     return CheckoutOutcome(redirect_url=checkout_session.url)
 

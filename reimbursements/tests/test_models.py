@@ -1,11 +1,12 @@
 """Tests for reimbursements domain models."""
 
+import math
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 import stripe
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from records.models import Record
@@ -219,17 +220,41 @@ class PackageBusinessLogicTest(TestCase):
         self.assertEqual(items.line_items, [])
         self.assertEqual(items.total_cents, 0)
 
-    def test_platform_fee_cents_normal(self):
+    def test_platform_fee_covers_stripe_costs_plus_net_margin(self):
         fee = self.pkg.platform_fee_cents(10000, "usd", {"USD": Decimal("1")})
-        self.assertEqual(fee, 300)
+        # $3.20 processing estimate (3.2% of $100) + $0.30 fixed + $1.00 net margin.
+        self.assertEqual(fee, 450)
 
-    def test_platform_fee_cents_minimum_floor(self):
+    def test_platform_fee_small_payment_uses_net_floor(self):
         fee = self.pkg.platform_fee_cents(1000, "usd", {"USD": Decimal("1")})
-        self.assertEqual(fee, 50)
+        # 32c processing estimate + 30c fixed + 25c net floor (beats 1% = 10c).
+        self.assertEqual(fee, 87)
 
-    def test_platform_fee_cents_capped_at_total(self):
+    def test_platform_fee_never_exceeds_total(self):
         fee = self.pkg.platform_fee_cents(20, "usd", {"USD": Decimal("1")})
         self.assertEqual(fee, 20)
+
+    def test_platform_net_margin_guaranteed_across_sizes(self):
+        for total in (500, 2000, 5000, 25000, 100000):
+            with self.subTest(total=total):
+                fee = self.pkg.platform_fee_cents(total, "usd", {"USD": Decimal("1")})
+                if fee == total:
+                    continue  # degenerate micro-payment: Stripe costs exceed the charge
+                processing_estimate = math.ceil(total * Decimal("0.032")) + 30
+                self.assertGreaterEqual(fee - processing_estimate, 25)
+
+    @override_settings(PLATFORM_NET_PERCENT="0.02")
+    def test_platform_net_percent_configurable_via_settings(self):
+        fee = self.pkg.platform_fee_cents(10000, "usd", {"USD": Decimal("1")})
+        # $3.20 processing estimate + $0.30 fixed + 2% net margin ($2.00).
+        self.assertEqual(fee, 550)
+
+    def test_platform_fee_zero_decimal_currency(self):
+        rates = {"USD": Decimal("1"), "JPY": Decimal("150")}
+        fee = self.pkg.platform_fee_cents(1000, "jpy", rates)
+        # Processing: ceil(1000 x 3.2%) = 32 units; fixed $0.30 -> JPY 45;
+        # net margin: max(ceil(1000 x 1%) = 10, $0.25 -> JPY 38) = 38 units.
+        self.assertEqual(fee, 115)
 
     def test_lock_for_payment_open(self):
         self.assertIsNotNone(self.pkg.lock_for_payment())

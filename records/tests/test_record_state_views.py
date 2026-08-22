@@ -350,6 +350,8 @@ class BulkArchiveViewTest(TestCase):
         trigger = json.loads(response["HX-Trigger"])
         self.assertIn("recordChanged", trigger)
         self.assertIn("showToast", trigger)
+        self.assertEqual(trigger["showToast"]["text"], "1 record archived.")
+        self.assertEqual(trigger["showToast"]["tags"], "success")
 
     def test_bulk_archive_invalid_json(self):
         self.client.force_login(self.user)

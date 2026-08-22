@@ -255,8 +255,9 @@ class StripeWebhookTest(TestCase):
         )
         self.assertTrue(partial_refund_logs.exists())
 
+    @patch("reimbursements.services.create_refund")
     @patch("reimbursements.services.retrieve_charge")
-    def test_transfer_failed_resolves_via_source_charge(self, mock_retrieve):
+    def test_transfer_failed_resolves_via_source_charge(self, mock_retrieve, mock_refund):
         creator = _user("creator@test.com")
         payer = _user("payer@test.com")
         pkg = _package(creator, payer)
@@ -306,7 +307,8 @@ class StripeWebhookTest(TestCase):
         pkg.refresh_from_db()
         self.assertEqual(pkg.status, ReimbursementPackage.Status.PAID)
 
-    def test_charge_failed_marks_package_refunded(self):
+    @patch("reimbursements.services.create_refund")
+    def test_charge_failed_marks_package_refunded(self, mock_refund):
         creator = _user("creator@test.com")
         payer = _user("payer@test.com")
         pkg = _package(creator, payer)
@@ -333,6 +335,8 @@ class StripeWebhookTest(TestCase):
             )
         )
 
+        # A captured charge must be returned to the payer before reopening.
+        mock_refund.assert_called_once()
         payment.refresh_from_db()
         pkg.refresh_from_db()
         self.assertFalse(payment.is_completed)
@@ -376,8 +380,9 @@ class StripeWebhookTest(TestCase):
         pkg.refresh_from_db()
         self.assertEqual(pkg.status, ReimbursementPackage.Status.OPEN)
 
+    @patch("reimbursements.services.create_refund")
     @patch("reimbursements.services.retrieve_payment_intent")
-    def test_charge_failed_resolves_via_payment_intent_metadata(self, mock_pi):
+    def test_charge_failed_resolves_via_payment_intent_metadata(self, mock_pi, mock_refund):
         creator = _user("creator@test.com")
         payer = _user("payer@test.com")
         pkg = _package(creator, payer)
@@ -412,7 +417,12 @@ class StripeWebhookTest(TestCase):
         self.assertEqual(pkg.status, ReimbursementPackage.Status.OPEN)
 
     @patch("reimbursements.services.retrieve_charge")
-    def test_dispute_created_reverts_package(self, mock_charge):
+    def test_dispute_created_freezes_package(self, mock_charge):
+        """Non-terminal disputes freeze the package instead of reopening it.
+
+        Reverting mid-dispute let a third party fund an open package while the
+        original charge was contested; resolution arrives via .closed events.
+        """
         creator = _user("creator@test.com")
         payer = _user("payer@test.com")
         pkg = _package(creator, payer)
@@ -444,9 +454,14 @@ class StripeWebhookTest(TestCase):
 
         mock_charge.assert_called_once_with("ch_dispute")
         payment = PackagePayment.objects.get(stripe_checkout_session_id="cs_dispute")
-        self.assertFalse(payment.is_completed)
+        self.assertTrue(payment.is_completed)
         pkg.refresh_from_db()
-        self.assertEqual(pkg.status, ReimbursementPackage.Status.OPEN)
+        self.assertEqual(pkg.status, ReimbursementPackage.Status.PAID)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                details__event="charge_dispute_open", details__dispute_id="dp_1"
+            ).exists()
+        )
 
     @patch("reimbursements.services.retrieve_charge")
     def test_dispute_closed_lost_reverts_package(self, mock_charge):

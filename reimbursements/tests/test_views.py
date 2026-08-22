@@ -173,6 +173,26 @@ class CreatePackageFromRecordsViewTest(TestCase):
         self.assertIn("redirect_url", data)
         self.assertTrue(ReimbursementPackage.objects.filter(title="Test Reimbursement").exists())
 
+    def test_unavailable_records_are_reported(self, _mock_notify, _mock_rl):
+        r = _record(self.user)
+        other_record = _record(_user("someone-else@test.com"))
+        response = self.client.post(
+            self.url,
+            data=json.dumps(
+                {
+                    "record_ids": [r.id, other_record.id],
+                    "title": "Partial Package",
+                    "recipient_email": self.recipient.email,
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        pkg = ReimbursementPackage.objects.get(title="Partial Package")
+        self.assertEqual(pkg.records.count(), 1)
+        messages = list(getattr(response.wsgi_request, "_messages", []))
+        self.assertTrue(any("1 of 2" in m.message for m in messages))
+
     def test_self_send_rejected(self, _mock_notify, _mock_rl):
         r = _record(self.user)
         response = self.client.post(
@@ -457,3 +477,38 @@ class PublicPayFlowTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Request already paid")
         self.assertNotContains(resp, "External Request")
+
+
+@patch("django_ratelimit.decorators.is_ratelimited", return_value=False)
+class PackageDeleteViewTest(TestCase):
+    def setUp(self):
+        self.creator = _user("creator@test.com")
+        self.recipient = _user("recipient@test.com")
+        self.pkg = _package(self.creator, recipient=self.recipient, status="open")
+        self.url = reverse("reimbursements:package-delete", kwargs={"package_uuid": self.pkg.uuid})
+
+    def test_recipient_cannot_delete_open_package_ajax_returns_403(self, _mock_rl):
+        self.client.force_login(self.recipient)
+        response = self.client.post(self.url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("error", response.json())
+        self.pkg.refresh_from_db()
+        self.assertIsNone(self.pkg.deleted_at)
+
+    def test_creator_can_delete_package(self, _mock_rl):
+        self.client.force_login(self.creator)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.pkg.refresh_from_db()
+        self.assertIsNotNone(self.pkg.deleted_at)
+
+    def test_ajax_delete_failure_returns_502_and_keeps_package(self, _mock_rl):
+        self.client.force_login(self.creator)
+        with patch(
+            "reimbursements.services.revoke_package_access", side_effect=RuntimeError("boom")
+        ):
+            response = self.client.post(self.url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("error", response.json())
+        self.pkg.refresh_from_db()
+        self.assertIsNone(self.pkg.deleted_at)

@@ -1,7 +1,7 @@
 import logging
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
@@ -46,6 +46,10 @@ def ExportSelectedExcel(request: HttpRequest) -> HttpResponse:
 
     try:
         queryset = Record.objects.filter(id__in=record_ids, user=request.user)
+        if record_ids and not queryset.exists():
+            return JsonResponse(
+                {"error": "None of the selected records can be exported."}, status=400
+            )
         excel_data = export_records_to_excel(queryset=queryset)
     except Exception:
         logger.exception("Failed to export selected records for user %s", request.user.pk)

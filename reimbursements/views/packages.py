@@ -129,6 +129,11 @@ class PackageDeleteView(LoginRequiredMixin, View):
         )
 
         if not package.can_delete(request.user):
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {"error": "You do not have permission to delete this package."},
+                    status=403,
+                )
             messages.error(request, "You do not have permission to delete this package.")
             return redirect(
                 reverse(
@@ -137,7 +142,26 @@ class PackageDeleteView(LoginRequiredMixin, View):
                 )
             )
 
-        package.delete_package(request.user)
+        if not package.delete_package(request.user):
+            logger.error(
+                "Package %s could not be deleted by user %s (revocation failure)",
+                package.uuid,
+                request.user.id,
+            )
+            error_msg = (
+                "We couldn't revoke the recipient's access, so the package wasn't "
+                "deleted. Please try again."
+            )
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"error": error_msg}, status=502)
+            messages.error(request, error_msg)
+            return redirect(
+                reverse(
+                    "reimbursements:package-detail",
+                    kwargs={"package_uuid": package.uuid},
+                )
+            )
+
         logger.info("Package %s soft-deleted by user %s", package.uuid, request.user.id)
         messages.success(request, "Package deleted.")
 
@@ -197,6 +221,15 @@ class CreatePackageFromRecordsView(LoginRequiredMixin, ReimbursementRequestRequi
         )
         if error:
             return JsonResponse({"error": error}, status=400)
+
+        attached = package.records.count()
+        requested = len(set(record_ids))
+        if attached < requested:
+            messages.warning(
+                request,
+                f"Only {attached} of {requested} selected records could be included — "
+                "the rest are unavailable.",
+            )
 
         send_package_created_notification(package)
 

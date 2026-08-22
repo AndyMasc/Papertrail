@@ -245,17 +245,27 @@ class ReimbursementPackage(models.Model):
         return user == self.creator or (self.status == self.Status.PAID and user == self.recipient)
 
     def delete_package(self, user: User) -> bool:
-        """Soft-deletes the package. Returns True if successful, False if unauthorized."""
+        """Soft-deletes the package after revoking recipient access.
+
+        Access is revoked BEFORE the package is marked deleted: if revocation
+        fails, the package is left untouched so the deletion can be retried,
+        rather than deleting a package whose recipient still holds live view
+        grants. Returns True if the package was deleted, False if unauthorized
+        or revocation failed.
+        """
         if not self.can_delete(user):
+            return False
+        from .services import revoke_package_access
+
+        try:
+            revoke_package_access(self)
+        except Exception:
+            logger.exception(
+                "Failed to revoke access for package %s; leaving it undeleted", self.uuid
+            )
             return False
         self.deleted_at = timezone.now()
         self.save(update_fields=["deleted_at"])
-        try:
-            from .services import revoke_package_access
-
-            revoke_package_access(self)
-        except Exception:
-            logger.exception("Failed to revoke access for deleted package %s", self.uuid)
         return True
 
     def mark_as_paid(self, payer: User | None, payer_currency: str | None = None):
@@ -292,7 +302,8 @@ class ReimbursementPackage(models.Model):
                 notes = (
                     f"Reimbursement package '{self.title}' paid to {self.creator.email}. "
                     f"Amount: {format_currency(converted, record_currency)}. "
-                    f"Date: {locked.paid_at.strftime('%Y-%m-%d')}."
+                    f"Date: {locked.paid_at.strftime('%Y-%m-%d')}. "
+                    f"(package {self.uuid})"
                 )
                 Record.objects.create(
                     user=payer,
@@ -340,10 +351,16 @@ class ReimbursementPackage(models.Model):
             self.paid_at = locked.paid_at
             self.records.filter(is_active=True).update(reimbursed=False)
             if previous_payer:
+                # Match the payer's receipt by its package uuid (recorded in
+                # notes since this annotation existed); fall back to the
+                # title+merchant pair for legacy records. Title alone is too
+                # generic — unrelated records can share it.
                 Record.objects.filter(
                     user=previous_payer,
-                    title=f"Reimbursement: {self.title}",
                     record_type=Record.RecordTypes.EXPENSE_RECEIPT,
+                ).filter(
+                    Q(notes__icontains=str(self.uuid))
+                    | Q(title=f"Reimbursement: {self.title}", merchant=self.creator.email)
                 ).update(notes=Concat("notes", models.Value(" [REFUNDED]")))
         # Refunds reopen the workflow, so restore the recipient's access.
         try:
@@ -408,6 +425,8 @@ class ReimbursementPackage(models.Model):
         """
         if user == self.creator:
             return False, "You cannot pay for your own reimbursement package."
+        if self.deleted_at is not None:
+            return False, "This reimbursement package is no longer available."
         if self.is_expired:
             return False, "This reimbursement package has expired."
         if self.status == self.Status.PAID:
@@ -460,8 +479,9 @@ class ReimbursementPackage(models.Model):
         return checkout.build_line_items(self, payer_currency)
 
     def platform_fee_cents(self, total_cents: int, payer_currency: str, rates) -> int:
-        """Compute the platform fee for a Connect transfer, clamped to the
-        converted Stripe minimum and the payment total."""
+        """Compute the application fee for a destination charge: estimated
+        Stripe processing costs plus the guaranteed platform net margin,
+        clamped to the payment total."""
         return PlatformFeeCalculator.compute(total_cents, payer_currency, rates)
 
     def detail_items(self, user_currency: str) -> PackageDetailItems:
@@ -511,6 +531,10 @@ class PackagePayment(models.Model):
         max_length=255, blank=True, default="", db_index=True
     )
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2)
+    # Exact expected total in Stripe's smallest unit, captured when the
+    # checkout attempt is claimed. Null for legacy rows created before this
+    # field existed.
+    expected_amount_cents = models.PositiveIntegerField(null=True, blank=True)
     payer_currency = models.CharField(max_length=3, default=DEFAULT_CURRENCY)
     is_completed = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -522,9 +546,11 @@ class PackagePayment(models.Model):
         """Cross-check the settled checkout amount against the expected total.
 
         Prevents a session for a different/edited amount from being treated as
-        a completed payment. A small tolerance absorbs the rounding difference
-        between Stripe's per-line-item cent rounding and the stored converted
-        total.
+        a completed payment. When "expected_amount_cents" was recorded at
+        claim time (all new payments), settlement must match to the exact
+        cent: per-line-item rounding is already baked into that figure, so no
+        tolerance is needed — and a tolerance would let small systematic
+        underpayments settle a package.
         """
         session_currency = (session.get("currency") or self.payer_currency).lower()
         amount_total = session.get("amount_total")
@@ -545,16 +571,28 @@ class PackagePayment(models.Model):
             )
             return False
         settled = from_stripe_amount(amount_total, session_currency)
-        expected = self.amount_paid
-        tolerance = max(Decimal("0.02"), expected * Decimal("0.01"))
-        if abs(settled - expected) > tolerance:
+        if self.expected_amount_cents is not None:
+            if int(amount_total) != int(self.expected_amount_cents):
+                logger.error(
+                    "Package %s: session %s settled %s cents but %s were expected — refusing to mark as paid",
+                    self.package_id,
+                    session.get("id"),
+                    amount_total,
+                    self.expected_amount_cents,
+                )
+                return False
+            return True
+        # Legacy rows without a recorded expectation: compare against the
+        # stored decimal with a one-cent allowance for rounding only.
+        expected_cents = to_stripe_amount(self.amount_paid, self.payer_currency)
+        if abs(int(amount_total) - expected_cents) > 1:
             logger.error(
                 "Package %s: session %s settled amount %s %s does not match expected %s %s — refusing to mark as paid",
                 self.package_id,
                 session.get("id"),
                 settled,
                 session_currency,
-                expected,
+                self.amount_paid,
                 self.payer_currency,
             )
             return False

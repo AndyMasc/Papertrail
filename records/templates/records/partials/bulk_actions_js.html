@@ -112,14 +112,15 @@ this.recipientStatus = '';
                             emails: emails.join(', '),
                         }),
                     });
-                    const data = await response.json().catch(() => ({}));
-                    if (response.ok) {
+                    const data = await response.json().catch(() => null);
+                    if (response.ok && data && typeof data.shared === 'number') {
                         this.showShareModal = false;
                         this.selectedIds = [];
+                        const recipientCount = typeof data.recipients === 'number' ? data.recipients : emails.length;
                         if (data.shared > 0) {
                             this._toast(
                                 'Shared ' + data.shared + ' record' + (data.shared === 1 ? '' : 's') +
-                                ' with ' + emails.length + ' recipient' + (emails.length === 1 ? '' : 's') + '.',
+                                ' with ' + recipientCount + ' recipient' + (recipientCount === 1 ? '' : 's') + '.',
                                 25
                             );
                             if (data.unknown?.length) {
@@ -133,7 +134,7 @@ this.recipientStatus = '';
                             this._toast('Selected records are already shared with the recipient.', 40);
                         }
                     } else {
-                        this.shareError = data.error || 'Failed to share records.';
+                        this.shareError = (data && data.error) || 'Failed to share records. Please try again.';
                     }
                 } catch {
                     this.shareError = 'A network error occurred. Please try again.';
@@ -263,10 +264,18 @@ this.recipientStatus = '';
                         },
                         body: JSON.stringify({ record_ids: ids.map(Number) }),
                     });
-                    if (response.ok) {
-                        this._toast('Records archived.', 25);
+                    const data = await response.json().catch(() => ({}));
+                    if (response.ok && typeof data.count === 'number') {
+                        if (data.count === ids.length) {
+                            this._toast('Archived ' + data.count + ' record' + (data.count === 1 ? '' : 's') + '.', 25);
+                        } else {
+                            this._rollbackOptimisticRemove(ids);
+                            this._toast(
+                                'Archived ' + data.count + ' of ' + ids.length + ' records — the rest were skipped.',
+                                30
+                            );
+                        }
                     } else {
-                        const data = await response.json().catch(() => ({}));
                         this._toast(data.error || 'Failed to archive records.', 40);
                         this._rollbackOptimisticRemove(ids);
                     }
@@ -295,10 +304,18 @@ this.recipientStatus = '';
                         },
                         body: JSON.stringify({ record_ids: ids.map(Number) }),
                     });
-                    if (response.ok) {
-                        this._toast('Records restored.', 25);
+                    const data = await response.json().catch(() => ({}));
+                    if (response.ok && typeof data.count === 'number') {
+                        if (data.count === ids.length) {
+                            this._toast('Restored ' + data.count + ' record' + (data.count === 1 ? '' : 's') + '.', 25);
+                        } else {
+                            this._rollbackOptimisticRemove(ids);
+                            this._toast(
+                                'Restored ' + data.count + ' of ' + ids.length + ' records — the rest were skipped.',
+                                30
+                            );
+                        }
                     } else {
-                        const data = await response.json().catch(() => ({}));
                         this._toast(data.error || 'Failed to restore records.', 40);
                         this._rollbackOptimisticRemove(ids);
                     }
@@ -334,7 +351,8 @@ this.recipientStatus = '';
                         a.remove();
                         window.URL.revokeObjectURL(url);
                     } else {
-                        this._toast('Export failed.', 40);
+                        const err = await response.json().catch(() => ({}));
+                        this._toast(err.error || 'Export failed.', 40);
                     }
                 } catch {
                     this._toast('A network error occurred during export.', 40);

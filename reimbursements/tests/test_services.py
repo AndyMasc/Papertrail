@@ -83,3 +83,17 @@ class ReimbursementRecordAccessTest(TestCase):
         pkg.delete_package(self.creator)
         share = RecordShare.objects.get(record=r1, user=self.recipient)
         self.assertIsNotNone(share.revoked_at)
+
+    def test_delete_package_keeps_package_when_revocation_fails(self):
+        from unittest import mock
+
+        pkg, r1, _ = self._package_with_records()
+        with mock.patch(
+            "reimbursements.services.revoke_package_access", side_effect=RuntimeError("boom")
+        ):
+            result = pkg.delete_package(self.creator)
+        self.assertFalse(result)
+        pkg.refresh_from_db()
+        self.assertIsNone(pkg.deleted_at)
+        share = RecordShare.objects.get(record=r1, user=self.recipient)
+        self.assertIsNone(share.revoked_at)

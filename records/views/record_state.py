@@ -106,7 +106,7 @@ def _bulk_response(
             {
                 "recordChanged": {},
                 "showToast": {
-                    "message": f"{count} record{'s' if count != 1 else ''} {verb}.",
+                    "text": f"{count} record{'s' if count != 1 else ''} {verb}.",
                     "tags": "success",
                 },
             }
