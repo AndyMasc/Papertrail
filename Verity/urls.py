@@ -21,13 +21,13 @@ def forbidden_view(request, *args, **kwargs):  # noqa: ARG001
 
 
 handler403 = "Verity.views.handler403"
-
+admin_url = settings.ADMIN_URL
 
 urlpatterns = [
     # Landing page
     path("", include("core.urls")),
     # Admin URLs
-    path("admin/", admin.site.urls),
+    path(admin_url, admin.site.urls),
     # Block password management paths completely
     path("accounts/password/change/", forbidden_view),
     path("accounts/password/set/", forbidden_view),

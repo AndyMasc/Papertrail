@@ -24,6 +24,7 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 ROOT_URLCONF = "Verity.urls"
 WSGI_APPLICATION = "Verity.wsgi.application"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+ADMIN_URL = env("ADMIN_URL", default="admin/")
 
 # Database
 database_config = env.db("DATABASE_URL", default="sqlite:///db.sqlite3")

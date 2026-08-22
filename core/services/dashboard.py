@@ -83,7 +83,7 @@ async def get_dashboard_context(user) -> dict:
     user_settings = await sync_to_async(UserSettings.objects.get_or_create)(user=user)
     user_currency = user_settings[0].default_currency
 
-    all_user_records = Record.objects.visible_to(user) # type: ignore
+    all_user_records = Record.objects.visible_to(user)  # type: ignore
     active_records_qs = all_user_records.active()
 
     (
@@ -200,7 +200,7 @@ async def get_dashboard_context(user) -> dict:
     unread_notifications_count = cast(int, unread_notifications_count)
 
     orphaned_count = (
-        await DocumentData.objects.for_user(user) # type: ignore
+        await DocumentData.objects.for_user(user)  # type: ignore
         .orphaned()
         .exclude(
             status__in=[
