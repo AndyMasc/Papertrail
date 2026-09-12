@@ -137,7 +137,7 @@ class PlaidWebhookViewTest(TestCase):
             access_token="access-wh-1",
         )
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     @patch("plaid_integration.tasks.sync_and_convert_for_item_task")
     def test_sync_updates_available_webhook(self, mock_task):
         payload = {
@@ -154,7 +154,7 @@ class PlaidWebhookViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         mock_task.send.assert_called_once_with(self.plaid_item.id)
 
-    @override_settings(PLAID_ENV="sandbox", PLAID_SYNC_COOLDOWN_SECONDS=60)
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox", PLAID_SYNC_COOLDOWN_SECONDS=60)
     @patch("plaid_integration.tasks.sync_and_convert_for_item_task")
     def test_sync_webhook_debounced_within_cooldown(self, mock_task):
         from datetime import timedelta
@@ -183,7 +183,7 @@ class PlaidWebhookViewTest(TestCase):
         plaid_webhook(request)
         self.assertEqual(mock_task.send.call_count, 2)
 
-    @override_settings(PLAID_ENV="sandbox", PLAID_SYNC_COOLDOWN_SECONDS=60)
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox", PLAID_SYNC_COOLDOWN_SECONDS=60)
     @patch("plaid_integration.tasks.sync_and_convert_for_item_task")
     def test_sync_webhook_sets_last_synced_at(self, mock_task):
         payload = {
@@ -201,7 +201,7 @@ class PlaidWebhookViewTest(TestCase):
         self.assertIsNotNone(self.plaid_item.last_synced_at)
         mock_task.send.assert_called_once_with(self.plaid_item.id)
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     def test_item_login_required_webhook(self):
         payload = {
             "webhook_type": "ITEM",
@@ -218,7 +218,7 @@ class PlaidWebhookViewTest(TestCase):
         self.plaid_item.refresh_from_db()
         self.assertEqual(self.plaid_item.last_error_code, "ITEM_LOGIN_REQUIRED")
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     def test_transactions_removed_webhook(self):
         Record.objects.create(
             user=self.user,
@@ -243,7 +243,7 @@ class PlaidWebhookViewTest(TestCase):
         record = Record.objects.get(plaid_transaction_id="txn-remove-me")
         self.assertFalse(record.is_active)
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     def test_error_webhook(self):
         payload = {
             "webhook_type": "ITEM",
@@ -264,7 +264,7 @@ class PlaidWebhookViewTest(TestCase):
         self.plaid_item.refresh_from_db()
         self.assertEqual(self.plaid_item.last_error_code, "ITEM_NOT_FOUND")
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     def test_webhook_unknown_item_returns_ok(self):
         payload = {
             "webhook_type": "TRANSACTIONS",
@@ -317,7 +317,7 @@ class PlaidWebhookViewTest(TestCase):
         response = plaid_webhook(request)
         self.assertEqual(response.status_code, 403)
 
-    @override_settings(PLAID_ENV="sandbox")
+    @override_settings(DEBUG=True, PLAID_ENV="sandbox")
     def test_pending_expiration_webhook(self):
         payload = {
             "webhook_type": "ITEM",

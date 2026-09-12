@@ -38,16 +38,21 @@ else:
     database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
 DATABASES = {"default": database_config}
 DATABASES["default"].setdefault("CONN_MAX_AGE", env.int("DB_CONN_MAX_AGE", default=600))
+# Neon (serverless Postgres) suspends idle connections, which makes reused
+# persistent connections raise "server closed the connection unexpectedly".
+# CONN_HEALTH_CHECKS makes Django run a lightweight query before reusing a
+# pooled connection and reconnect if it has gone stale.
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = env.bool("DB_CONN_HEALTH_CHECKS", default=True)
 
 # Apps
 INSTALLED_APPS = [
     # Dramatiq
     "django_dramatiq",
     "django_periodiq",
-    # Unfold
-    "unfold",
     # Cachalot
     "cachalot",
+    # Django admin panel customization
+    "django_daisy",
     # Admin apps
     "django.contrib.admin",
     "django.contrib.auth",
@@ -78,6 +83,7 @@ INSTALLED_APPS = [
     "storages",
     # Local apps
     "core.apps.CoreConfig",
+    "docs.apps.DocsConfig",
     "documents.apps.DocumentsConfig",
     "records.apps.RecordsConfig",
     "accounting.apps.AccountingConfig",
@@ -349,6 +355,11 @@ if S3_STATIC_CDN_DOMAIN:
 
 TAILWIND_APP_NAME = "theme"
 TAILWIND_USE_STANDALONE_BINARY = True
+# Tailwind v4's `--watch` stops when stdin is closed (e.g. under honcho/forego);
+# `--watch=always` keeps the watcher alive so the dev server doesn't get killed.
+TAILWIND_STANDALONE_START_COMMAND_ARGS = (
+    "-i static_src/src/styles.css -o static/css/dist/styles.css --watch=always"
+)
 SITE_ID = 1
 
 # List view pagination
@@ -467,16 +478,6 @@ if _sentry_dsn:
         # CI/dev placeholders (e.g. "https://example.com") are not valid DSNs;
         # skip Sentry rather than crash the process.
         sentry_sdk.init(dsn="")
-
-# Unfold customization
-UNFOLD = {
-    "SITE_TITLE": "Verity Portal",
-    "SITE_HEADER": "Verity",
-    "SITE_SYMBOL": "description",  # Material Symbol
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": True,
-}
-
 
 # Dramatiq broker
 DRAMATIQ_ENCODER = "core.encoding.EmailPayloadEncoder"

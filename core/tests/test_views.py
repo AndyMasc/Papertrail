@@ -25,11 +25,12 @@ class LandingPageTest(TestCase):
 class PrivacyPolicyTest(TestCase):
     def test_status(self):
         response = self.client.get(reverse("core:privacy_policy"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], reverse("docs:privacy_policy"))
 
     def test_template(self):
-        response = self.client.get(reverse("core:privacy_policy"))
-        self.assertTemplateUsed(response, "core/privacy_policy.html")
+        response = self.client.get(reverse("core:privacy_policy"), follow=True)
+        self.assertTemplateUsed(response, "docs/privacy_policy.html")
 
 
 class HealthCheckTest(TestCase):

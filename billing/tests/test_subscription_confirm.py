@@ -1,12 +1,14 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from djstripe.models import Customer, Price, Product, Subscription, SubscriptionItem
 
 from .. import metadata
+from ..context_processors import _SUBSCRIPTION_STATUS_KEY
 from .helpers import FakeSession
 
 
@@ -138,3 +140,24 @@ class SubscriptionConfirmTests(TestCase):
         response = client.get(self.url, {"session_id": "cs_test"})
 
         self.assertEqual(response.status_code, 400)
+
+    def test_confirm_invalidates_subscription_status_cache(self):
+        # A primed per-user plan/subscription cache must be dropped when a plan
+        # (e.g. a storage pack) is purchased, so the sidebar updates immediately.
+        self.user.customer = self.customer
+        self.user.save()
+
+        cache.set(_SUBSCRIPTION_STATUS_KEY.format(user_id=self.user.id), {"plan": "free"}, 60)
+        self.assertIsNotNone(cache.get(_SUBSCRIPTION_STATUS_KEY.format(user_id=self.user.id)))
+
+        session = FakeSession(
+            customer="cus_existing",
+            client_reference_id=str(self.other_user.id),
+        )
+        client = self._patch_stripe(session)
+        client.force_login(self.user)
+
+        response = client.get(self.url, {"session_id": "cs_test"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(cache.get(_SUBSCRIPTION_STATUS_KEY.format(user_id=self.user.id)))

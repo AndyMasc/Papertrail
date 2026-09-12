@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="max-w-7xl mx-auto px-6 py-8 min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row gap-8"
+    <div class="max-w-9xl mx-auto px-6 py-8 min-h-[calc(100vh-4rem)] flex flex-col lg:flex-row gap-8"
          hx-ext="response-targets">
         <aside class="w-full lg:w-96 flex flex-col justify-between space-y-8 shrink-0">
             <div class="space-y-6">
@@ -253,5 +253,5 @@
                 </div>
             </main>
         </div>
-    {% endblock content %}
-    {% include 'core/pagination_controls.html' %}
+{% endblock content %}
+{% include 'core/pagination_controls.html' %}

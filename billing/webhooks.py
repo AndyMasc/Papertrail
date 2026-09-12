@@ -37,6 +37,8 @@ def handle_subscription_deleted(**kwargs: Any) -> None:
     if not sub_id:
         return
 
+    _invalidate_subscription_caches_for_event(stripe_sub)
+
     def _clear_user_subscription() -> None:
         from .models import CustomUser
 
@@ -45,3 +47,37 @@ def handle_subscription_deleted(**kwargs: Any) -> None:
             logger.info("Cleared subscription %s from %d user(s).", sub_id, updated_count)
 
     transaction.on_commit(_clear_user_subscription)
+
+
+def _invalidate_subscription_caches_for_event(stripe_sub: dict) -> None:
+    """Drop the cached plan/subscription status for every user tied to a sub.
+
+    Subscription lifecycle events (created/updated/deleted) change what the
+    sidebar and billing context display, so the per-user "subscription_status"
+    cache must be cleared for everyone who shares that Stripe customer.
+    """
+    customer_id = stripe_sub.get("customer")
+    if not customer_id:
+        return
+
+    from .context_processors import invalidate_subscription_status_cache
+    from .models import CustomUser
+
+    user_ids = list(CustomUser.objects.filter(customer_id=customer_id).values_list("id", flat=True))
+    for user_id in user_ids:
+        invalidate_subscription_status_cache(user_id)
+
+
+@djstripe_receiver("customer.subscription.created")
+@djstripe_receiver("customer.subscription.updated")
+def handle_subscription_changed(**kwargs: Any) -> None:
+    """Invalidate plan/subscription caches when a subscription is created or updated."""
+    event = kwargs.get("event")
+    if not event:
+        return
+
+    stripe_sub = event.data.get("object", {})
+    if not stripe_sub.get("id"):
+        return
+
+    _invalidate_subscription_caches_for_event(stripe_sub)

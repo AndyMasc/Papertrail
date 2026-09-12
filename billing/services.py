@@ -85,9 +85,17 @@ def customer_missing_in_stripe(customer_id: str) -> bool:
 def pricing_context(user) -> dict:
     """Build the pricing data shared by the pricing page and the landing page."""
     products = list(Product.objects.filter(active=True).prefetch_related("prices"))
+    base_plan = metadata.plan_for_user(user)
     for product in products:
         meta = metadata.PRODUCTS.get(product.id)
         product.features_list = meta.features if meta else []
+        # Add pro_only attribute for template rendering:
+        # - A product marked pro_only is only available to users on a paid
+        #   base plan. Free-plan (or anonymous) users see it as disabled.
+        if meta and meta.pro_only:
+            product.pro_only = base_plan.stripe_id == metadata.VERITY_FREE.stripe_id
+        else:
+            product.pro_only = False
 
     free_plan = metadata.VERITY_FREE
     free_plan.features_list = free_plan.features
@@ -103,12 +111,15 @@ def pricing_context(user) -> dict:
             and p.metadata.get("category") == category
         ]
 
+    base_plans = _by_category("base_plan")
+    storage_plans = _by_category("storage_plan")
+
     return {
         "products": products,
         "free_plan": free_plan,
         "has_active_subscription": bool(user.is_authenticated and user.has_active_subscription),
-        "base_plans": _by_category("base_plan"),
-        "storage_plans": _by_category("storage_plan"),
+        "base_plans": base_plans,
+        "storage_plans": storage_plans,
     }
 
 
@@ -168,5 +179,19 @@ def reconcile_subscription_statuses(
             local_status,
             remote_status,
         )
+
+        # A reconciled status change alters the user's plan/subscription state,
+        # so clear the cached billing context for every user on this customer.
+        from .context_processors import invalidate_subscription_status_cache
+        from .models import CustomUser
+
+        # djstripe's Subscription.customer_id holds the Stripe customer id,
+        # while CustomUser.customer_id is a plain FK keyed on djstripe_id.
+        customer = local.customer
+        if customer is not None:
+            for user_id in CustomUser.objects.filter(customer_id=customer.djstripe_id).values_list(
+                "id", flat=True
+            ):
+                invalidate_subscription_status_cache(user_id)
 
     return corrected

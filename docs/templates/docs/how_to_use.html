@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+    <main class="py-12 sm:py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-zinc-900 dark:text-zinc-100">
+        <div class="border-b border-zinc-200 dark:border-zinc-800 pb-8 mb-8">
+            <p class="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-2">Documentation</p>
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">How to Use Verity</h1>
+            <p class="mt-4 text-base text-zinc-600 dark:text-zinc-400">
+                Verity helps you organize receipts, invoices, warranties, financial documents, and purchase records in one secure central location. Learn how to capture, organize, search, and manage your data.
+            </p>
+        </div>
+        <div class="prose prose-zinc dark:prose-invert max-w-none space-y-10">
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">1. Getting Started</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    To begin using Verity, create an account using one of our supported single sign-on (SSO) authentication providers. Once authenticated, you will be redirected to your personal dashboard.
+                </p>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm mt-2">
+                    The dashboard serves as your central command hub—displaying recent uploads, quick metrics, pending review items, and primary navigation controls.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">2. Adding a Record</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm mb-3">
+                    Records can be introduced into Verity in three ways:
+                </p>
+                <ul class="list-disc pl-5 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    <li><strong>Document Upload:</strong> Drag and drop or select images (JPG, PNG) or PDFs.</li>
+                    <li><strong>Manual Entry:</strong> Manually input transaction details without uploading a file.</li>
+                    <li><strong>Bank Sync:</strong> Automatically import posted transactions via connected financial institutions.</li>
+                </ul>
+                <div class="mt-3 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+                    <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">Automated Information Extraction</h3>
+                    <p class="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        When uploading a document, Verity processes the file using AI to identify key fields: merchant name, transaction date, total amount, currency, category, and line items. AI-extracted data is designed as a starter draft—always review records when accuracy matters for legal or tax purposes.
+                    </p>
+                </div>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">3. Organizing Records</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Maintain full control over your document collection through flexible organizational tools:
+                </p>
+                <ul class="list-disc pl-5 mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    <li><strong>Folders & Categories:</strong> Group records by custom project, entity, or taxonomy.</li>
+                    <li><strong>Filtering & Edits:</strong> Filter views by date range, merchant, or price bracket, and edit metadata at any time.</li>
+                    <li><strong>Archiving:</strong> Hide settled or old records from primary views without deleting historical data.</li>
+                </ul>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">4. Financial Transactions</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    When you connect a financial account, transaction feeds are regularly synced. Verity uses transaction metadata (such as merchant name and date) to help automatically match physical receipts to bank records.
+                </p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-500 mt-2 italic">
+                    Note: Imported transactions originate directly from external financial institutions. Verity does not control or guarantee the accuracy or timeliness of provider feeds.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">5. Receipts and Supporting Documents</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Attach secondary attachments (such as user manuals, return shipping labels, or communication threads) directly to a primary purchase record so all related files stay tied together.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">6. Expiry Dates and Reminders</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Track warranty periods, return windows, and subscription renewal dates. Set notification leads (e.g., 7 days prior) to receive timely notifications before warranties expire.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">7. Search</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Quickly retrieve documents using search parameters across merchant names, notes, categories, line item descriptions, and OCR-parsed document text.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">8. Exporting Data</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Export tabular data and metadata to standardized CSV or Excel formats at any time. This allows seamless integration with tax preparation tools, spreadsheeting software, or personal archives.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">9. Managing Your Data</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    You own your data. You can edit entries, soft-archive inactive items, permanently remove specific records, or trigger a full account deletion directly from your account settings.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">10. Privacy and Security</h2>
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed text-sm">
+                    Verity enforces modern web security standards, strict access controls, and encrypted data transfers. Review our full <a href="{% url 'docs:privacy_policy' %}"
+                                                                                                                                            class="text-zinc-900 dark:text-zinc-100 underline underline-offset-4 font-medium">Privacy Policy</a> for granular details on data handling.
+                </p>
+            </section>
+            <section>
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">11. Tips for Getting the Most Out of Verity</h2>
+                <ul class="list-disc pl-5 space-y-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    <li>Upload receipt photos immediately at point-of-sale to avoid lost physical copies.</li>
+                    <li>Review AI-extracted totals prior to finalizing tax records.</li>
+                    <li>Establish consistent folder hierarchy rules (e.g., organize by tax year or home projects).</li>
+                    <li>Attach warranty certificates directly to high-value hardware purchases.</li>
+                    <li>Utilize CSV exports periodically for personal offline backups.</li>
+                </ul>
+            </section>
+            <section class="border-t border-zinc-200 dark:border-zinc-800 pt-8 mt-12">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Need help?</h2>
+                <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                    Have questions or feedback? Contact our support team directly at
+                    <a href="mailto:support@verity.app"
+                       class="text-zinc-900 dark:text-zinc-100 underline underline-offset-4">support@verity.app</a>.
+                </p>
+            </section>
+        </div>
+    </main>
+{% endblock %}

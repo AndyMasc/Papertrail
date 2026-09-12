@@ -44,9 +44,11 @@ def index(request: HttpRequest) -> HttpResponse:
     return render(request, "core/landing_page.html", pricing_context(request.user))
 
 
-def privacy_policy(request: HttpRequest) -> HttpResponse:
-    """Render the static privacy policy page."""
-    return render(request, "core/privacy_policy.html")
+def privacy_policy(_request: HttpRequest) -> HttpResponse:
+    """Render the static privacy policy page via docs app."""
+    from django.shortcuts import redirect
+
+    return redirect("docs:privacy_policy", permanent=True)
 
 
 def health_check(request: HttpRequest) -> JsonResponse:  # noqa: ARG001

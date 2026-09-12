@@ -163,6 +163,13 @@ class CustomUser(AbstractUser):
             self.subscription = djstripe_subscription
             self.save(update_fields=["subscription"])
 
+        # The plan/subscription cache must be dropped here, not only in webhook
+        # handlers, because this runs on the checkout-success view before any
+        # subscription webhook fires (e.g. a freshly purchased storage pack).
+        from .context_processors import invalidate_subscription_status_cache
+
+        invalidate_subscription_status_cache(self.id)
+
         overlaps_cleared = True
         active_subs = Subscription.objects.filter(customer=self.customer)
         for old_sub in active_subs:

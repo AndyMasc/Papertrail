@@ -250,14 +250,13 @@
                     return;
                 }
 
-                // Enhanced High-Visibility Vertical Gradient Fill
                 const grad = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
                 if (isDark) {
-                    grad.addColorStop(0, 'rgba(90, 103, 255, 0.45)'); // Much richer color intensity near top
+                    grad.addColorStop(0, 'rgba(90, 103, 255, 0.35)');
                     grad.addColorStop(0.5, 'rgba(90, 103, 255, 0.15)');
                     grad.addColorStop(1, 'rgba(90, 103, 255, 0)');     // Fades completely clear at the X-axis
                 } else {
-                    grad.addColorStop(0, 'rgba(90, 103, 255, 0.32)');
+                    grad.addColorStop(0, 'rgba(90, 103, 255, 0.22)');
                     grad.addColorStop(0.5, 'rgba(90, 103, 255, 0.10)');
                     grad.addColorStop(1, 'rgba(90, 103, 255, 0)');
                 }

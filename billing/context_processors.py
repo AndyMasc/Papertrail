@@ -6,7 +6,7 @@ from typing import Any
 from django.core.cache import cache
 from django.http import HttpRequest
 
-from . import entitlements, metadata
+from . import entitlements, features, metadata
 
 BILLING_CONTEXT_CACHE_TTL = 60
 
@@ -25,13 +25,23 @@ def invalidate_storage_usage_cache(user_id: int) -> None:
     cache.delete(_STORAGE_USAGE_KEY.format(user_id=user_id))
 
 
+def invalidate_subscription_status_cache(user_id: int) -> None:
+    """Drop the cached subscription/plan status for one user.
+
+    Call this whenever a user's subscriptions change (purchase, cancellation,
+    plan switch, status update) so the sidebar and billing context show the
+    current plan instead of the cached value.
+    """
+    cache.delete(_SUBSCRIPTION_STATUS_KEY.format(user_id=user_id))
+
+
 def _build_subscription_status(user) -> dict[str, Any]:
     active_subscriptions = metadata._active_subscriptions(user)
     is_subscribed = bool(active_subscriptions)
     primary_subscription = active_subscriptions[0] if active_subscriptions else None
 
     active_products = metadata.active_products_for_user(user)
-    plan_name = " + ".join(product.name for product in active_products) or (
+    plan_name = ", ".join(product.name for product in active_products) or (
         metadata.VERITY_FREE.name
     )
 
@@ -70,20 +80,26 @@ def scan_usage(request: HttpRequest) -> dict[str, Any]:
         return {}
 
     monthly_scan_limit = entitlements.get_monthly_scan_limit(user)
-    if monthly_scan_limit is None:
-        return {}  # hide counter for unlimited users
-
     period = date.today().strftime("%Y-%m")
     cache_key = _SCAN_USAGE_KEY.format(user_id=user.id, period=period)
     cached = cache.get(cache_key)
     if cached is not None:
+        # Return cached value even if we want fresh data; the cache TTL handles staleness
         return cached
 
     count = entitlements.get_monthly_scan_count(user)  # already filters by this period
+    limit = monthly_scan_limit if monthly_scan_limit is not None else features.PRO_SCAN_LIMIT
+    percentage = (count / limit * 100) if limit > 0 else 0
+
     value = {
         "scan_usage_count": count,
         "scan_usage_period": period,
-        "free_monthly_scan_limit": monthly_scan_limit,
+        "free_monthly_scan_limit": monthly_scan_limit
+        if monthly_scan_limit is not None
+        else features.PRO_SCAN_LIMIT,
+        "scan_usage_percentage": min(round(percentage), 100),
+        "is_fair_use_approaching": percentage >= 80 and percentage < 100,
+        "is_fair_use_exceeded": percentage >= 100,
     }
     cache.set(cache_key, value, BILLING_CONTEXT_CACHE_TTL)
     return value

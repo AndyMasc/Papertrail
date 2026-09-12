@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 mt-14">
+    <div class="max-w-9xl mx-auto py-10 space-y-6 mt-14">
         {% url 'documents:document_list_view' as documents_list_url %}
-        <!-- Header Section -->
         <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Documents</h1>
+            <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Uploads</h1>
             <div class="flex items-center gap-3 w-full sm:w-auto">
                 <a href="{% url 'documents:upload_document' %}"
                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-white bg-black dark:text-black dark:bg-white rounded-xl transition-colors cursor-pointer">
@@ -19,7 +18,6 @@
                 </a>
             </div>
         </header>
-        <!-- Query Filters & Actions Bar Container -->
         <section class="space-y-4" aria-label="Query Filters Matrix">
             <form id="filter-form"
                   hx-get="{{ documents_list_url }}"
@@ -27,17 +25,13 @@
                   hx-target="#query-results-container"
                   hx-include="#search"
                   class="flex flex-col gap-4">
-                <!-- Top Row: Search Bar -->
                 <div class="w-full">
                     {% include 'core/partials/list_search_input.html' with search_url=documents_list_url search_placeholder="Search documents by title or notes..." %}
                 </div>
-                <!-- Bottom Row: Subtle Clean Filter Pills -->
                 {% include 'core/partials/filter_pills.html' %}
             </form>
         </section>
-        <!-- Subtle Section Divider -->
         <hr class="border-zinc-200 dark:border-zinc-800/60">
-        <!-- Main Content Grid / Table Container -->
         <main id="query-results-container"
               class="relative min-h-0 w-full min-w-0 rounded-xl bg-white dark:bg-zinc-900/20 border border-zinc-200 dark:border-zinc-800/60 shadow-2xs overflow-hidden"
               hx-trigger="documentChanged from:body"
@@ -45,7 +39,6 @@
               hx-target="#query-results-container"
               hx-include="#filter-form, #search"
               hx-indicator=".htmx-indicator">
-            <!-- HTMX Loading Indicator -->
             <div class="htmx-indicator absolute inset-0 bg-white/50 dark:bg-zinc-950/50 backdrop-blur-[1px] z-10 hidden items-center justify-center rounded-xl">
                 <div class="text-xs font-medium text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/60 px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
                     <svg class="w-3.5 h-3.5 animate-spin text-zinc-500"
@@ -58,7 +51,6 @@
                     Updating...
                 </div>
             </div>
-            <!-- Table Header Row (Desktop Only) -->
             <div class="hidden sm:grid grid-cols-[minmax(0,1fr)_150px_130px_90px_44px] items-center gap-4 px-4 py-2.5 bg-zinc-50/80 dark:bg-zinc-900/60 border-b border-zinc-200 dark:border-zinc-800/60 text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                 <div>Document</div>
                 <div class="text-right mr-4">Source</div>

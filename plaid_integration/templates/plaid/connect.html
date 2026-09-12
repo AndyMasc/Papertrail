@@ -24,17 +24,17 @@
             color: #f4f4f5;
             isolation: isolate;
             box-shadow:
-                0 1px 0 0 rgba(255,255,255,0.04) inset,
-                0 6px 12px -6px var(--card-glow, rgba(0,0,0,0.2)),
-                0 1px 2px rgba(0,0,0,0.1);
+            0 1px 0 0 rgba(255,255,255,0.04) inset,
+            0 6px 12px -6px var(--card-glow, rgba(0,0,0,0.2)),
+            0 1px 2px rgba(0,0,0,0.1);
             transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s ease;
         }
         .bank-card-wrap:hover .bank-card {
             transform: translateY(-5px) scale(1.015);
             box-shadow:
-                0 1px 0 0 rgba(255,255,255,0.08) inset,
-                0 10px 20px -6px var(--card-glow, rgba(0,0,0,0.25)),
-                0 1px 3px rgba(0,0,0,0.15);
+            0 1px 0 0 rgba(255,255,255,0.08) inset,
+            0 10px 20px -6px var(--card-glow, rgba(0,0,0,0.25)),
+            0 1px 3px rgba(0,0,0,0.15);
         }
 
         .card-onyx     { background: linear-gradient(160deg,#26282f 0%,#121319 55%,#050506 100%); --card-glow: rgba(99,102,241,0.15); }
@@ -92,7 +92,7 @@
     </style>
 {% endblock extra_head %}
 {% block content %}
-    <div class="max-w-7xl mx-auto py-12 px-6 space-y-8 font-sans antialiased">
+    <div class="max-w-9xl mx-auto py-12 space-y-8 font-sans antialiased">
         <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-200/80 dark:border-zinc-800/80">
             <div>
                 <h1 class="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">Connected Banks</h1>

@@ -114,6 +114,12 @@ class ScanUsageTests(TestCase):
 
 class ContextProcessorTests(TestCase):
     def setUp(self):
+        # The subscription context is cached per user id (Redis), and user
+        # primary keys repeat across rollback-isolated tests, so start each
+        # test with a clean cache to avoid cross-test pollution.
+        from django.core.cache import cache
+
+        cache.clear()
         self.customer = Customer.objects.create(id="cus_cp", livemode=False, created=timezone.now())
         self.user = get_user_model().objects.create_user(
             username="cp",
@@ -165,7 +171,7 @@ class ContextProcessorTests(TestCase):
         ctx = subscription_status(self._request())
         self.assertEqual(ctx["plan_name"], metadata.VERITY_PRO.name)
         self.assertEqual(ctx["plan"], "paid")
-        self.assertIsNone(ctx["monthly_scan_limit"])
+        self.assertEqual(ctx["monthly_scan_limit"], features.PRO_SCAN_LIMIT)
 
     def _add_subscription(self, status="active", product_id=None):
         sub = Subscription.objects.create(
@@ -260,7 +266,7 @@ class StorageLimitTests(TestCase):
         self._add_subscription_with_product(metadata.STORAGE_UPGRADE_10.stripe_id)
         self.assertEqual(
             entitlements.get_storage_limit(self.user),
-            features.FREE_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB,
+            features.FREE_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
         )
         self.assertEqual(entitlements.get_plan(self.user), "free")
         self.assertEqual(metadata.plan_for_user(self.user).stripe_id, "free")
@@ -277,7 +283,7 @@ class StorageLimitTests(TestCase):
         self.user.save()
         self.assertEqual(
             entitlements.get_storage_limit(self.user),
-            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB,
+            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
         )
         self.assertEqual(entitlements.get_plan(self.user), "paid")
         self.assertEqual(

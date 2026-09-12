@@ -96,31 +96,21 @@ class StoragePackEntitlementTests(TestCase):
         return storage_sub
 
     def test_multiple_storage_addons_do_not_stack(self):
-        self._make_storage_sub(self.customer, sub_id="sub_25", price_id="price_25")
+        self._make_storage_sub(
+            self.customer,
+            sub_id="sub_25",
+            price_id="price_25",
+            product_meta=metadata.STORAGE_UPGRADE_1,
+        )
         self._make_storage_sub(
             self.customer,
             sub_id="sub_100",
             price_id="price_100",
-            product_meta=metadata.STORAGE_UPGRADE_50,
+            product_meta=metadata.STORAGE_UPGRADE_10,
         )
         self.assertEqual(
             entitlements.get_storage_limit(self.user),
-            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_50,
-        )
-        self.assertEqual(
-            [a.stripe_id for a in metadata.storage_addons_for_user(self.user)],
-            [metadata.STORAGE_UPGRADE_50.stripe_id],
-        )
-        self.assertEqual(
-            " + ".join(p.name for p in metadata.active_products_for_user(self.user)),
-            "Verity Pro + 50GB Storage Pack",
-        )
-
-    def test_limit_is_15_when_addon_shares_customer(self):
-        self._make_storage_sub(self.customer)
-        self.assertEqual(
-            entitlements.get_storage_limit(self.user),
-            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB,
+            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
         )
         self.assertEqual(
             [a.stripe_id for a in metadata.storage_addons_for_user(self.user)],
@@ -128,7 +118,22 @@ class StoragePackEntitlementTests(TestCase):
         )
         self.assertEqual(
             " + ".join(p.name for p in metadata.active_products_for_user(self.user)),
-            "Verity Pro + 10GB Storage Pack",
+            "Verity Pro + 10 GB Storage Pack",
+        )
+
+    def test_limit_is_15_when_addon_shares_customer(self):
+        self._make_storage_sub(self.customer)
+        self.assertEqual(
+            entitlements.get_storage_limit(self.user),
+            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
+        )
+        self.assertEqual(
+            [a.stripe_id for a in metadata.storage_addons_for_user(self.user)],
+            [metadata.STORAGE_UPGRADE_10.stripe_id],
+        )
+        self.assertEqual(
+            " + ".join(p.name for p in metadata.active_products_for_user(self.user)),
+            "Verity Pro + 10 GB Storage Pack",
         )
 
     def test_limit_is_15_when_addon_on_stray_customer(self):
@@ -141,7 +146,7 @@ class StoragePackEntitlementTests(TestCase):
         self._make_storage_sub(stray)
         self.assertEqual(
             entitlements.get_storage_limit(self.user),
-            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB,
+            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
         )
 
 
@@ -297,7 +302,7 @@ class StoragePackConfirmFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             entitlements.get_storage_limit(self.user),
-            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB,
+            features.PRO_STORAGE_LIMIT_GB + features.STORAGE_ADDITIONAL_GB_10,
         )
         self.assertEqual(
             metadata.plan_for_user(self.user).stripe_id,
@@ -372,3 +377,109 @@ class StoragePackConfirmFlowTests(TestCase):
             price=storage_price,
         )
         return storage_sub
+
+
+class ProOnlyCheckoutTests(TestCase):
+    """Free users must not be able to purchase pro-only storage packs."""
+
+    def setUp(self):
+        self.customer = Customer.objects.create(
+            id="cus_proonly", livemode=False, created=timezone.now()
+        )
+        self.user = get_user_model().objects.create_user(
+            username="proonly_buyer",
+            email="proonly@example.com",
+            password="password",
+        )
+        self.user.customer = self.customer
+        self.user.save()
+
+        for meta in (
+            metadata.STORAGE_UPGRADE_10,
+            metadata.STORAGE_UPGRADE_5,
+            metadata.STORAGE_UPGRADE_1,
+        ):
+            product, _ = Product.objects.get_or_create(
+                id=meta.stripe_id,
+                defaults={"livemode": False, "active": True, "name": meta.name},
+            )
+            Price.objects.create(
+                id="price_" + meta.stripe_id.replace("prod_", ""),
+                livemode=False,
+                active=True,
+                product=product,
+                currency="usd",
+            )
+
+        pro_product, _ = Product.objects.get_or_create(
+            id=metadata.VERITY_PRO.stripe_id,
+            defaults={"livemode": False, "active": True, "name": "Verity Pro"},
+        )
+        Price.objects.create(
+            id="price_pro",
+            livemode=False,
+            active=True,
+            product=pro_product,
+            currency="usd",
+        )
+
+    def _storage_price_id(self, meta):
+        return "price_" + meta.stripe_id.replace("prod_", "")
+
+    def _post_checkout(self, price_id):
+        with (
+            mock.patch("billing.views.Customer.get_or_create") as get_or_create,
+            mock.patch("billing.services.create_checkout_session") as session_create,
+            mock.patch(
+                "billing.services.stripe.Customer.retrieve",
+                return_value=type("R", (), {"deleted": False})(),
+            ),
+        ):
+            get_or_create.return_value = (self.customer, False)
+            session_create.return_value = FakeSession(subscription=None)
+            self.client.force_login(self.user)
+            response = self.client.post(
+                reverse("create_checkout_session"), {"storage_price_id": price_id}
+            )
+        return response, session_create
+
+    def test_free_user_cannot_checkout_pro_only_storage(self):
+        for meta in (metadata.STORAGE_UPGRADE_10, metadata.STORAGE_UPGRADE_5):
+            response, session_create = self._post_checkout(self._storage_price_id(meta))
+            self.assertEqual(response.status_code, 400)
+            session_create.assert_not_called()
+
+    def test_free_user_can_checkout_available_storage(self):
+        response, session_create = self._post_checkout(
+            self._storage_price_id(metadata.STORAGE_UPGRADE_1)
+        )
+        self.assertEqual(response.status_code, 302)
+        session_create.assert_called_once()
+        self.assertEqual(
+            session_create.call_args.kwargs["line_items"][0]["price"],
+            self._storage_price_id(metadata.STORAGE_UPGRADE_1),
+        )
+
+    def test_pro_user_can_checkout_pro_only_storage(self):
+        pro_sub = Subscription.objects.create(
+            id="sub_proonly_pro",
+            livemode=False,
+            created=timezone.now(),
+            customer=self.customer,
+            stripe_data={"status": "active"},
+        )
+        SubscriptionItem.objects.create(
+            id="si_proonly_pro",
+            livemode=False,
+            created=timezone.now(),
+            subscription=pro_sub,
+            price=Price.objects.get(id="price_pro"),
+        )
+        self.user.subscription = pro_sub
+        self.user.save()
+
+        response, session_create = self._post_checkout(
+            self._storage_price_id(metadata.STORAGE_UPGRADE_10)
+        )
+        self.assertEqual(response.status_code, 302)
+        session_create.assert_called_once()

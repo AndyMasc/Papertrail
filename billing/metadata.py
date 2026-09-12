@@ -29,6 +29,9 @@ class ProductMetadata:
     # Monthly Quick Scan allowance; None means unlimited. Storage add-ons leave
     # this unset -- scan entitlement always comes from the user's base plan.
     monthly_scan_limit: int | None = None
+    # If True, this product is only available to users with a paid base plan.
+    # Free users can see it as "disabled" but cannot purchase it via Stripe.
+    pro_only: bool = False
 
 
 VERITY_FREE = ProductMetadata(
@@ -47,7 +50,7 @@ VERITY_FREE = ProductMetadata(
 )
 
 VERITY_PRO = ProductMetadata(
-    stripe_id="prod_V0BRybbfIkmRH4",
+    stripe_id="prod_VC8WUN1RO4Apqx",
     name="Verity Pro",
     description="For small businesses and teams",
     category="base_plan",
@@ -61,35 +64,51 @@ VERITY_PRO = ProductMetadata(
         features.RECORD_SHARING,
     ],
     storage_limit_gb=features.PRO_STORAGE_LIMIT_GB,
+    monthly_scan_limit=features.PRO_SCAN_LIMIT,
 )
 
 STORAGE_UPGRADE_10 = ProductMetadata(
     stripe_id="prod_V0dPTSMZjCZNuk",
-    name="10GB Storage Pack",
-    description="",
+    name="10 GB Storage Pack",
+    description="Additional 10 GB cloud storage (Pro users only)",
     category="storage_plan",
     features=[
-        features.STORAGE_UPGRADE_10,
+        features.STORAGE_UPGRADE_GB_10,
     ],
-    storage_limit_gb=features.STORAGE_ADDITIONAL_GB,
+    storage_limit_gb=features.STORAGE_ADDITIONAL_GB_10,
+    pro_only=True,  # Pro users only
 )
 
-STORAGE_UPGRADE_50 = ProductMetadata(
-    stripe_id="prod_V1l2wc31fzcmgH",
-    name="50GB Storage Pack",
-    description="",
+STORAGE_UPGRADE_5 = ProductMetadata(
+    stripe_id="prod_VCgHfYDCC6aDCN",
+    name="5 GB Storage Pack",
+    description="Additional 5 GB cloud storage (Pro users only)",
     category="storage_plan",
     features=[
-        features.STORAGE_UPGRADE_50,
+        features.STORAGE_UPGRADE_GB_5,
     ],
-    storage_limit_gb=features.STORAGE_ADDITIONAL_GB_50,
+    storage_limit_gb=features.STORAGE_ADDITIONAL_GB_5,
+    pro_only=True,  # Pro users only
+)
+
+STORAGE_UPGRADE_1 = ProductMetadata(
+    stripe_id="prod_VCg5fBU3aujCi9",
+    name="1 GB Storage Pack",
+    description="Additional 1 GB cloud storage (available to all plans)",
+    category="storage_plan",
+    features=[
+        features.STORAGE_UPGRADE_GB_1,
+    ],
+    storage_limit_gb=features.STORAGE_ADDITIONAL_GB_1,
+    pro_only=False,  # Available to everyone (free or paid)
 )
 
 PRODUCTS = {
     VERITY_PRO.stripe_id: VERITY_PRO,
     VERITY_FREE.stripe_id: VERITY_FREE,
     STORAGE_UPGRADE_10.stripe_id: STORAGE_UPGRADE_10,
-    STORAGE_UPGRADE_50.stripe_id: STORAGE_UPGRADE_50,
+    STORAGE_UPGRADE_5.stripe_id: STORAGE_UPGRADE_5,
+    STORAGE_UPGRADE_1.stripe_id: STORAGE_UPGRADE_1,
 }
 
 

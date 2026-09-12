@@ -22,6 +22,7 @@ from djstripe.models import (
 from djstripe.settings import djstripe_settings
 
 from . import metadata, services
+from .metadata import VERITY_FREE, plan_for_user
 from .models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -90,8 +91,12 @@ def create_portal_session(request: HttpRequest) -> HttpResponse:
     return HttpResponseRedirect(portal_session.url)
 
 
-def _validated_price(price_id: str | None, category: str) -> str | None:
-    """Return the price ID only if it belongs to an active product in "category"."""
+def _validated_price(price_id: str | None, category: str, user=None) -> str | None:
+    """Return the price ID only if it belongs to an active product in "category".
+
+    Pro-only products (e.g. the +5GB/+10GB storage packs) require a paid base
+    plan; a user on the Free plan (or anonymous) is not allowed to buy them.
+    """
     if not price_id:
         return None
     price = Price.objects.filter(id=price_id, active=True).select_related("product").first()
@@ -99,6 +104,8 @@ def _validated_price(price_id: str | None, category: str) -> str | None:
         return None
     meta = metadata.PRODUCTS.get(price.product.id)
     if meta is None or meta.category != category:
+        return None
+    if meta.pro_only and plan_for_user(user).stripe_id == VERITY_FREE.stripe_id:
         return None
     return price_id
 
@@ -118,8 +125,8 @@ def _checkout_quantity(raw_qty: str | None, max_quantity: int = 100) -> int:
 def create_checkout_session(request: HttpRequest) -> HttpResponse:
     user = cast(CustomUser, request.user)
 
-    base_price_id = _validated_price(request.POST.get("base_price_id"), "base_plan")
-    storage_price_id = _validated_price(request.POST.get("storage_price_id"), "storage_plan")
+    base_price_id = _validated_price(request.POST.get("base_price_id"), "base_plan", user)
+    storage_price_id = _validated_price(request.POST.get("storage_price_id"), "storage_plan", user)
 
     if not base_price_id and not storage_price_id:
         return HttpResponseBadRequest("Select a valid plan to proceed to checkout.")

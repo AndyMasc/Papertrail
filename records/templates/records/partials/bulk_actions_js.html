@@ -30,7 +30,7 @@
                 // by infinite scroll. data-record-id appears on both the poster
                 // wrapper and the card root, so dedupe.
                 const container = document.getElementById('query-results-container')
-                    || document.getElementById('dashboard-content');
+                || document.getElementById('dashboard-content');
                 if (!container) return [];
                 return [...new Set(
                     [...container.querySelectorAll('[data-record-id]')].map(el => el.dataset.recordId)
@@ -77,7 +77,7 @@
                 this.packageTitle = 'Expense Reimbursement';
                 this.recipientEmail = '';
                 this.includeDocuments = true;
-this.recipientStatus = '';
+                this.recipientStatus = '';
                 this.recipientRegistered = false;
                 this.showPackageModal = true;
             },
@@ -145,7 +145,7 @@ this.recipientStatus = '';
 
             onEmailInput() {
                 clearTimeout(this.emailCheckTimeout);
-this.recipientStatus = '';
+                this.recipientStatus = '';
                 this.recipientRegistered = false;
                 if (!this.recipientEmail.trim() || !this.recipientEmail.includes('@')) return;
                 this.emailCheckTimeout = setTimeout(() => this.checkEmail(), 500);
